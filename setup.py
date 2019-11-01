@@ -14,5 +14,5 @@ setup(
         'Intended Audience :: Science/Research'
         'Topic :: Scientific/Engineering :: Morphology Analysis',
         'Programming Language :: Python :: 3.7',
-    ],
+    ], install_requires=['numpy', 'networkx', 'scipy']
 )
