@@ -5,9 +5,9 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-from collections import defaultdict, deque
 import networkx as nx
 import numpy as np
+from collections import defaultdict, deque
 
 
 def global_bfs(g: nx.Graph, source: int) -> np.ndarray:
@@ -71,7 +71,6 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
         weights = [g[source][i]['weight'] for i in neighbors]
     except KeyError:
         raise Exception("edge without weight detected.")
-        return np.array([])
     de = deque([(neighbors[i], weights[i])
                 for i in range(len(neighbors)) if weights[i] <= max_dist])
     while de:
@@ -84,3 +83,69 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
                            for i in range(len(neighbors)) if weights[i] <= max_dist])
 
     return np.array(visited)
+
+
+def extract_mesh_subset(skel_nodes: np.ndarray, vertices: np.ndarray, mapping: defaultdict) -> np.ndarray:
+    """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
+
+    Args:
+        skel_nodes: Index array of skeleton nodes (entries refer to indices of ``skel_nodes`` array from pointcloud)
+            as base for the mesh subset.
+        vertices: The total mesh in form of a coordinate array of shape (n, 3).
+        mapping: A mapping dict between skeleton and mesh with skeleton nodes as keys and lists of the corresponding
+            mesh vertices (to which the respective node is nearest) as values.
+
+    Returns:
+        An coordinate array of shape (n, 3) with the subset of vertices.
+    """
+    total = []
+    for i in skel_nodes:
+        total.extend(mapping[i])
+    return vertices[total]
+
+
+def sample_subset(subset: np.ndarray, vertex_number: int, random_seed=None) -> np.ndarray:
+    """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
+    vertices. If the requested number of points is larger than the given subset, the subset gets enriched with its own
+    augmented points before sampling.
+
+    Args:
+        subset: An array of mesh vertices with shape (n,3).
+        vertex_number: The number of points which should make up the sample point cloud.
+        random_seed: Possibility for making the sampling deterministic.
+
+    Returns:
+        Array of sampled points
+    """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+    dim = max(subset.shape)
+    if dim < vertex_number:
+        deficit = vertex_number - dim
+        aug_extract = np.array([])
+        while max(aug_extract.shape) < deficit:
+            extract = subset[np.random.choice(np.arange(dim), int(dim/(1/4)))]
+            # TODO: Better augmentation needed?
+            if max(aug_extract.shape) == 0:
+                aug_extract = extract+np.random.random(extract.shape)
+            else:
+                aug_extract = np.concatenate((aug_extract, extract+np.random.random(extract.shape)), axis=0)
+        compensation = aug_extract[np.random.choice(np.arange(max(aug_extract.shape)), deficit)]
+        return np.concatenate((subset, compensation), axis=0)
+    else:
+        return subset[np.random.choice(np.arange(dim), vertex_number)]
+
+
+def normalize_cloud(cloud: np.ndarray) -> np.ndarray:
+    """ Centers and normalizes point cloud.
+
+    Args:
+        cloud: Point cloud as array of coordinates.
+
+    Returns:
+        Centered and normalized point cloud as array of coordinates.
+    """
+    centroid = np.mean(cloud, axis=0)
+    c_cloud = cloud-centroid
+    nc_cloud = c_cloud / np.linalg.norm(c_cloud)
+    return nc_cloud
