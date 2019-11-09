@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
 import networkx as nx
 import numpy as np
 from collections import defaultdict, deque
@@ -21,7 +22,49 @@ def global_bfs(g: nx.Graph, source: int) -> np.ndarray:
         np.ndarray with nodes sorted recording to the result of the BFS.
     """
     tree = nx.bfs_tree(g, source)
+    # TODO: Return iterator instead of array
     return np.array(list(tree.nodes))
+
+
+def global_bfs_dist(g: nx.Graph, source: int, min_dist: int) -> np.ndarray:
+    """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
+    neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal
+    size based on the output of this method.
+
+    Args:
+        g: The weighted networkx graph on which the BFS should be performed. Weights must be accessible
+            by g[a][b]['weight'] for the edge from node a to node b.
+        source: The source node from which the BFS should start.
+        min_dist: The minimum distance between nodes in the BFS result.
+
+    Returns:
+        np.ndarray with nodes sorted recording to the result of the filtered BFS
+    """
+    visited = [source]
+    chosen = [source]
+    neighbors = list(nx.neighbors(g, source))
+    weights = [g[source][i]['weight'] for i in neighbors]
+
+    # add all neighbors with respective weights
+    de = deque([(neighbors[i], weights[i]) for i in range(len(neighbors))])
+    while de:
+        curr, weight = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+
+            # only nodes with minimum distance to other chosen nodes get added
+            if weight >= min_dist:
+                chosen.append(curr)
+                weight = 0
+
+            # add all neighbors with their weights added to the current weight
+            neighbors = list(nx.neighbors(g, curr))
+            weights = [g[curr][i]['weight'] + weight for i in neighbors]
+            de.extendleft([(neighbors[i], weights[i])
+                           for i in range(len(neighbors))])
+
+    # return only chosen nodes
+    return np.array(chosen)
 
 
 def local_bfs_num(g: nx.Graph, source: int, num: int, mapping: defaultdict) -> np.ndarray:
@@ -67,10 +110,7 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
     """
     visited = [source]
     neighbors = list(nx.neighbors(g, source))
-    try:
-        weights = [g[source][i]['weight'] for i in neighbors]
-    except KeyError:
-        raise Exception("edge without weight detected.")
+    weights = [g[source][i]['weight'] for i in neighbors]
     de = deque([(neighbors[i], weights[i])
                 for i in range(len(neighbors)) if weights[i] <= max_dist])
     while de:
@@ -102,50 +142,3 @@ def extract_mesh_subset(skel_nodes: np.ndarray, vertices: np.ndarray, mapping: d
     for i in skel_nodes:
         total.extend(mapping[i])
     return vertices[total]
-
-
-def sample_subset(subset: np.ndarray, vertex_number: int, random_seed=None) -> np.ndarray:
-    """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
-    vertices. If the requested number of points is larger than the given subset, the subset gets enriched with its own
-    augmented points before sampling.
-
-    Args:
-        subset: An array of mesh vertices with shape (n,3).
-        vertex_number: The number of points which should make up the sample point cloud.
-        random_seed: Possibility for making the sampling deterministic.
-
-    Returns:
-        Array of sampled points
-    """
-    if random_seed is not None:
-        np.random.seed(random_seed)
-    dim = max(subset.shape)
-    if dim < vertex_number:
-        deficit = vertex_number - dim
-        aug_extract = np.array([])
-        while max(aug_extract.shape) < deficit:
-            extract = subset[np.random.choice(np.arange(dim), int(dim/(1/4)))]
-            # TODO: Better augmentation needed?
-            if max(aug_extract.shape) == 0:
-                aug_extract = extract+np.random.random(extract.shape)
-            else:
-                aug_extract = np.concatenate((aug_extract, extract+np.random.random(extract.shape)), axis=0)
-        compensation = aug_extract[np.random.choice(np.arange(max(aug_extract.shape)), deficit)]
-        return np.concatenate((subset, compensation), axis=0)
-    else:
-        return subset[np.random.choice(np.arange(dim), vertex_number)]
-
-
-def normalize_cloud(cloud: np.ndarray) -> np.ndarray:
-    """ Centers and normalizes point cloud.
-
-    Args:
-        cloud: Point cloud as array of coordinates.
-
-    Returns:
-        Centered and normalized point cloud as array of coordinates.
-    """
-    centroid = np.mean(cloud, axis=0)
-    c_cloud = cloud-centroid
-    nc_cloud = c_cloud / np.linalg.norm(c_cloud)
-    return nc_cloud

@@ -6,7 +6,7 @@ setup(
     description='Toolkit for exploration and segmentation of 3D morphologies in form of point clouds or meshes.',
     url='https://github.com/StructuralNeurobiologyLab/MorphX',
     download_url='https://github.com/StructuralNeurobiologyLab/MorphX.git',
-    author='Jonathan Klimesch, Yang Liu, Philipp Schubert',
+    author='Jonathan Klimesch',
     author_email='jklimesch@neuro.mpg.de',
     classifiers=[
         'Development Status :: 1 - Planning',
@@ -14,5 +14,5 @@ setup(
         'Intended Audience :: Science/Research'
         'Topic :: Scientific/Engineering :: Morphology Analysis',
         'Programming Language :: Python :: 3.7',
-    ], install_requires=['numpy', 'networkx', 'scipy']
+    ], install_requires=['numpy', 'networkx', 'scipy', 'open3d']
 )
