@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import networkx as nx
 import numpy as np
 from collections import defaultdict, deque
@@ -123,22 +122,3 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
                            for i in range(len(neighbors)) if weights[i] <= max_dist])
 
     return np.array(visited)
-
-
-def extract_mesh_subset(skel_nodes: np.ndarray, vertices: np.ndarray, mapping: defaultdict) -> np.ndarray:
-    """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
-
-    Args:
-        skel_nodes: Index array of skeleton nodes (entries refer to indices of ``skel_nodes`` array from pointcloud)
-            as base for the mesh subset.
-        vertices: The total mesh in form of a coordinate array of shape (n, 3).
-        mapping: A mapping dict between skeleton and mesh with skeleton nodes as keys and lists of the corresponding
-            mesh vertices (to which the respective node is nearest) as values.
-
-    Returns:
-        An coordinate array of shape (n, 3) with the subset of vertices.
-    """
-    total = []
-    for i in skel_nodes:
-        total.extend(mapping[i])
-    return vertices[total]

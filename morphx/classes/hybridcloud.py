@@ -16,22 +16,29 @@ class HybridCloud(object):
     Class which represents a skeleton in form of a graph structure and a mesh which surrounds this skeleton.
     """
 
-    def __init__(self, skel_nodes: np.ndarray, skel_edges: np.ndarray, vertices: np.ndarray, mesh2skel_dict=None):
+    def __init__(self, skel_nodes: np.ndarray, skel_edges: np.ndarray, vertices: np.ndarray, vert2skel_dict=None,
+                 labels=None):
         """
         Args:
             skel_nodes: coordinates of the nodes of the skeleton with shape (n, 3).
             skel_edges: edge list with indices of nodes in skel_nodes with shape (n, 2).
             vertices: coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
-            mesh2skel_dict: dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
+            vert2skel_dict: dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
+            labels: vertex label array (integer number representing respective classe) with same dimensions as
+                vertices.
         """
         self._skel_nodes = skel_nodes
         self._skel_edges = skel_edges
         self._vertices = vertices
 
-        self._mesh2skel_dict = None
-        if mesh2skel_dict is not None:
-            self._mesh2skel_dict = mesh2skel_dict
+        self._vert2skel_dict = None
+        if vert2skel_dict is not None:
+            self._vert2skel_dict = vert2skel_dict
+
+        self._labels = None
+        if labels is not None:
+            self._labels = labels
 
         self._weighted_graph = None
         self._simple_graph = None
@@ -50,28 +57,33 @@ class HybridCloud(object):
 
     @property
     def vertices(self) -> np.ndarray:
-        """ Coordinates of the mesh vertices which surround the skeleton as np.ndarray
+        """ Coordinates of the vertices which surround the skeleton as np.ndarray
         with shape (n, 3).
         """
         return self._vertices
 
     @property
-    def mesh2skel_dict(self) -> defaultdict:
-        """ Creates python defaultdict with indices of skel_nodes as keys and lists of mesh vertex
+    def vert2skel_dict(self) -> defaultdict:
+        """ Creates python defaultdict with indices of skel_nodes as keys and lists of vertex
         indices which have their key node as nearest skeleton node.
 
         Returns:
             Python defaultdict with mapping information
         """
-        if self._mesh2skel_dict is None:
+        if self._vert2skel_dict is None:
             tree = cKDTree(self.skel_nodes)
             dist, ind = tree.query(self.vertices, k=1)
 
-            self._mesh2skel_dict = defaultdict(list)
+            self._vert2skel_dict = defaultdict(list)
             for vertex_idx, skel_idx in enumerate(ind):
-                self._mesh2skel_dict[skel_idx].append(vertex_idx)
+                self._vert2skel_dict[skel_idx].append(vertex_idx)
 
-        return self._mesh2skel_dict
+        return self._vert2skel_dict
+
+    @property
+    def labels(self) -> np.ndarray:
+        """ Vertex label array with same shape as vertices."""
+        return self._labels
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the

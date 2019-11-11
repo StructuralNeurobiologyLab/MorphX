@@ -13,15 +13,20 @@ from scipy.spatial import cKDTree
 
 class PointCloud(object):
     """
-    Class which represents a collection of points in 3D space.
+    Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray):
+    def __init__(self, vertices: np.ndarray, labels=None):
         """
         Args:
             vertices: coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
+            labels: vertex label array with same shape as vertices.
         """
         self._vertices = vertices
+
+        self._labels = None
+        if labels is not None:
+            self._labels = labels
 
     @property
     def vertices(self) -> np.ndarray:
@@ -29,3 +34,8 @@ class PointCloud(object):
         with shape (n, 3).
         """
         return self._vertices
+
+    @property
+    def labels(self) -> np.ndarray:
+        """ Vertex label array with same shape as vertices. """
+        return self._labels
