@@ -17,12 +17,12 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
     augmented points before sampling.
 
     Args:
-        cloud:
+        cloud: Array of points with shape (n,3)
         vertex_number: The number of points which should make up the sample point cloud.
         random_seed: Possibility for making the sampling deterministic.
 
     Returns:
-        Array of sampled points and their labels
+        Array of sampled points
     """
     if len(cloud) == 0:
         return cloud
@@ -32,17 +32,11 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
 
     dim = cloud.shape[1]
     sample = np.zeros((vertex_number, dim))
-    # if labels is not None:
-    #     sample_lab = np.zeros((vertex_number, 1))
-    # else:
-    #     sample_lab = None
     deficit = vertex_number - len(cloud)
 
     vert_ixs = np.arange(len(cloud))
     np.random.shuffle(vert_ixs)
     sample[:min(len(cloud), vertex_number)] = cloud[vert_ixs[:vertex_number]]
-    # if labels is not None:
-    #     sample_lab[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
 
     # add augmented points to reach requested number of samples
     if deficit > 0:
@@ -52,8 +46,6 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
             compensation = min(len(cloud), len(sample)-offset)
             np.random.shuffle(vert_ixs)
             sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
-            # if labels is not None:
-            #     sample_lab[offset:offset + compensation] = cloud[vert_ixs[:compensation]]
             offset += compensation
 
         # TODO: change to augmentation method from elektronn3
@@ -62,24 +54,23 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
     return sample
 
 
-def center_cloud(pc: PointCloud, normalize=False) -> PointCloud:
+def center_cloud(cloud: np.ndarray, normalize=False) -> np.ndarray:
     """ Centers (and normalizes) point cloud.
 
     Args:
-        pc: A morphx point cloud object.
+        cloud: Array of points with shape (n,3)
         normalize: flag for optional normalization of the cloud.
 
     Returns:
-        MorphX PointCloud object with centered (and normalized) vertices.
+        Array of centered (and normalized) points.
     """
-    cloud = pc.vertices
     centroid = np.mean(cloud, axis=0)
     c_cloud = cloud - centroid
 
     if normalize:
         c_cloud = c_cloud / np.linalg.norm(c_cloud)
 
-    return PointCloud(c_cloud, labels=pc.labels)
+    return c_cloud
 
 
 def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
@@ -134,7 +125,7 @@ def visualize_clouds(clouds: list, capture=False, path=""):
     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
 
     Args:
-        clouds: List of MorphX PointCloud objects
+        clouds: List of arrays of points with shape (n,3).
         capture: Flag to only save screenshot without showing the cloud.
         path: filepath where screenshot should be saved.
     """
