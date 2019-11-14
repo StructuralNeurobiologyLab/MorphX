@@ -7,6 +7,7 @@
 
 import numpy as np
 import networkx as nx
+import morphx.processing.graphs as graphs
 from collections import defaultdict
 from scipy.spatial import cKDTree
 
@@ -42,6 +43,7 @@ class HybridCloud(object):
 
         self._weighted_graph = None
         self._simple_graph = None
+        self._traverser = None
 
     @property
     def skel_nodes(self) -> np.ndarray:
@@ -117,3 +119,23 @@ class HybridCloud(object):
             return self._simple_graph
         else:
             return self._weighted_graph
+
+    def traverser(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
+        """ Creates an array of node indices which can be used as the order in which the hybrid should be
+        traversed. With method = 'global_bfs', this method calculates the global BFS for the weighted graph
+        of this hybrid object.
+
+        Args:
+            method: The method with which the order array should be created.
+                'global_bfs' for global BFS with minimum distance.
+            min_dist: The minimum distance between points in the result of the BFS.
+            source: The starting point of the BFS.
+
+        Returns:
+              Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
+        """
+        if self._traverser is None:
+            if method == 'global_bfs':
+                self._traverser = graphs.global_bfs_dist(self._weighted_graph, min_dist, source)
+
+        return self._traverser

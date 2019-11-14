@@ -25,7 +25,7 @@ def global_bfs(g: nx.Graph, source: int) -> np.ndarray:
     return np.array(list(tree.nodes))
 
 
-def global_bfs_dist(g: nx.Graph, source: int, min_dist: int) -> np.ndarray:
+def global_bfs_dist(g: nx.Graph, min_dist: int, source=-1) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
     neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal
     size based on the output of this method.
@@ -33,12 +33,15 @@ def global_bfs_dist(g: nx.Graph, source: int, min_dist: int) -> np.ndarray:
     Args:
         g: The weighted networkx graph on which the BFS should be performed. Weights must be accessible
             by g[a][b]['weight'] for the edge from node a to node b.
-        source: The source node from which the BFS should start.
+        source: The source node from which the BFS should start. Default is -1 which stands for a random node
         min_dist: The minimum distance between nodes in the BFS result.
 
     Returns:
         np.ndarray with nodes sorted recording to the result of the filtered BFS
     """
+    if source == -1:
+        source = np.random.randint(g.number_of_nodes())
+
     visited = [source]
     chosen = [source]
     neighbors = list(nx.neighbors(g, source))
