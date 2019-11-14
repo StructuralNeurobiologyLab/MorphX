@@ -7,9 +7,11 @@
 
 import numpy as np
 from collections import defaultdict
+from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.pointcloud import PointCloud
 
 
-def extract_mesh_subset(vertices: np.ndarray, mapping: defaultdict, local_bfs: np.ndarray) -> np.ndarray:
+def extract_mesh_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
     """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
 
     Args:
@@ -20,8 +22,11 @@ def extract_mesh_subset(vertices: np.ndarray, mapping: defaultdict, local_bfs: n
     Returns:
         Array of vertices with shape (n, 3).
     """
+    mapping = hybrid.vert2skel_dict
+    vertices = hybrid.vertices
+
     total = []
     for i in local_bfs:
         total.extend(mapping[i])
 
-    return vertices[total]
+    return PointCloud(vertices[total])

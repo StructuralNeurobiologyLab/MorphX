@@ -1,7 +1,9 @@
 import glob
 import pickle
+import time
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.pointcloud import PointCloud
 from morphx.processing import graphs, clouds, hybrids
 
 
@@ -26,38 +28,41 @@ if __name__ == '__main__':
 
     # visualize initial state
     hybrid = hybrid_list[0]
-    clouds.visualize_clouds([hybrid.vertices])
-    # clouds.visualize_clouds([hybrid.skel_nodes])
+    # clouds.visualize_clouds([hybrid.vertices])
 
     # radius of local BFS at sampling positions
     radius = 2000
+    overlap = 500
+    sample_num = 1000
 
     # get information
     nodes = hybrid.skel_nodes
-    vertices = hybrid.vertices
-    mapping = hybrid.vert2skel_dict
     graph = hybrid.graph()
 
     # perform global bfs
     np.random.shuffle(nodes)
     source = np.random.randint(len(nodes))
+    start = time.time()
     spoints = graphs.global_bfs_dist(graph, source, radius * 2)
-
-    print(len(spoints))
+    print("Global BFS duration: ", time.time()-start)
+    print("Number of sample points: ", len(spoints))
 
     # perform splitting and stack results together
-    total = np.array([])
+    total = PointCloud(np.array([]))
+    duration = 0
     im_name = 0
     for spoint in spoints:
-        local_bfs = graphs.local_bfs_dist(graph, spoint, radius+500)
-        subset = hybrids.extract_mesh_subset(vertices, mapping, local_bfs)
-        subset = clouds.sample_cloud(subset, 1000)
-        if len(total) == 0:
+        start = time.time()
+        local_bfs = graphs.local_bfs_dist(graph, spoint, radius+overlap)
+        subset = hybrids.extract_mesh_subset(hybrid, local_bfs)
+        subset = clouds.sample_cloud(subset, sample_num)
+        duration += time.time()-start
+
+        if len(total.vertices) == 0:
             total = subset
         else:
-            total = np.concatenate((total, subset))
+            total = clouds.merge_clouds(total, subset)
         im_name += 1
-        # clouds.visualize_clouds([total], capture=True, path=dest + "{}_subset.png".format(im_name))
-        print(im_name)
+    print("Mean sample extraction duration: ", duration/im_name)
 
-    clouds.visualize_clouds([total])
+    clouds.visualize_clouds([total.vertices])

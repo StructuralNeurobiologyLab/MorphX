@@ -11,7 +11,7 @@ import open3d as o3d
 from morphx.classes.pointcloud import PointCloud
 
 
-def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.ndarray:
+def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointCloud:
     """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
     vertices. If the requested number of points is larger than the given subset, the subset gets enriched with its own
     augmented points before sampling.
@@ -24,8 +24,10 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
     Returns:
         Array of sampled points
     """
+    cloud = pc.vertices
+
     if len(cloud) == 0:
-        return cloud
+        return pc
 
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -51,7 +53,7 @@ def sample_cloud(cloud: np.ndarray, vertex_number: int, random_seed=None) -> np.
         # TODO: change to augmentation method from elektronn3
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    return sample
+    return PointCloud(sample)
 
 
 def center_cloud(cloud: np.ndarray, normalize=False) -> np.ndarray:
