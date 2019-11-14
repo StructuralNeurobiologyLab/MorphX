@@ -13,18 +13,19 @@ from morphx.classes.pointcloud import PointCloud
 
 def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointCloud:
     """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
-    vertices. If the requested number of points is larger than the given subset, the subset gets enriched with its own
+    vertices. If the requested number of points is larger than the given subset, the subset gets enriched with slightly
     augmented points before sampling.
 
     Args:
-        cloud: Array of points with shape (n,3)
+        pc: MorphX PointCloud object which should be sampled.
         vertex_number: The number of points which should make up the sample point cloud.
         random_seed: Possibility for making the sampling deterministic.
 
     Returns:
-        Array of sampled points
+        PointCloud with sampled points (and labels).
     """
     cloud = pc.vertices
+    labels = pc.labels
 
     if len(cloud) == 0:
         return pc
@@ -34,11 +35,15 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
 
     dim = cloud.shape[1]
     sample = np.zeros((vertex_number, dim))
+    sample_l = np.zeros((vertex_number, 1))
+
     deficit = vertex_number - len(cloud)
 
     vert_ixs = np.arange(len(cloud))
     np.random.shuffle(vert_ixs)
     sample[:min(len(cloud), vertex_number)] = cloud[vert_ixs[:vertex_number]]
+    if labels is not None:
+        sample_l[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
 
     # add augmented points to reach requested number of samples
     if deficit > 0:
@@ -48,31 +53,38 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
             compensation = min(len(cloud), len(sample)-offset)
             np.random.shuffle(vert_ixs)
             sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
+            if labels is not None:
+                sample_l[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
             offset += compensation
 
         # TODO: change to augmentation method from elektronn3
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    return PointCloud(sample)
+    if labels is not None:
+        return PointCloud(sample, labels=sample_l)
+    else:
+        return PointCloud(sample)
 
 
-def center_cloud(cloud: np.ndarray, normalize=False) -> np.ndarray:
+def center_cloud(pc: PointCloud, normalize=False) -> PointCloud:
     """ Centers (and normalizes) point cloud.
 
     Args:
-        cloud: Array of points with shape (n,3)
+        pc: MorphX PointCloud object which should be centered.
         normalize: flag for optional normalization of the cloud.
 
     Returns:
-        Array of centered (and normalized) points.
+        PointCloud object with centered (and normalized) points.
     """
+    cloud = pc.vertices
+
     centroid = np.mean(cloud, axis=0)
     c_cloud = cloud - centroid
 
     if normalize:
         c_cloud = c_cloud / np.linalg.norm(c_cloud)
 
-    return c_cloud
+    return PointCloud(c_cloud, labels=pc.labels)
 
 
 def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
@@ -81,6 +93,9 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
     Args:
         pc1: First PointCloud object
         pc2: Second PointCloud object
+
+    Returns:
+        PointCloud object which was build by merging the given two clouds.
     """
     dim1 = pc1.vertices.shape[1]
     dim2 = pc2.vertices.shape[1]
@@ -103,8 +118,29 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         return PointCloud(merged_vertices, labels=merged_labels)
 
 
+def visualize_clouds(clouds: list, capture=False, path=""):
+    """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
+
+    Args:
+        clouds: List of MorphX PointCloud objects which should be visualized.
+        capture: Flag to only save screenshot without showing the cloud.
+        path: filepath where screenshot should be saved.
+    """
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for cloud in clouds:
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(cloud.vertices)
+        vis.add_geometry(pcd)
+    if capture:
+        vis.capture_screen_image(path, True)
+    else:
+        vis.run()
+
+
+# TODO: Rewrite method for saving MorphX PointCloud objects
 def save_cloud(cloud: np.ndarray, path: str) -> bool:
-    """Saves point cloud to file at given path (e.g. as ply file)
+    """ Saves point cloud to file at given path (e.g. as ply file)
 
     Args:
         cloud: Point cloud as array of coordinates.
@@ -113,7 +149,6 @@ def save_cloud(cloud: np.ndarray, path: str) -> bool:
     Returns:
         True if saving was successful, False if not
     '"""
-    # TODO: Rewrite method for saving MorphX PointCloud objects
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(cloud)
     if o3d.io.write_point_cloud(path, pc):
@@ -121,23 +156,3 @@ def save_cloud(cloud: np.ndarray, path: str) -> bool:
     else:
         print('Something went wrong when saving the point cloud')
         return False
-
-
-def visualize_clouds(clouds: list, capture=False, path=""):
-    """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
-
-    Args:
-        clouds: List of arrays of points with shape (n,3).
-        capture: Flag to only save screenshot without showing the cloud.
-        path: filepath where screenshot should be saved.
-    """
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    for cloud in clouds:
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(cloud)
-        vis.add_geometry(pcd)
-    if capture:
-        vis.capture_screen_image(path, True)
-    else:
-        vis.run()

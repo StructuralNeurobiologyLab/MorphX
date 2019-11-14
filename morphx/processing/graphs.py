@@ -42,6 +42,7 @@ def global_bfs_dist(g: nx.Graph, source: int, min_dist: int) -> np.ndarray:
     visited = [source]
     chosen = [source]
     neighbors = list(nx.neighbors(g, source))
+    # TODO speed it up by getting rid of the for loops => see networkx implementation
     weights = [g[source][i]['weight'] for i in neighbors]
 
     # add all neighbors with respective weights
@@ -109,6 +110,7 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
     """
     visited = [source]
     neighbors = list(nx.neighbors(g, source))
+    # TODO speed it up by getting rid of the for loops => see networkx implementation
     weights = [g[source][i]['weight'] for i in neighbors]
     de = deque([(neighbors[i], weights[i])
                 for i in range(len(neighbors)) if weights[i] <= max_dist])

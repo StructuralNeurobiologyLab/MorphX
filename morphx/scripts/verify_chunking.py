@@ -24,16 +24,18 @@ if __name__ == '__main__':
 
     # load cloud
     file_paths = glob.glob(wd + '*.pkl', recursive=False)
-    hybrid_list = load_hybrids([file_paths[4]])
+    start = time.time()
+    hybrid_list = load_hybrids([file_paths[3]])
+    print("Finished loading in: ", time.time()-start)
 
     # visualize initial state
     hybrid = hybrid_list[0]
     # clouds.visualize_clouds([hybrid.vertices])
 
-    # radius of local BFS at sampling positions
+    # radius of local BFS at sampling positions (radius of global BFS should be around 2*radius for small overlaps)
     radius = 2000
     overlap = 500
-    sample_num = 1000
+    sample_num = 200000
 
     # get information
     nodes = hybrid.skel_nodes
@@ -42,6 +44,7 @@ if __name__ == '__main__':
     # perform global bfs
     np.random.shuffle(nodes)
     source = np.random.randint(len(nodes))
+    print("Starting global BFS...")
     start = time.time()
     spoints = graphs.global_bfs_dist(graph, source, radius * 2)
     print("Global BFS duration: ", time.time()-start)
@@ -51,6 +54,8 @@ if __name__ == '__main__':
     total = PointCloud(np.array([]))
     duration = 0
     im_name = 0
+
+    print("Starting loop over sample points...")
     for spoint in spoints:
         start = time.time()
         local_bfs = graphs.local_bfs_dist(graph, spoint, radius+overlap)
@@ -63,6 +68,8 @@ if __name__ == '__main__':
         else:
             total = clouds.merge_clouds(total, subset)
         im_name += 1
+    print("Total time for iterating cell: ", duration)
     print("Mean sample extraction duration: ", duration/im_name)
+    print("Number of total points: ", len(total.vertices))
 
-    clouds.visualize_clouds([total.vertices])
+    clouds.visualize_clouds([total])
