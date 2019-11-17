@@ -7,7 +7,7 @@
 
 import math
 import numpy as np
-import open3d as o3d
+# import open3d as o3d
 from morphx.classes.pointcloud import PointCloud
 
 
@@ -118,41 +118,42 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         return PointCloud(merged_vertices, labels=merged_labels)
 
 
-def visualize_clouds(clouds: list, capture=False, path=""):
-    """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
-
-    Args:
-        clouds: List of MorphX PointCloud objects which should be visualized.
-        capture: Flag to only save screenshot without showing the cloud.
-        path: filepath where screenshot should be saved.
-    """
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    for cloud in clouds:
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(cloud.vertices)
-        vis.add_geometry(pcd)
-    if capture:
-        vis.capture_screen_image(path, True)
-    else:
-        vis.run()
+# TODO: open3d causes segmentation fault when imported with pytorch, see https://github.com/pytorch/pytorch/issues/21018
+# def visualize_clouds(clouds: list, capture=False, path=""):
+#     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
+#
+#     Args:
+#         clouds: List of MorphX PointCloud objects which should be visualized.
+#         capture: Flag to only save screenshot without showing the cloud.
+#         path: filepath where screenshot should be saved.
+#     """
+#     vis = o3d.visualization.Visualizer()
+#     vis.create_window()
+#     for cloud in clouds:
+#         pcd = o3d.geometry.PointCloud()
+#         pcd.points = o3d.utility.Vector3dVector(cloud.vertices)
+#         vis.add_geometry(pcd)
+#     if capture:
+#         vis.capture_screen_image(path, True)
+#     else:
+#         vis.run()
 
 
 # TODO: Rewrite method for saving MorphX PointCloud objects
-def save_cloud(cloud: np.ndarray, path: str) -> bool:
-    """ Saves point cloud to file at given path (e.g. as ply file)
-
-    Args:
-        cloud: Point cloud as array of coordinates.
-        path: string which describes path where cloud should be saved (e.g. '~/home/cloud.ply')
-
-    Returns:
-        True if saving was successful, False if not
-    '"""
-    pc = o3d.geometry.PointCloud()
-    pc.points = o3d.utility.Vector3dVector(cloud)
-    if o3d.io.write_point_cloud(path, pc):
-        return True
-    else:
-        print('Something went wrong when saving the point cloud')
-        return False
+# def save_cloud(cloud: np.ndarray, path: str) -> bool:
+#     """ Saves point cloud to file at given path (e.g. as ply file)
+#
+#     Args:
+#         cloud: Point cloud as array of coordinates.
+#         path: string which describes path where cloud should be saved (e.g. '~/home/cloud.ply')
+#
+#     Returns:
+#         True if saving was successful, False if not
+#     '"""
+#     pc = o3d.geometry.PointCloud()
+#     pc.points = o3d.utility.Vector3dVector(cloud)
+#     if o3d.io.write_point_cloud(path, pc):
+#         return True
+#     else:
+#         print('Something went wrong when saving the point cloud')
+#         return False

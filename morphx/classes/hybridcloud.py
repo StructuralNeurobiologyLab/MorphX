@@ -121,9 +121,9 @@ class HybridCloud(object):
             return self._weighted_graph
 
     def traverser(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
-        """ Creates an array of node indices which can be used as the order in which the hybrid should be
-        traversed. With method = 'global_bfs', this method calculates the global BFS for the weighted graph
-        of this hybrid object.
+        """ Creates or returns an array of node indices which can be used as the order in which the hybrid
+        should be traversed. With method = 'global_bfs', this method calculates the global BFS for the weighted
+        graph of this hybrid object.
 
         Args:
             method: The method with which the order array should be created.
@@ -136,6 +136,6 @@ class HybridCloud(object):
         """
         if self._traverser is None:
             if method == 'global_bfs':
-                self._traverser = graphs.global_bfs_dist(self._weighted_graph, min_dist, source)
+                self._traverser = graphs.global_bfs_dist(self.graph(), min_dist, source)
 
         return self._traverser
