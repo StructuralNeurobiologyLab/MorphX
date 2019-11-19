@@ -6,9 +6,11 @@
 # Authors: Jonathan Klimesch
 
 import math
+import os
+import pickle
 import numpy as np
-# import open3d as o3d
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.hybridcloud import HybridCloud
 
 
 def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointCloud:
@@ -118,6 +120,44 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         return PointCloud(merged_vertices, labels=merged_labels)
 
 
+def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
+    """ Saves PointCloud object to given path.
+
+    Args:
+        cloud: PointCloud object which should be saved.
+        path: Location where the object should be saved to (only folder).
+        name: Name of file in which the object should be saved.
+        simple: If object is also HybridCloud, then this flag can be used to only save basic information instead of the
+            total object.
+
+    Returns:
+        1 if saving process was successful, 0 otherwise.
+    """
+    path = os.path.join(path, name, '.pkl')
+    try:
+        with open(path, 'wb') as f:
+            if isinstance(cloud, HybridCloud) and simple:
+                cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
+                         'labels': cloud.labels}
+            pickle.dump(cloud, f)
+    except FileNotFoundError:
+        print("Saving was not successful as given path is not valid.")
+        return 0
+    return 1
+
+
+def load_cloud(path) -> PointCloud:
+    """ Loads and returns PointCloud object from given path. """
+
+    with open(path, 'rb') as f:
+        cloud = pickle.load(f)
+
+    if isinstance(cloud, dict):
+        return HybridCloud(cloud['nodes'], cloud['edges'], cloud['vertices'], labels=cloud['labels'])
+
+    return cloud
+
+
 # TODO: open3d causes segmentation fault when imported with pytorch, see https://github.com/pytorch/pytorch/issues/21018
 # def visualize_clouds(clouds: list, capture=False, path=""):
 #     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
@@ -137,23 +177,3 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
 #         vis.capture_screen_image(path, True)
 #     else:
 #         vis.run()
-
-
-# TODO: Rewrite method for saving MorphX PointCloud objects
-# def save_cloud(cloud: np.ndarray, path: str) -> bool:
-#     """ Saves point cloud to file at given path (e.g. as ply file)
-#
-#     Args:
-#         cloud: Point cloud as array of coordinates.
-#         path: string which describes path where cloud should be saved (e.g. '~/home/cloud.ply')
-#
-#     Returns:
-#         True if saving was successful, False if not
-#     '"""
-#     pc = o3d.geometry.PointCloud()
-#     pc.points = o3d.utility.Vector3dVector(cloud)
-#     if o3d.io.write_point_cloud(path, pc):
-#         return True
-#     else:
-#         print('Something went wrong when saving the point cloud')
-#         return False

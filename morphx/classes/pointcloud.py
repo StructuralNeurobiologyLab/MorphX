@@ -6,9 +6,6 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
-import networkx as nx
-from collections import defaultdict
-from scipy.spatial import cKDTree
 
 
 class PointCloud(object):

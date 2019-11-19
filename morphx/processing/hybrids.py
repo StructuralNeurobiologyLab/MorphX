@@ -5,6 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import pickle
+import os
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
@@ -20,7 +22,7 @@ def extract_mesh_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClou
     Returns:
         Mesh subset as PointCloud object
     """
-    mapping = hybrid.vert2skel_dict
+    mapping = hybrid.vert2skel
     vertices = hybrid.vertices
     labels = hybrid.labels
 

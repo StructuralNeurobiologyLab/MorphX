@@ -38,7 +38,7 @@ if __name__ == '__main__':
     sample_num = 200000
 
     # get information
-    nodes = hybrid.skel_nodes
+    nodes = hybrid.nodes
     graph = hybrid.graph()
 
     # perform global bfs

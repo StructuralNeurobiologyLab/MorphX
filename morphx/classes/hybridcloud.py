@@ -10,82 +10,67 @@ import networkx as nx
 import morphx.processing.graphs as graphs
 from collections import defaultdict
 from scipy.spatial import cKDTree
+from morphx.classes.pointcloud import PointCloud
 
 
-class HybridCloud(object):
+class HybridCloud(PointCloud):
     """
     Class which represents a skeleton in form of a graph structure and a mesh which surrounds this skeleton.
     """
 
-    def __init__(self, skel_nodes: np.ndarray, skel_edges: np.ndarray, vertices: np.ndarray, vert2skel_dict=None,
-                 labels=None):
+    def __init__(self, nodes: np.ndarray, edges: np.ndarray, vertices: np.ndarray, vert2skel=None, labels=None):
         """
         Args:
-            skel_nodes: coordinates of the nodes of the skeleton with shape (n, 3).
-            skel_edges: edge list with indices of nodes in skel_nodes with shape (n, 2).
+            nodes: coordinates of the nodes of the skeleton with shape (n, 3).
+            edges: edge list with indices of nodes in skel_nodes with shape (n, 2).
             vertices: coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
-            vert2skel_dict: dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
+            vert2skel: dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
             labels: vertex label array (integer number representing respective classe) with same dimensions as
                 vertices.
         """
-        self._skel_nodes = skel_nodes
-        self._skel_edges = skel_edges
-        self._vertices = vertices
+        super().__init__(vertices, labels=labels)
 
-        self._vert2skel_dict = None
-        if vert2skel_dict is not None:
-            self._vert2skel_dict = vert2skel_dict
+        self._nodes = nodes
+        self._edges = edges
 
-        self._labels = None
-        if labels is not None:
-            self._labels = labels
+        self._vert2skel = None
+        if vert2skel is not None:
+            self._vert2skel = vert2skel
 
         self._weighted_graph = None
         self._simple_graph = None
         self._traverser = None
 
     @property
-    def skel_nodes(self) -> np.ndarray:
+    def nodes(self) -> np.ndarray:
         """ Coordinates of the nodes of the skeleton.
         """
-        return self._skel_nodes
+        return self._nodes
 
     @property
-    def skel_edges(self) -> np.ndarray:
+    def edges(self) -> np.ndarray:
         """ Edge list with indices of nodes in skel_nodes as np.ndarray with shape (n, 2).
         """
-        return self._skel_edges
+        return self._edges
 
     @property
-    def vertices(self) -> np.ndarray:
-        """ Coordinates of the vertices which surround the skeleton as np.ndarray
-        with shape (n, 3).
-        """
-        return self._vertices
-
-    @property
-    def vert2skel_dict(self) -> defaultdict:
+    def vert2skel(self) -> defaultdict:
         """ Creates python defaultdict with indices of skel_nodes as keys and lists of vertex
         indices which have their key node as nearest skeleton node.
 
         Returns:
             Python defaultdict with mapping information
         """
-        if self._vert2skel_dict is None:
-            tree = cKDTree(self.skel_nodes)
+        if self._vert2skel is None:
+            tree = cKDTree(self.nodes)
             dist, ind = tree.query(self.vertices, k=1)
 
-            self._vert2skel_dict = defaultdict(list)
+            self._vert2skel = defaultdict(list)
             for vertex_idx, skel_idx in enumerate(ind):
-                self._vert2skel_dict[skel_idx].append(vertex_idx)
+                self._vert2skel[skel_idx].append(vertex_idx)
 
-        return self._vert2skel_dict
-
-    @property
-    def labels(self) -> np.ndarray:
-        """ Vertex label array with same shape as vertices."""
-        return self._labels
+        return self._vert2skel
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the
@@ -102,16 +87,16 @@ class HybridCloud(object):
 
             graph.add_nodes_from(
                 [(ix, dict(position=coord)) for ix, coord in
-                 enumerate(self.skel_nodes)])
+                 enumerate(self.nodes)])
 
             if simple:
-                graph.add_edges_from(self.skel_edges)
+                graph.add_edges_from(self.edges)
                 self._simple_graph = graph
             else:
-                edge_coords = self.skel_nodes[self.skel_edges]
+                edge_coords = self.nodes[self.edges]
                 weights = np.linalg.norm(edge_coords[:, 0] - edge_coords[:, 1], axis=1)
                 graph.add_weighted_edges_from(
-                    [(self.skel_edges[i][0], self.skel_edges[i][1], weights[i]) for
+                    [(self.edges[i][0], self.edges[i][1], weights[i]) for
                      i in range(len(weights))])
                 self._weighted_graph = graph
 
