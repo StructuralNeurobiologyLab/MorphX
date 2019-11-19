@@ -28,6 +28,7 @@ def visualize_clouds(clouds: list, capture=False, path=""):
 
         if cloud.labels is not None:
             # dendrite, axon, soma, bouton, terminal
+            # blue, red, orange, yellow, white
             colors = [[0, 48, 73], [214, 40, 40], [247, 127, 0], [252, 191, 73], [234, 226, 183]]
             colors = (np.array(colors) / 255)
             colors = colors[cloud.labels][:, 0]

@@ -1,6 +1,7 @@
 import pickle
 import glob
 import morphx.processing.visualize as vis
+import morphx.processing.clouds as clouds
 from morphx.classes.hybridcloud import HybridCloud
 
 
@@ -27,4 +28,12 @@ if __name__ == '__main__':
     hybrids = load_hybrids([file_paths[index]])
     print("Finished loading.")
 
-    vis.visualize_clouds(hybrids)
+    hybrid = hybrids[0]
+    hybrid.graph()
+    hybrid.traverser()
+
+    clouds.save_cloud(hybrids[0], "/home/john", "test", simple=False)
+
+    hybrid = clouds.load_cloud("/home/john/test.pkl")
+
+    vis.visualize_clouds([hybrid])

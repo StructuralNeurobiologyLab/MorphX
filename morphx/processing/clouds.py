@@ -133,7 +133,7 @@ def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
     Returns:
         1 if saving process was successful, 0 otherwise.
     """
-    path = os.path.join(path, name, '.pkl')
+    path = os.path.join(path, name + '.pkl')
     try:
         with open(path, 'wb') as f:
             if isinstance(cloud, HybridCloud) and simple:
