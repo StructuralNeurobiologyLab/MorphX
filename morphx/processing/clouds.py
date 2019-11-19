@@ -156,24 +156,3 @@ def load_cloud(path) -> PointCloud:
         return HybridCloud(cloud['nodes'], cloud['edges'], cloud['vertices'], labels=cloud['labels'])
 
     return cloud
-
-
-# TODO: open3d causes segmentation fault when imported with pytorch, see https://github.com/pytorch/pytorch/issues/21018
-# def visualize_clouds(clouds: list, capture=False, path=""):
-#     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
-#
-#     Args:
-#         clouds: List of MorphX PointCloud objects which should be visualized.
-#         capture: Flag to only save screenshot without showing the cloud.
-#         path: filepath where screenshot should be saved.
-#     """
-#     vis = o3d.visualization.Visualizer()
-#     vis.create_window()
-#     for cloud in clouds:
-#         pcd = o3d.geometry.PointCloud()
-#         pcd.points = o3d.utility.Vector3dVector(cloud.vertices)
-#         vis.add_geometry(pcd)
-#     if capture:
-#         vis.capture_screen_image(path, True)
-#     else:
-#         vis.run()
