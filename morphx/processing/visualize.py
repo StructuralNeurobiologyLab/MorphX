@@ -10,16 +10,21 @@
 
 import open3d as o3d
 import numpy as np
+import ipdb
 
 
-def visualize_clouds(clouds: list, capture=False, path=""):
+def visualize_clouds(clouds: list, capture=False, path="", random_seed: int = 4):
     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
 
     Args:
         clouds: List of MorphX PointCloud objects which should be visualized.
         capture: Flag to only save screenshot without showing the cloud.
         path: filepath where screenshot should be saved.
+        random_seed: flag for using the same colors.
     """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     for cloud in clouds:
@@ -27,11 +32,10 @@ def visualize_clouds(clouds: list, capture=False, path=""):
         pcd.points = o3d.utility.Vector3dVector(cloud.vertices)
 
         if cloud.labels is not None:
-            # dendrite, axon, soma, bouton, terminal
-            # blue, red, orange, yellow, white
-            colors = [[0, 48, 73], [214, 40, 40], [247, 127, 0], [252, 191, 73], [234, 226, 183]]
-            colors = (np.array(colors) / 255)
-            colors = colors[cloud.labels][:, 0]
+            # generate colors
+            label_num = len(np.unique(cloud.labels))
+            colors = np.random.choice(range(256), size=(label_num, 3)) / 255
+            colors = colors[cloud.labels]
             pcd.colors = o3d.utility.Vector3dVector(colors)
 
         vis.add_geometry(pcd)
