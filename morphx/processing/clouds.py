@@ -11,6 +11,10 @@ import pickle
 import numpy as np
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
+from scipy.spatial.transform import Rotation as Rot
+
+
+# -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
 
 
 def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointCloud:
@@ -68,56 +72,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         return PointCloud(sample)
 
 
-def center_cloud(pc: PointCloud, normalize=False) -> PointCloud:
-    """ Centers (and normalizes) point cloud.
-
-    Args:
-        pc: MorphX PointCloud object which should be centered.
-        normalize: flag for optional normalization of the cloud.
-
-    Returns:
-        PointCloud object with centered (and normalized) points.
-    """
-    cloud = pc.vertices
-
-    centroid = np.mean(cloud, axis=0)
-    c_cloud = cloud - centroid
-
-    if normalize:
-        c_cloud = c_cloud / np.linalg.norm(c_cloud)
-
-    return PointCloud(c_cloud, labels=pc.labels)
-
-
-def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
-    """ Merges 2 PointCloud Objects if dimensions match and if either both clouds have labels or none has.
-
-    Args:
-        pc1: First PointCloud object
-        pc2: Second PointCloud object
-
-    Returns:
-        PointCloud object which was build by merging the given two clouds.
-    """
-    dim1 = pc1.vertices.shape[1]
-    dim2 = pc2.vertices.shape[1]
-    if dim1 != dim2:
-        raise Exception("PointCloud dimensions do not match")
-
-    merged_vertices = np.zeros((len(pc1.vertices)+len(pc2.vertices), dim1))
-    merged_labels = np.zeros(merged_vertices.shape)
-    merged_vertices[:len(pc1.vertices)] = pc1.vertices
-    merged_vertices[len(pc1.vertices):] = pc2.vertices
-
-    if pc1.labels is None and pc2.labels is None:
-        return PointCloud(merged_vertices)
-    elif pc1.labels is None or pc2.labels is None:
-        raise Exception("PointCloud label is None at one PointCloud but exists at the other. "
-                        "PointClouds are not compatible")
-    else:
-        merged_labels[:len(pc1.vertices)] = pc1.labels
-        merged_labels[len(pc1.vertices):] = pc2.labels
-        return PointCloud(merged_vertices, labels=merged_labels)
+# -------------------------------------- CLOUD I/O ------------------------------------------- #
 
 
 def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
@@ -156,3 +111,119 @@ def load_cloud(path) -> PointCloud:
         return HybridCloud(cloud['nodes'], cloud['edges'], cloud['vertices'], labels=cloud['labels'])
 
     return cloud
+
+
+# -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #
+
+
+class Identity:
+    def __call__(self, pc: PointCloud):
+        return PointCloud
+
+
+class Compose3d:
+    """ Composes several transforms together. """
+
+    def __init__(self, transforms: list):
+        self.transforms = transforms
+
+    def __call__(self, pc: PointCloud):
+        for t in self.transforms:
+            pc = t(pc)
+        return pc
+
+
+class RandomRotate3d:
+    """ Rotation of 3D PointClouds. Range of possible angles can be set with angle_range. """
+
+    def __init__(self, angle_range: tuple = (-180, 180)):
+        self.angle_range = angle_range
+
+    def __call__(self, pc: PointCloud) -> PointCloud:
+        """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
+         from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. """
+
+        angles = np.random.uniform(self.angle_range[0], self.angle_range[1], (1, 3))[0]
+        r = Rot.from_euler('xyz', angles, degrees=True)
+
+        vertices = pc.vertices
+        r_vertices = r.apply(vertices)
+        pc.set_vertices(r_vertices)
+
+        if isinstance(pc, HybridCloud):
+            pc.set_nodes(r.apply(pc.nodes))
+
+        return pc
+
+
+class Center3d:
+    def __call__(self, pc: PointCloud) -> PointCloud:
+        """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
+         get centered as well but are not taken into account for centroid calculation. """
+
+        vertices = pc.vertices
+        centroid = np.mean(vertices, axis=0)
+        c_vertices = vertices - centroid
+        pc.set_vertices(c_vertices)
+
+        if isinstance(pc, HybridCloud):
+            pc.set_nodes(pc.nodes - centroid)
+
+        return pc
+
+
+class RandomVariation3d:
+    """ Additional noise for PointCloud objects. The noise amplitude range can be set with limits. """
+
+    def __init__(self, limits: tuple = (-1, 1)):
+        if limits[0] < limits[1]:
+            self.limits = limits
+        elif limits[0] > limits[1]:
+            self.limits = (limits[1], limits[0])
+        else:
+            self.limits = (0, 0)
+
+    def __call__(self, pc: PointCloud) -> PointCloud:
+        """ Adds some random variation to vertices of the given PointCloud. Possible nodes get ignored. """
+
+        if self.limits == (0, 0):
+            return pc
+        vertices = pc.vertices
+        variation = np.random.random(vertices.shape) * (self.limits[1] - self.limits[0]) + self.limits[0]
+        pc.set_vertices(vertices+variation)
+        return pc
+
+
+# -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
+
+
+# TODO: Generalize to hybrids
+def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
+    """ Merges 2 PointCloud Objects if dimensions match and if either both clouds have labels or none has.
+
+    Args:
+        pc1: First PointCloud object
+        pc2: Second PointCloud object
+
+    Returns:
+        PointCloud object which was build by merging the given two clouds.
+    """
+    dim1 = pc1.vertices.shape[1]
+    dim2 = pc2.vertices.shape[1]
+    if dim1 != dim2:
+        raise Exception("PointCloud dimensions do not match")
+
+    merged_vertices = np.zeros((len(pc1.vertices)+len(pc2.vertices), dim1))
+    merged_labels = np.zeros(merged_vertices.shape)
+    merged_vertices[:len(pc1.vertices)] = pc1.vertices
+    merged_vertices[len(pc1.vertices):] = pc2.vertices
+
+    if pc1.labels is None and pc2.labels is None:
+        return PointCloud(merged_vertices)
+    elif pc1.labels is None or pc2.labels is None:
+        raise Exception("PointCloud label is None at one PointCloud but exists at the other. "
+                        "PointClouds are not compatible")
+    else:
+        merged_labels[:len(pc1.vertices)] = pc1.labels
+        merged_labels[len(pc1.vertices):] = pc2.labels
+        return PointCloud(merged_vertices, labels=merged_labels)

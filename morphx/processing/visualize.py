@@ -10,7 +10,6 @@
 
 import open3d as o3d
 import numpy as np
-import ipdb
 
 
 def visualize_clouds(clouds: list, capture=False, path="", random_seed: int = 4):

@@ -16,23 +16,28 @@ class PointCloud(object):
     def __init__(self, vertices: np.ndarray, labels=None):
         """
         Args:
-            vertices: coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
+            vertices: point coordinates with shape (n, 3).
             labels: vertex label array with same shape as vertices.
         """
+        if vertices.shape[1] != 3:
+            raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = vertices
 
         self._labels = None
         if labels is not None:
+            if len(labels) != len(vertices):
+                raise ValueError("Labels array must have same length as vertices array.")
             self._labels = labels
 
     @property
     def vertices(self) -> np.ndarray:
-        """ Coordinates of the mesh vertices which surround the skeleton as np.ndarray
-        with shape (n, 3).
-        """
         return self._vertices
+
+    def set_vertices(self, vertices) -> None:
+        if vertices.shape != self._vertices.shape:
+            raise ValueError("Shape of vertices must not change as labels would loose their reference.")
+        self._vertices = vertices
 
     @property
     def labels(self) -> np.ndarray:
-        """ Vertex label array with same shape as vertices. """
         return self._labels

@@ -31,7 +31,12 @@ class HybridCloud(PointCloud):
         """
         super().__init__(vertices, labels=labels)
 
+        if nodes.shape[1] != 3:
+            raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
+
+        if edges.max() > len(nodes):
+            raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
         self._edges = edges
 
         self._vert2skel = None
@@ -44,14 +49,15 @@ class HybridCloud(PointCloud):
 
     @property
     def nodes(self) -> np.ndarray:
-        """ Coordinates of the nodes of the skeleton.
-        """
         return self._nodes
+
+    def set_nodes(self, nodes) -> None:
+        if nodes.shape != self._nodes.shape:
+            raise ValueError("Shape of nodes must not change as edges would loose their reference.")
+        self._nodes = nodes
 
     @property
     def edges(self) -> np.ndarray:
-        """ Edge list with indices of nodes in skel_nodes as np.ndarray with shape (n, 2).
-        """
         return self._edges
 
     @property
