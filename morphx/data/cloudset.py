@@ -1,7 +1,8 @@
 import glob
-import random
+import numpy as np
 from typing import Callable
-from morphx.processing import graphs, hybrids, clouds
+from morphx.processing import graphs, hybrids, clouds, visualize
+from morphx.classes.pointcloud import PointCloud
 
 
 class CloudSet:
@@ -42,16 +43,14 @@ class CloudSet:
         self.radius_nm_global = radius_nm*1.5
 
         self.files = glob.glob(data_path + '*.pkl')
-        random.shuffle(self.files)
-
         self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
 
         # radius of global BFS should be bigger than radius of local BFS as it represents the distance between
         # sample points in the global BFS => Adjusts overlap.
-        self.curr_hybrid.traverser(iterator_method, self.radius_nm_global, global_source)
+        self.curr_hybrid.traverser(iterator_method, self.radius_nm_global, self.global_source)
 
     def __len__(self):
-        return self.epoch_size
+        return len(self.curr_hybrid.traverser())
 
     def __getitem__(self, index):
         """ Index gets ignored. """

@@ -41,7 +41,7 @@ class HybridCloud(PointCloud):
 
         self._vert2skel = None
         if vert2skel is not None:
-            self._vert2skel = vert2skelcd
+            self._vert2skel = vert2skel
 
         self._weighted_graph = None
         self._simple_graph = None

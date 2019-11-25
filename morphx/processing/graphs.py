@@ -63,8 +63,7 @@ def global_bfs_dist(g: nx.Graph, min_dist: int, source=-1) -> np.ndarray:
             # add all neighbors with their weights added to the current weight
             neighbors = list(nx.neighbors(g, curr))
             weights = [g[curr][i]['weight'] + weight for i in neighbors]
-            de.extendleft([(neighbors[i], weights[i])
-                           for i in range(len(neighbors))])
+            de.extendleft([(neighbors[i], weights[i]) for i in range(len(neighbors))])
 
     # return only chosen nodes
     return np.array(chosen)

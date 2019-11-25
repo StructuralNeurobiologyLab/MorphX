@@ -31,6 +31,6 @@ def extract_mesh_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClou
         total.extend(mapping[i])
 
     if labels is not None:
-        return PointCloud(vertices, labels=labels)
+        return PointCloud(vertices[total], labels=labels[total])
     else:
         return PointCloud(vertices[total])

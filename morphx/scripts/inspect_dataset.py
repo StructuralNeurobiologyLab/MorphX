@@ -1,14 +1,14 @@
-import glob
 import os
-import random
 from morphx.processing import clouds, visualize
+from morphx.data.cloudset import CloudSet
 
+train_transform = clouds.Identity()
 
-if __name__ == '__main__':
-    data_path = os.path.expanduser('~/wholebrain/wholebrain/u/jklimesch/gt/gt_results/visualization/')
+data_path = os.path.expanduser('~/')
+data = CloudSet(data_path, 40000, 1000, transform=train_transform)
 
-    files = glob.glob(data_path + '*.pkl')
-    random.shuffle(files)
+samples = []
+for i in range(10):
+    samples.append(data[0])
+    visualize.visualize_clouds(samples, capture=True, path='/home/john/test/it_{}.png'.format(i))
 
-    hc = clouds.load_cloud(files[0])
-    visualize.visualize_clouds([hc])

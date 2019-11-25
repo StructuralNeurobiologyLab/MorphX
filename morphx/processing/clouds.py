@@ -60,7 +60,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
             np.random.shuffle(vert_ixs)
             sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
             if labels is not None:
-                sample_l[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
+                sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
             offset += compensation
 
         # TODO: change to augmentation method from elektronn3
@@ -134,7 +134,7 @@ def load_gt(path: str) -> HybridCloud:
 
 class Identity:
     def __call__(self, pc: PointCloud):
-        return PointCloud
+        return pc
 
 
 class Compose:
