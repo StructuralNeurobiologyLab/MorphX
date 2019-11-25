@@ -88,9 +88,11 @@ def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
     Returns:
         1 if saving process was successful, 0 otherwise.
     """
-    path = os.path.join(path, name + '.pkl')
+    full_path = os.path.join(path, name + '.pkl')
     try:
-        with open(path, 'wb') as f:
+        if not os.path.exists(os.path.join(path)):
+            os.makedirs(path)
+        with open(full_path, 'wb') as f:
             if isinstance(cloud, HybridCloud) and simple:
                 cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
                          'labels': cloud.labels}
@@ -113,6 +115,20 @@ def load_cloud(path) -> PointCloud:
     return cloud
 
 
+# TODO: Remove when ground truth gets changed to new standard
+def load_gt(path: str) -> HybridCloud:
+    """ Loads morphx hybrid from a pickle file at the given path. Pickle files should contain a dict with the
+    keys: 'skel_nodes', 'skel_edges', 'mesh_verts' and 'vert_labels' representing skeleton nodes and edges and mesh
+    vertices and labels. """
+
+    with open(path, "rb") as f:
+        info_dict = pickle.load(f)
+    f.close()
+    hc = HybridCloud(info_dict['skel_nodes'], info_dict['skel_edges'], info_dict['mesh_verts'],
+                     labels=info_dict['vert_labels'])
+    return hc
+
+
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #
 
 
@@ -121,7 +137,7 @@ class Identity:
         return PointCloud
 
 
-class Compose3d:
+class Compose:
     """ Composes several transforms together. """
 
     def __init__(self, transforms: list):
@@ -133,7 +149,7 @@ class Compose3d:
         return pc
 
 
-class RandomRotate3d:
+class RandomRotate:
     """ Rotation of 3D PointClouds. Range of possible angles can be set with angle_range. """
 
     def __init__(self, angle_range: tuple = (-180, 180)):
@@ -156,7 +172,7 @@ class RandomRotate3d:
         return pc
 
 
-class Center3d:
+class Center:
     def __call__(self, pc: PointCloud) -> PointCloud:
         """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
          get centered as well but are not taken into account for centroid calculation. """
@@ -172,7 +188,7 @@ class Center3d:
         return pc
 
 
-class RandomVariation3d:
+class RandomVariation:
     """ Additional noise for PointCloud objects. The noise amplitude range can be set with limits. """
 
     def __init__(self, limits: tuple = (-1, 1)):

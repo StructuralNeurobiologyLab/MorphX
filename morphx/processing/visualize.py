@@ -10,6 +10,7 @@
 
 import open3d as o3d
 import numpy as np
+import ipdb
 
 
 def visualize_clouds(clouds: list, capture=False, path="", random_seed: int = 4):
@@ -32,9 +33,10 @@ def visualize_clouds(clouds: list, capture=False, path="", random_seed: int = 4)
 
         if cloud.labels is not None:
             # generate colors
-            label_num = len(np.unique(cloud.labels))
+            labels = cloud.labels.reshape(len(cloud.labels)).astype(int)
+            label_num = max(np.unique(labels))+1
             colors = np.random.choice(range(256), size=(label_num, 3)) / 255
-            colors = colors[cloud.labels]
+            colors = colors[labels]
             pcd.colors = o3d.utility.Vector3dVector(colors)
 
         vis.add_geometry(pcd)
