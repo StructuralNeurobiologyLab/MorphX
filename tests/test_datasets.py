@@ -6,12 +6,14 @@
 # Authors: Jonathan Klimesch
 
 import os
+import torch
 import networkx as nx
 from morphx.data.cloudset import CloudSet
-from morphx.processing import graphs, clouds
+from morphx.data.torchset import TorchSet
+from morphx.processing import graphs
 
 
-def test_traversion():
+def test_cloud_traversion():
     wd = os.path.expanduser('~/gt/gt_results/')
     min_dist = 10000
     source = 0
@@ -36,19 +38,14 @@ def test_traversion():
             assert dist > min_dist * data.radius_factor
 
 
-def test_completeness():
+def test_torch_dimensions():
     wd = os.path.expanduser('~/gt/gt_results/')
     min_dist = 10000
-    source = 0
-    data = CloudSet(wd, min_dist, 1000, global_source=source)
-    size = len(data.curr_hybrid.traverser())
+    sample_num = 1000
+    data = TorchSet(wd, min_dist, sample_num)
 
-    pc = 0
-    for i in range(size):
-        next_cloud = data[0]
-        if pc == 0:
-            pc = next_cloud
-        else:
-            pc = clouds.merge_clouds(pc, next_cloud)
+    sample = data[0]
 
-    assert len(pc.vertices) == size*1000
+    assert sample['pts'].shape == torch.Size([sample_num, 3])
+    assert sample['feats'].shape == torch.Size([sample_num, 1])
+    assert sample['target'].shape == torch.Size([sample_num])

@@ -6,14 +6,12 @@
 # Authors: Jonathan Klimesch
 
 import glob
-import numpy as np
 from typing import Callable
-from morphx.processing import graphs, hybrids, clouds, visualize
-from morphx.classes.pointcloud import PointCloud
+from morphx.processing import graphs, hybrids, clouds
 
 
 class CloudSet:
-    """Dataset iterator class that creates point clouds from pickle files. """
+    """ Dataset iterator class that creates point cloud samples from point clouds in pickle files at data_path. """
 
     def __init__(self,
                  data_path: str,
@@ -59,7 +57,7 @@ class CloudSet:
         self.curr_hybrid.traverser(method=iterator_method, min_dist=self.radius_nm_global, source=self.global_source)
 
     def __len__(self):
-        return len(self.curr_hybrid.traverser())
+        return self.epoch_size
 
     def __getitem__(self, index):
         """ Index gets ignored. """
