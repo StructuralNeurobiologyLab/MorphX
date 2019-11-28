@@ -127,6 +127,6 @@ class HybridCloud(PointCloud):
         """
         if self._traverser is None:
             if method == 'global_bfs':
-                self._traverser = graphs.global_bfs_dist(self.graph(), min_dist, source)
+                self._traverser = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
 
         return self._traverser

@@ -11,3 +11,6 @@ docs/_build/
 
 # PyCharm
 .idea/
+
+# scripts
+scripts

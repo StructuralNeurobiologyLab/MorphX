@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# MorphX - Toolkit for morphology exploration and segmentation
+#
+# Copyright (c) 2019 - now
+# Max Planck Institute of Neurobiology, Martinsried, Germany
+# Authors: Jonathan Klimesch
+
 import glob
 import numpy as np
 from typing import Callable
@@ -15,7 +22,8 @@ class CloudSet:
                  transform: Callable = clouds.Identity(),
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
-                 epoch_size: int = 1000):
+                 epoch_size: int = 1000,
+                 radius_factor: float = 1.5):
         """ Initializes Dataset.
 
         Args:
@@ -27,6 +35,8 @@ class CloudSet:
             iterator_method: The method with which each cell should be iterated.
             global_source: The starting point of the iterator method.
             epoch_size: Size of the data set
+            radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
+                adjusts the overlap between the cloud chunks
         """
 
         self.data_path = data_path
@@ -36,18 +46,17 @@ class CloudSet:
         self.epoch_size = epoch_size
         self.global_source = global_source
         self.transform = transform
+        self.radius_factor = radius_factor
 
         self.curr_hybrid_idx = 0
         self.curr_node_idx = 0
 
-        self.radius_nm_global = radius_nm*1.5
+        self.radius_nm_global = radius_nm*self.radius_factor
 
         self.files = glob.glob(data_path + '*.pkl')
         self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
 
-        # radius of global BFS should be bigger than radius of local BFS as it represents the distance between
-        # sample points in the global BFS => Adjusts overlap.
-        self.curr_hybrid.traverser(iterator_method, self.radius_nm_global, self.global_source)
+        self.curr_hybrid.traverser(method=iterator_method, min_dist=self.radius_nm_global, source=self.global_source)
 
     def __len__(self):
         return len(self.curr_hybrid.traverser())
@@ -64,7 +73,8 @@ class CloudSet:
 
             # load and prepare new cell
             self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
-            self.curr_hybrid.traverser(self.iterator_method, self.radius_nm_global, self.global_source)
+            self.curr_hybrid.traverser(method=self.iterator_method, min_dist=self.radius_nm_global,
+                                       source=self.global_source)
 
         # perform local BFS, extract mesh at the respective nodes, sample this set and return it as a point cloud
         spoint = self.curr_hybrid.traverser()[self.curr_node_idx]

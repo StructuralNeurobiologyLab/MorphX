@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import networkx as nx
 import numpy as np
 from collections import defaultdict, deque
@@ -25,7 +26,7 @@ def global_bfs(g: nx.Graph, source: int) -> np.ndarray:
     return np.array(list(tree.nodes))
 
 
-def global_bfs_dist(g: nx.Graph, min_dist: int, source=-1) -> np.ndarray:
+def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
     neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal
     size based on the output of this method.

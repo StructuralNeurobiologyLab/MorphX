@@ -46,7 +46,7 @@ if __name__ == '__main__':
     source = np.random.randint(len(nodes))
     print("Starting global BFS...")
     start = time.time()
-    spoints = graphs.global_bfs_dist(graph, source, radius * 2)
+    spoints = graphs.global_bfs_dist(graph, radius * 2, source)
     print("Global BFS duration: ", time.time()-start)
     print("Number of sample points: ", len(spoints))
 
