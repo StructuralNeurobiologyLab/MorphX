@@ -230,7 +230,7 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         raise Exception("PointCloud dimensions do not match")
 
     merged_vertices = np.zeros((len(pc1.vertices)+len(pc2.vertices), dim1))
-    merged_labels = np.zeros(merged_vertices.shape)
+    merged_labels = np.zeros((len(merged_vertices),1))
     merged_vertices[:len(pc1.vertices)] = pc1.vertices
     merged_vertices[len(pc1.vertices):] = pc2.vertices
 

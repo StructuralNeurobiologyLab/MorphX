@@ -8,7 +8,7 @@
 import os
 import networkx as nx
 from morphx.data.cloudset import CloudSet
-from morphx.processing import graphs
+from morphx.processing import graphs, clouds
 
 
 def test_traversion():
@@ -34,3 +34,21 @@ def test_traversion():
                 weight = graph[path[i]][path[i + 1]]['weight']
                 dist += weight
             assert dist > min_dist * data.radius_factor
+
+
+def test_completeness():
+    wd = os.path.expanduser('~/gt/gt_results/')
+    min_dist = 10000
+    source = 0
+    data = CloudSet(wd, min_dist, 1000, global_source=source)
+    size = len(data.curr_hybrid.traverser())
+
+    pc = 0
+    for i in range(size):
+        next_cloud = data[0]
+        if pc == 0:
+            pc = next_cloud
+        else:
+            pc = clouds.merge_clouds(pc, next_cloud)
+
+    assert len(pc.vertices) == size*1000

@@ -10,51 +10,90 @@
 
 import open3d as o3d
 import numpy as np
-import ipdb
+from morphx.processing import clouds
 
 
-def visualize_clouds(clouds: list, capture: bool = False, path="", random_seed: int = 4):
+def visualize_parallel(cloud1: list, cloud2: list, random_seed: int = 4):
+    """Uses open3d to visualize two point clouds simultaneously.
+
+    Args:
+        cloud1: List of MorphX PointCloud objects which should be visualized.
+        cloud2: Second list of MorphX PointCloud objects which should be visualized in parallel.
+        random_seed: flag for using the same colors.
+    """
+
+    vis1 = o3d.visualization.Visualizer()
+    vis1.create_window(window_name='First cloud')
+
+    vis2 = o3d.visualization.Visualizer()
+    vis2.create_window(window_name='Second cloud')
+
+    pcd1 = build_pcd(cloud1, random_seed)
+    pcd2 = build_pcd(cloud2, random_seed)
+
+    vis1.add_geometry(pcd1)
+    vis2.add_geometry(pcd2)
+
+    while True:
+        vis1.update_geometry()
+        if not vis1.poll_events():
+            break
+        vis1.update_renderer()
+
+        vis2.update_geometry()
+        if not vis2.poll_events():
+            break
+        vis2.update_renderer()
+
+    vis1.destroy_window()
+    vis2.destroy_window()
+
+
+def visualize_single(cloud_list: list, capture: bool = False, path="", random_seed: int = 4):
     """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
 
     Args:
-        clouds: List of MorphX PointCloud objects which should be visualized.
+        cloud_list: List of MorphX PointCloud objects which should be visualized.
         capture: Flag to only save screenshot without showing the cloud.
         path: filepath where screenshot should be saved.
+        random_seed: flag for using the same colors.
+    """
+
+    vis = o3d.visualization.Visualizer()
+
+    vis.create_window()
+
+    pcd = build_pcd(cloud_list, random_seed)
+    vis.add_geometry(pcd)
+
+    if capture:
+        vis.capture_screen_image(path, True)
+    else:
+        vis.run()
+
+
+def build_pcd(cloud_list: list, random_seed: int = 4):
+    """ Builds an Open3d point cloud object out of the given list of morphx PointClouds.
+
+    Args:
+        cloud_list: List of MorphX PointCloud objects which should be visualized.
         random_seed: flag for using the same colors.
     """
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
+    merged = None
+    for cloud in cloud_list:
+        if merged is None:
+            merged = cloud
+        else:
+            merged = clouds.merge_clouds(merged, cloud)
 
-    # count total number of vertices
-    vertex_num = 0
-    label_count = 0
-    for cloud in clouds:
-        vertex_num += len(cloud.vertices)
-        if cloud.labels is not None:
-            label_count += 1
-
-    if label_count != len(clouds) and label_count != 0:
-        raise ValueError("Cannot display clouds with labels along clouds without labels.")
-
-    # prepare arrays
-    vertices = np.zeros((vertex_num, 3))
-    labels = np.zeros((vertex_num, 1))
-
-    # write vertices and labels from all clouds into the prepared arrays
-    offset = 0
-    for cloud in clouds:
-        vertices[offset:offset+len(cloud.vertices), :] = cloud.vertices
-        if cloud.labels is not None:
-            # label array has same dimensions as vertices
-            labels[offset:offset+len(cloud.vertices)] = cloud.labels
-        offset += len(cloud.vertices)
-
-    labels = labels.reshape(len(labels))
+    labels = merged.labels
+    vertices = merged.vertices
 
     # count labels in all clouds
+    labels = labels.reshape(len(labels))
     label_num = int(max(np.unique(labels)) + 1)
 
     # generate colors
@@ -64,11 +103,6 @@ def visualize_clouds(clouds: list, capture: bool = False, path="", random_seed: 
     # visualize result
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(vertices)
-    if label_num > 1:
-        pcd.colors = o3d.utility.Vector3dVector(colors)
-    vis.add_geometry(pcd)
+    pcd.colors = o3d.utility.Vector3dVector(colors)
 
-    if capture:
-        vis.capture_screen_image(path, True)
-    else:
-        vis.run()
+    return pcd
