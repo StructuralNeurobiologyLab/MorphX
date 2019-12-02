@@ -11,28 +11,33 @@
 import open3d as o3d
 import numpy as np
 from morphx.processing import clouds
+from getkey import getkey, keys
 
 
-def visualize_parallel(cloud1: list, cloud2: list, random_seed: int = 4):
+def visualize_parallel(cloud1: list, cloud2: list, path: str, name: str, random_seed: int = 4):
     """Uses open3d to visualize two point clouds simultaneously.
 
     Args:
         cloud1: List of MorphX PointCloud objects which should be visualized.
         cloud2: Second list of MorphX PointCloud objects which should be visualized in parallel.
         random_seed: flag for using the same colors.
+        path: location where images should be saved.
+        name: Preferred file name. Images get saved as 'name_1.png' and 'name_2.png'.
     """
 
     vis1 = o3d.visualization.Visualizer()
-    vis1.create_window(window_name='First cloud')
+    vis1.create_window(window_name='First cloud', width=930, height=470, left=0, top=0)
 
     vis2 = o3d.visualization.Visualizer()
-    vis2.create_window(window_name='Second cloud')
+    vis2.create_window(window_name='Second cloud', width=930, height=470, left=0, top=600)
 
     pcd1 = build_pcd(cloud1, random_seed)
     pcd2 = build_pcd(cloud2, random_seed)
 
     vis1.add_geometry(pcd1)
     vis2.add_geometry(pcd2)
+
+    reverse = False
 
     while True:
         vis1.update_geometry()
@@ -45,12 +50,36 @@ def visualize_parallel(cloud1: list, cloud2: list, random_seed: int = 4):
             break
         vis2.update_renderer()
 
-    vis1.destroy_window()
-    vis2.destroy_window()
+        key = getkey()
+        if key == keys.RIGHT:
+            break
+        if key == keys.UP:
+            visualize_single(cloud1, capture=True, path=path + name + '_1.png')
+            visualize_single(cloud2, capture=True, path=path + name + '_2.png')
+            break
+        if key == keys.DOWN:
+            # display images for interaction
+            while True:
+                vis1.update_geometry()
+                if not vis1.poll_events():
+                    break
+                vis1.update_renderer()
+
+                vis2.update_geometry()
+                if not vis2.poll_events():
+                    break
+                vis2.update_renderer()
+        if key == keys.LEFT:
+            reverse = True
+            break
+        if key == keys.ENTER:
+            quit()
+
+    return reverse
 
 
 def visualize_single(cloud_list: list, capture: bool = False, path="", random_seed: int = 4):
-    """Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
+    """ Uses open3d to visualize a given point cloud in a new window or save the cloud without showing.
 
     Args:
         cloud_list: List of MorphX PointCloud objects which should be visualized.

@@ -58,13 +58,13 @@ class TorchSet(data.Dataset):
 
         # pack all numpy arrays into torch tensors
         pts = torch.from_numpy(sample.vertices).float()
-        lbs = torch.from_numpy(labels).float()
+        lbs = torch.from_numpy(labels).long()
         features = torch.ones(sample.vertices.shape[0], 1).float()
 
-        sample = {
-            'pts': pts,
-            'feats': features,
-            'target': lbs
-        }
+        # sample = {
+        #     'pts': pts,
+        #     'feats': features,
+        #     'target': lbs
+        # }
 
-        return sample
+        return pts, features, lbs
