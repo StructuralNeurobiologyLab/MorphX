@@ -14,22 +14,25 @@ from morphx.processing import clouds
 from getkey import getkey, keys
 
 
-def visualize_parallel(cloud1: list, cloud2: list, path: str, name: str, random_seed: int = 4):
+def visualize_parallel(cloud1: list, cloud2: list, static: bool = False, random_seed: int = 4,
+                       name1: str = "cloud1", name2: str = "cloud2"):
     """Uses open3d to visualize two point clouds simultaneously.
 
     Args:
         cloud1: List of MorphX PointCloud objects which should be visualized.
         cloud2: Second list of MorphX PointCloud objects which should be visualized in parallel.
         random_seed: flag for using the same colors.
-        path: location where images should be saved.
-        name: Preferred file name. Images get saved as 'name_1.png' and 'name_2.png'.
+        static: Flag for chosing static or interactive view. The static view must be closed by entering
+            a key into the console.
+        name1: Display name for first cloud.
+        name2: Display name for second cloud.
     """
 
     vis1 = o3d.visualization.Visualizer()
-    vis1.create_window(window_name='First cloud', width=930, height=470, left=0, top=0)
+    vis1.create_window(window_name=name1, width=930, height=470, left=0, top=0)
 
     vis2 = o3d.visualization.Visualizer()
-    vis2.create_window(window_name='Second cloud', width=930, height=470, left=0, top=600)
+    vis2.create_window(window_name=name2, width=930, height=470, left=0, top=600)
 
     pcd1 = build_pcd(cloud1, random_seed)
     pcd2 = build_pcd(cloud2, random_seed)
@@ -37,45 +40,30 @@ def visualize_parallel(cloud1: list, cloud2: list, path: str, name: str, random_
     vis1.add_geometry(pcd1)
     vis2.add_geometry(pcd2)
 
-    reverse = False
+    if static:
+        while True:
+            vis1.update_geometry()
+            if not vis1.poll_events():
+                break
+            vis1.update_renderer()
 
-    while True:
-        vis1.update_geometry()
-        if not vis1.poll_events():
-            break
-        vis1.update_renderer()
+            vis2.update_geometry()
+            if not vis2.poll_events():
+                break
+            vis2.update_renderer()
 
-        vis2.update_geometry()
-        if not vis2.poll_events():
-            break
-        vis2.update_renderer()
+            return getkey()
+    else:
+        while True:
+            vis1.update_geometry()
+            if not vis1.poll_events():
+                break
+            vis1.update_renderer()
 
-        key = getkey()
-        if key == keys.RIGHT:
-            break
-        if key == keys.UP:
-            visualize_single(cloud1, capture=True, path=path + name + '_1.png')
-            visualize_single(cloud2, capture=True, path=path + name + '_2.png')
-            break
-        if key == keys.DOWN:
-            # display images for interaction
-            while True:
-                vis1.update_geometry()
-                if not vis1.poll_events():
-                    break
-                vis1.update_renderer()
-
-                vis2.update_geometry()
-                if not vis2.poll_events():
-                    break
-                vis2.update_renderer()
-        if key == keys.LEFT:
-            reverse = True
-            break
-        if key == keys.ENTER:
-            quit()
-
-    return reverse
+            vis2.update_geometry()
+            if not vis2.poll_events():
+                break
+            vis2.update_renderer()
 
 
 def visualize_single(cloud_list: list, capture: bool = False, path="", random_seed: int = 4):
