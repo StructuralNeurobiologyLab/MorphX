@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# MorphX - Toolkit for morphology exploration and segmentation
+#
+# Copyright (c) 2019 - now
+# Max Planck Institute of Neurobiology, Martinsried, Germany
+# Authors: Jonathan Klimesch
+
 import glob
 import pickle
 import time

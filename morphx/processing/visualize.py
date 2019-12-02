@@ -11,7 +11,7 @@
 import open3d as o3d
 import numpy as np
 from morphx.processing import clouds
-from getkey import getkey, keys
+from getkey import getkey
 
 
 def visualize_parallel(cloud1: list, cloud2: list, static: bool = False, random_seed: int = 4,
