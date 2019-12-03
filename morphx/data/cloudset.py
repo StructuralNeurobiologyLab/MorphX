@@ -5,9 +5,11 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
 import glob
 from typing import Callable
 from morphx.processing import graphs, hybrids, clouds
+from morphx.classes.hybridcloud import HybridCloud
 
 
 class CloudSet:
@@ -46,14 +48,17 @@ class CloudSet:
         self.transform = transform
         self.radius_factor = radius_factor
 
+        # option for single processing
+        self.process_single = False
+
+        # options for iterating the dataset
         self.curr_hybrid_idx = 0
         self.curr_node_idx = 0
-
         self.radius_nm_global = radius_nm*self.radius_factor
 
+        # load first file
         self.files = glob.glob(data_path + '*.pkl')
         self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
-
         self.curr_hybrid.traverser(method=iterator_method, min_dist=self.radius_nm_global, source=self.global_source)
 
     def __len__(self):
@@ -63,6 +68,12 @@ class CloudSet:
         """ Index gets ignored. """
         # prepare new cell if current one is exhausted
         if self.curr_node_idx >= len(self.curr_hybrid.traverser()):
+
+            # in this case only one hybrid should be processed
+            if self.process_single is True:
+                return None
+
+            # reset all counters
             self.curr_node_idx = 0
             self.curr_hybrid_idx += 1
             # start over if all cells have been processed
@@ -86,17 +97,10 @@ class CloudSet:
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
 
-        # # pack all numpy arrays into torch tensors
-        # pts = torch.from_numpy(aug_cloud.vertices).float()
-        # labels = sample_cloud.labels
-        # labels = labels.reshape(labels.shape[0])
-        # lbs = torch.from_numpy(labels).long()
-        # features = torch.ones(aug_cloud.vertices.shape[0], 1).float()
-        #
-        # sample = {
-        #     'pts': pts,
-        #     'feats': features,
-        #     'target': lbs
-        # }
-
         return aug_cloud
+
+    def activate_single(self, hybrid: HybridCloud):
+        """ Switch cloudset mode to only process the given hybrid """
+        self.curr_hybrid = hybrid
+        self.curr_hybrid.traverser()
+        self.process_single = True

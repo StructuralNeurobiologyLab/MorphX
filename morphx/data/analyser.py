@@ -1,0 +1,184 @@
+# -*- coding: utf-8 -*-
+# MorphX - Toolkit for morphology exploration and segmentation
+#
+# Copyright (c) 2019 - now
+# Max Planck Institute of Neurobiology, Martinsried, Germany
+# Authors: Jonathan Klimesch
+
+import os
+import glob
+import numpy as np
+from morphx.processing import clouds, visualize
+from morphx.data.cloudset import CloudSet
+
+
+class Analyser:
+    def __init__(self, data_path: str, cloudset: CloudSet):
+        self.data_path = data_path
+        self.cloudset = cloudset
+        self.files = glob.glob(data_path + '*.pkl')
+        self.files.sort()
+
+        self.header = "\nDataset analysis for: " + self.data_path + "\n"
+        self.header += "Options: radius_nm = {}, radius_factor = {}, sample_num = {}\n"\
+            .format(cloudset.radius_nm, cloudset.radius_factor, cloudset.sample_num)
+        self.header += "Number of files: {}\n".format(len(self.files))
+        self.header += "Label meaning: 0: Dendrite, 1: Axon, 2: Soma, 3: Bouton, 4: Terminal"
+
+    def apply_cloudset(self, verbose: bool = False, save_path: str = None):
+        total_output = self.header
+
+        # prepare verbose option
+        image_folder = ""
+        if verbose:
+            if save_path is not None:
+                image_folder = save_path + "hybrid_images/"
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+                if not os.path.exists(image_folder):
+                    os.makedirs(image_folder)
+            else:
+                raise ValueError("Cannot print analysis to file if save_path is not set.")
+
+        chunked_info = ""
+
+        # iterate files
+        for file in self.files:
+            slashs = [pos for pos, char in enumerate(file) if char == '/']
+            name = file[slashs[-1]+1:]
+            print("Processing: " + name)
+            hybrid = clouds.load_gt(file)
+
+            self.cloudset.activate_single(hybrid)
+
+            # prepare iteration
+            chunk_num = len(hybrid.traverser())
+            sample_num = self.cloudset.sample_num
+            total_labels = np.zeros(sample_num*chunk_num)
+            mean_size = 0
+
+            # iterate chunks of current hybrid
+            chunk_build = None
+            idx = 0
+            while True:
+                chunk = self.cloudset[0]
+                if chunk is None:
+                    break
+
+                # estimate chunk size by simple bounding box
+                vertices = chunk.vertices
+                max_point = vertices.max(axis=0)
+                min_point = vertices.min(axis=0)
+                size = np.linalg.norm(max_point-min_point)
+                mean_size += size
+
+                total_labels[idx*sample_num:idx*sample_num+sample_num] = chunk.labels.reshape(len(chunk.labels))
+                if chunk_build is None:
+                    chunk_build = chunk
+                else:
+                    chunk_build = clouds.merge_clouds(chunk_build, chunk)
+                idx += 1
+
+            if verbose:
+                visualize.visualize_single([chunk_build], capture=True,
+                                           path=image_folder + '{}_chunked.png'.format(name))
+
+            # evaluate information
+            u_labels, counts = np.unique(total_labels, return_counts=True)
+            mean_size /= chunk_num
+
+            # build hybrid information string
+            hybrid_info = "\nFilename: {}\n" \
+                          "Mean size of chunks: {}\n"\
+                          "Total number of labels: {}\n"\
+                          "Labels and their counts:\n".format(name, mean_size, len(total_labels))
+            for idx, el in enumerate(u_labels):
+                percentage = round(counts[idx]/len(total_labels)*100, 1)
+                hybrid_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
+            chunked_info += hybrid_info
+
+        total_output += chunked_info
+
+        # output analysis
+        if verbose:
+            output = open(save_path + "chunking_analysis.txt", "w")
+            output.write(total_output)
+            output.close()
+        else:
+            print(total_output)
+
+    def get_overview(self, verbose: bool = False, save_path: str = None):
+        cloudset = self.cloudset
+
+        # prepare verbose option
+        image_folder = ""
+        if verbose:
+            if save_path is not None:
+                image_folder = save_path + 'hybrid_images/'
+                if not os.path.exists(save_path):
+                    os.makedirs(save_path)
+                if not os.path.exists(image_folder):
+                    os.makedirs(image_folder)
+            else:
+                raise ValueError("Cannot print analysis to file if save_path is not set.")
+
+        # set up iteration parameters
+        total_labels = np.array([])
+        total_chunks = 0
+        total_output = self.header
+        total_output += "\n### FILE OVERVIEW: ###\n"
+        hybrids_info = ""
+
+        # iterate files
+        for file in self.files:
+            slashs = [pos for pos, char in enumerate(file) if char == '/']
+            name = file[slashs[-1]:]
+            print("Processing: " + name)
+
+            # prepare hybrid
+            hybrid = clouds.load_gt(file)
+            traverser = hybrid.traverser(min_dist=cloudset.radius_nm*cloudset.radius_factor)
+            total_chunks += len(traverser)
+
+            if verbose:
+                visualize.visualize_single([hybrid], capture=True, path=image_folder + '{}.png'.format(name))
+
+            # evaluate hybrid labels
+            labels = hybrid.labels
+            u_labels, counts = np.unique(labels, return_counts=True)
+            if len(total_labels) == 0:
+                total_labels = labels
+            else:
+                total_labels = np.concatenate((total_labels, labels), 0)
+
+            # build hybrid information string
+            hybrid_info = "\nFilename: {}\n" \
+                          "Number of chunks: {}\n" \
+                          "Total number of labels: {}\n"\
+                          "Labels and their counts:\n".format(name, len(traverser), len(labels))
+            for idx, el in enumerate(u_labels):
+                percentage = round(counts[idx]/len(labels)*100, 1)
+                hybrid_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
+            hybrids_info += hybrid_info
+
+        # build total information sring
+        u_total, counts = np.unique(total_labels, return_counts=True)
+        total_info = "\nTotal number of chunks: {}\n" \
+                     "Total number of labels: {}\n" \
+                     "Total labels and their counts:\n".format(total_chunks, len(total_labels))
+        for idx, el in enumerate(u_total):
+            percentage = round(counts[idx]/len(total_labels)*100, 1)
+            total_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
+
+        # build printable output
+        total_output += total_info
+        total_output += "\n### SINGLE FILE SPECS: ###\n"
+        total_output += hybrids_info
+
+        # output analysis
+        if verbose:
+            with open(save_path + "data_analysis.txt", "w") as output:
+                output.write(total_output)
+            output.close()
+        else:
+            print(total_output)

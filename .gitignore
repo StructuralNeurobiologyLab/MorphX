@@ -5,6 +5,7 @@ __pycache__/
 
 # Distribution / packaging
 *.egg-info/
+dist/
 
 # Sphinx documentation
 docs/_build/
@@ -12,5 +13,4 @@ docs/_build/
 # PyCharm
 .idea/
 
-# scripts
-scripts
+
