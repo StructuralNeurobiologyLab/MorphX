@@ -75,7 +75,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
 
-def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
+def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
     """ Saves PointCloud object to given path.
 
     Args:
@@ -90,13 +90,27 @@ def save_cloud(cloud: PointCloud, path, name='cloud', simple=True) -> int:
     """
     full_path = os.path.join(path, name + '.pkl')
     try:
-        if not os.path.exists(os.path.join(path)):
+        if not os.path.exists(path):
             os.makedirs(path)
         with open(full_path, 'wb') as f:
             if isinstance(cloud, HybridCloud) and simple:
                 cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
                          'labels': cloud.labels}
             pickle.dump(cloud, f)
+    except FileNotFoundError:
+        print("Saving was not successful as given path is not valid.")
+        return 0
+    return 1
+
+
+# TODO: Improve
+def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
+    full_path = os.path.join(path, name + '.pkl')
+    try:
+        if not os.path.exists(path):
+            os.makedirs(path)
+        with open(full_path, 'wb') as f:
+            pickle.dump(clouds, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
         return 0

@@ -5,8 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import glob
+import numpy as np
 from typing import Callable
 from morphx.processing import graphs, hybrids, clouds
 from morphx.classes.hybridcloud import HybridCloud
@@ -22,7 +22,8 @@ class CloudSet:
                  transform: Callable = clouds.Identity(),
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
-                 radius_factor: float = 1.5):
+                 radius_factor: float = 1.5,
+                 class_num: int = 2):
         """ Initializes Dataset.
 
         Args:
@@ -34,7 +35,8 @@ class CloudSet:
             iterator_method: The method with which each cell should be iterated.
             global_source: The starting point of the iterator method.
             radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
-                adjusts the overlap between the cloud chunks
+                adjusts the overlap between the cloud chunks.
+            class_num: Number of classes.
         """
 
         self.data_path = data_path
@@ -44,10 +46,12 @@ class CloudSet:
         self.global_source = global_source
         self.transform = transform
         self.radius_factor = radius_factor
+        self.class_num = class_num
         self.files = glob.glob(data_path + '*.pkl')
 
         # analyse data
         self.size = 0
+        self._weights = np.ones(class_num)
 
         # option for single processing
         self.process_single = False
@@ -106,6 +110,10 @@ class CloudSet:
 
         return aug_cloud
 
+    @property
+    def weights(self):
+        return self._weights
+
     def activate_single(self, hybrid: HybridCloud):
         """ Switch cloudset mode to only process the given hybrid """
 
@@ -117,13 +125,40 @@ class CloudSet:
         self.curr_node_idx = 0
 
     def analyse_data(self):
-        """ Count number of chunks which can be generated with current settings. """
+        """ Count number of chunks which can be generated with current settings and calculate class
+            weights based on occurences in dataset. """
 
         print("Analysing data...")
+        total_pc = None
         datasize = 0
         for file in self.files:
             hybrid = clouds.load_gt(file)
+            if total_pc is None:
+                total_pc = hybrid
+            else:
+                total_pc = clouds.merge_clouds(total_pc, hybrid)
             traverser = hybrid.traverser(method=self.iterator_method, min_dist=self.radius_nm_global,
                                          source=self.global_source)
             datasize += len(traverser)
         self.size = datasize
+        print("Chunking data into {} pieces.".format(datasize))
+
+        # extract frequences for each class and calculate weights as frequences.mean() / frequences,
+        # ignoring any labels which don't appear in the dataset (setting their weight to 0)
+        total_labels = total_pc.labels
+        non_zero = []
+        freq = []
+        for i in range(self.class_num):
+            freq.append((total_labels == i).sum())
+            if freq[i] != 0:
+                non_zero.append(freq[i])
+            else:
+                freq[i] = 1
+        mean = np.array(non_zero).mean()
+        freq = mean / np.array(freq)
+        freq[(freq == mean)] = 0
+        self._weights = freq
+
+
+
+

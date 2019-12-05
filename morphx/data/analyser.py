@@ -7,11 +7,22 @@
 
 import os
 import glob
+import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from morphx.processing import visualize
-from morphx.processing import clouds, visualize
+from morphx.processing import clouds, visualize, analyse
 from morphx.data.cloudset import CloudSet
+
+
+def create_hist(labels: np.ndarray, save_path: str):
+    plt.style.use('seaborn-white')
+    bins = np.arange(min(labels) - 0.5, max(labels) + 1.5)
+    plt.hist(labels, bins=bins, edgecolor='w')
+    plt.xticks(np.arange(min(labels), max(labels) + 1))
+    plt.grid()
+    plt.title('Label distribution')
+    plt.savefig(save_path)
+    plt.close()
 
 
 class Analyser:
@@ -119,7 +130,7 @@ class Analyser:
 
             # create histogram plots
             if to_file:
-                visualize.create_hist(total_labels, save_path + '{}_chunked_hist.png'.format(name[:-4]))
+                analyse.create_hist(total_labels, save_path + '{}_chunked_hist.png'.format(name[:-4]))
 
         total_output += chunked_info
 
@@ -199,7 +210,7 @@ class Analyser:
 
             # create histogram plots
             if to_file:
-                visualize.create_hist(labels, save_path + '{}_hist.png'.format(name[:-4]))
+                analyse.create_hist(labels, save_path + '{}_hist.png'.format(name[:-4]))
 
         # ----- GET TOTAL INFORMATION ----- #
 
@@ -213,7 +224,7 @@ class Analyser:
             total_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
 
         if to_file:
-            visualize.create_hist(total_labels, save_path + 'total_hist.png')
+            analyse.create_hist(total_labels, save_path + 'total_hist.png')
 
         # build printable output
         total_output += total_info

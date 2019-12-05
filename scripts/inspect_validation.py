@@ -15,18 +15,15 @@ import morphx.processing.visualize as visualize
 from getkey import keys
 
 parser = argparse.ArgumentParser(description='Evaluate validation set.')
-parser.add_argument('--bs', type=int, default=16, help='Set batch size.')
-parser.add_argument('--np', type=int, default=1000, help='Set number of sample points.')
-parser.add_argument('--rad', type=int, default=10000, help='Set radius of local BFS.')
+parser.add_argument('--na', type=str, required=True, help='Experiment name')
+parser.add_argument('--sr', type=str, default='~/gt/simple_training/', help='Save root')
+parser.add_argument('--ip', type=str, required=True, help='Inspection path')
 
 args = parser.parse_args()
 
-batch_size = args.bs
-npoints = args.np
-radius = args.rad
-base_path = os.path.expanduser("~/wholebrain/wholebrain/u/jklimesch/gt/simple_training/"
-                               "SegSmall_b{}_r{}_s{}_axon/".format(batch_size, radius, npoints))
-data_path = base_path + 'val_examples/'
+base_path = os.path.expanduser(args.sr) + args.na + '/'
+
+data_path = base_path + args.ip
 save_path = base_path + 'im_examples/'
 if not os.path.exists(save_path):
     os.makedirs(save_path)
