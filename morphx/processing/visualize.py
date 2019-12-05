@@ -8,10 +8,22 @@
 """ This is separated from the clouds.py file because of bug in open3d when used with pytorch.
     See https://github.com/pytorch/pytorch/issues/21018 """
 
+import matplotlib.pyplot as plt
 import open3d as o3d
 import numpy as np
 from morphx.processing import clouds
 from getkey import getkey
+
+
+def create_hist(labels: np.ndarray, save_path: str):
+    plt.style.use('seaborn-white')
+    bins = np.arange(min(labels) - 0.5, max(labels) + 1.5)
+    plt.hist(labels, bins=bins, edgecolor='w')
+    plt.xticks(np.arange(min(labels), max(labels) + 1))
+    plt.grid()
+    plt.title('Label distribution')
+    plt.savefig(save_path)
+    plt.close()
 
 
 def visualize_parallel(cloud1: list, cloud2: list, static: bool = False, random_seed: int = 4,

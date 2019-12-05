@@ -19,9 +19,9 @@ data_path = os.path.expanduser(args.path)
 save_path = os.path.expanduser(args.path + 'analysis/')
 
 radius_nm = 10000
-sample_num = 1000
+sample_num = 800
 cloudset = CloudSet(data_path, radius_nm, sample_num)
 
 analyser = Analyser(data_path, cloudset)
-analyser.apply_cloudset(verbose=True, save_path=save_path)
-# analyser.get_overview(verbose=True, save_path=save_path)
+analyser.apply_cloudset(to_file=True, save_path=save_path)
+analyser.get_overview(to_file=True, save_path=save_path)

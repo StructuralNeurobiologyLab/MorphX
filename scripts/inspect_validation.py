@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import os
+import sys
 import glob
 import pickle
 import random
@@ -24,7 +25,7 @@ batch_size = args.bs
 npoints = args.np
 radius = args.rad
 base_path = os.path.expanduser("~/wholebrain/wholebrain/u/jklimesch/gt/simple_training/"
-                               "SegSmall_b{}_r{}_s{}/".format(batch_size, radius, npoints))
+                               "SegSmall_b{}_r{}_s{}_axon/".format(batch_size, radius, npoints))
 data_path = base_path + 'val_examples/'
 save_path = base_path + 'im_examples/'
 if not os.path.exists(save_path):
@@ -73,7 +74,7 @@ while idx < len(files):
             if i < 0:
                 break
         if key == keys.ENTER:
-            quit()
+            sys.exit()
 
     if reverse:
         idx -= 1

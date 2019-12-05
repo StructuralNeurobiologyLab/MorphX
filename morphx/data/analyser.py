@@ -8,6 +8,8 @@
 import os
 import glob
 import numpy as np
+from tqdm import tqdm
+from morphx.processing import visualize
 from morphx.processing import clouds, visualize
 from morphx.data.cloudset import CloudSet
 
@@ -19,24 +21,39 @@ class Analyser:
         self.files = glob.glob(data_path + '*.pkl')
         self.files.sort()
 
-        self.header = "\nDataset analysis for: " + self.data_path + "\n"
+        # prepare header
+        self.header = "Dataset analysis for: " + self.data_path + "\n"
         self.header += "Options: radius_nm = {}, radius_factor = {}, sample_num = {}\n"\
             .format(cloudset.radius_nm, cloudset.radius_factor, cloudset.sample_num)
         self.header += "Number of files: {}\n".format(len(self.files))
-        self.header += "Label meaning: 0: Dendrite, 1: Axon, 2: Soma, 3: Bouton, 4: Terminal"
+        self.header += "Label meaning: 0: Dendrite, 1: Axon, 2: Soma, 3: Bouton, 4: Terminal\n"
 
-    def apply_cloudset(self, verbose: bool = False, save_path: str = None):
+    def apply_cloudset(self, to_file: bool = False, to_png: bool = False, save_path: str = None):
+        """ Iterates pickle files and applies self.cloudset to pointclouds in each file. For each pointcloud it
+            iterates the cloudset and gathers information about the label distribution, the number of chunks and the
+            size of the generated chunks. If to_file is set matplotlib histograms of the distribution for each
+            pointcloud in total get saved.
+
+        Args:
+              to_file: Flag for saving analysis report and histograms to files.
+              to_png: Flag for saving images of each pointcloud.
+              save_path: path where files should be saved.
+        """
+
+        cloudset = self.cloudset
         total_output = self.header
+        total_output += "\n### FILE OVERVIEW: ###\n"
 
         # prepare verbose option
         image_folder = ""
-        if verbose:
+        if to_file:
             if save_path is not None:
-                image_folder = save_path + "hybrid_images/"
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
-                if not os.path.exists(image_folder):
-                    os.makedirs(image_folder)
+                if to_png:
+                    image_folder = save_path + "hybrid_images/"
+                    if not os.path.exists(image_folder):
+                        os.makedirs(image_folder)
             else:
                 raise ValueError("Cannot print analysis to file if save_path is not set.")
 
@@ -47,22 +64,24 @@ class Analyser:
             slashs = [pos for pos, char in enumerate(file) if char == '/']
             name = file[slashs[-1]+1:]
             print("Processing: " + name)
+
+            # prepare iteration
             hybrid = clouds.load_gt(file)
+            traverser = hybrid.traverser(min_dist=cloudset.radius_nm * cloudset.radius_factor)
+            chunk_num = len(traverser)
 
             self.cloudset.activate_single(hybrid)
 
-            # prepare iteration
-            chunk_num = len(hybrid.traverser())
             sample_num = self.cloudset.sample_num
             total_labels = np.zeros(sample_num*chunk_num)
             mean_size = 0
 
             # iterate chunks of current hybrid
             chunk_build = None
-            idx = 0
-            while True:
-                chunk = self.cloudset[0]
+            for idx in tqdm(range(chunk_num)):
+                chunk = cloudset[0]
                 if chunk is None:
+                    print("Finish at " + str(idx) + " of " + str(chunk_num))
                     break
 
                 # estimate chunk size by simple bounding box
@@ -79,46 +98,63 @@ class Analyser:
                     chunk_build = clouds.merge_clouds(chunk_build, chunk)
                 idx += 1
 
-            if verbose:
+            if to_png:
                 visualize.visualize_single([chunk_build], capture=True,
                                            path=image_folder + '{}_chunked.png'.format(name))
 
             # evaluate information
             u_labels, counts = np.unique(total_labels, return_counts=True)
-            mean_size /= chunk_num
+            mean_size = round(mean_size / chunk_num)
 
             # build hybrid information string
             hybrid_info = "\nFilename: {}\n" \
+                          "Number of chunks: {}\n"\
                           "Mean size of chunks: {}\n"\
                           "Total number of labels: {}\n"\
-                          "Labels and their counts:\n".format(name, mean_size, len(total_labels))
+                          "Labels and their counts:\n".format(name, chunk_num, mean_size, len(total_labels))
             for idx, el in enumerate(u_labels):
                 percentage = round(counts[idx]/len(total_labels)*100, 1)
-                hybrid_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
+                hybrid_info += str(int(el)) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
             chunked_info += hybrid_info
+
+            # create histogram plots
+            if to_file:
+                visualize.create_hist(total_labels, save_path + '{}_chunked_hist.png'.format(name[:-4]))
 
         total_output += chunked_info
 
         # output analysis
-        if verbose:
+        if to_file:
             output = open(save_path + "chunking_analysis.txt", "w")
             output.write(total_output)
             output.close()
         else:
             print(total_output)
 
-    def get_overview(self, verbose: bool = False, save_path: str = None):
+        return
+
+    def get_overview(self, to_file: bool = False, to_png: bool = False, save_path: str = None):
+        """ Iterates pickle files and extracts label distributions of pointclouds in each file. If to_file is set,
+            these distributions get saved as matplotlib histogram
+
+        Args:
+              to_file: Flag for saving analysis report and histograms to files.
+              to_png: Flag for saving images of each pointcloud.
+              save_path: path where files should be saved.
+        """
+
         cloudset = self.cloudset
 
         # prepare verbose option
         image_folder = ""
-        if verbose:
+        if to_file:
             if save_path is not None:
-                image_folder = save_path + 'hybrid_images/'
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
-                if not os.path.exists(image_folder):
-                    os.makedirs(image_folder)
+                if to_png:
+                    image_folder = save_path + 'hybrid_images/'
+                    if not os.path.exists(image_folder):
+                        os.makedirs(image_folder)
             else:
                 raise ValueError("Cannot print analysis to file if save_path is not set.")
 
@@ -140,7 +176,7 @@ class Analyser:
             traverser = hybrid.traverser(min_dist=cloudset.radius_nm*cloudset.radius_factor)
             total_chunks += len(traverser)
 
-            if verbose:
+            if to_png:
                 visualize.visualize_single([hybrid], capture=True, path=image_folder + '{}.png'.format(name))
 
             # evaluate hybrid labels
@@ -161,6 +197,12 @@ class Analyser:
                 hybrid_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
             hybrids_info += hybrid_info
 
+            # create histogram plots
+            if to_file:
+                visualize.create_hist(labels, save_path + '{}_hist.png'.format(name[:-4]))
+
+        # ----- GET TOTAL INFORMATION ----- #
+
         # build total information sring
         u_total, counts = np.unique(total_labels, return_counts=True)
         total_info = "\nTotal number of chunks: {}\n" \
@@ -170,13 +212,16 @@ class Analyser:
             percentage = round(counts[idx]/len(total_labels)*100, 1)
             total_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
 
+        if to_file:
+            visualize.create_hist(total_labels, save_path + 'total_hist.png')
+
         # build printable output
         total_output += total_info
         total_output += "\n### SINGLE FILE SPECS: ###\n"
         total_output += hybrids_info
 
         # output analysis
-        if verbose:
+        if to_file:
             with open(save_path + "data_analysis.txt", "w") as output:
                 output.write(total_output)
             output.close()

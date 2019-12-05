@@ -22,7 +22,6 @@ class TorchSet(data.Dataset):
                  transform: Callable = clouds.Identity(),
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
-                 epoch_size: int = 1000,
                  radius_factor: float = 1.5):
         """ Initializes Dataset.
 
@@ -34,7 +33,6 @@ class TorchSet(data.Dataset):
                 data.
             iterator_method: The method with which each cell should be iterated.
             global_source: The starting point of the iterator method.
-            epoch_size: Size of the data set
             radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
                 adjusts the overlap between the cloud chunks
         """
@@ -43,8 +41,8 @@ class TorchSet(data.Dataset):
                                  transform=transform,
                                  iterator_method=iterator_method,
                                  global_source=global_source,
-                                 epoch_size=epoch_size,
                                  radius_factor=radius_factor)
+        self.cloudset.analyse_data()
 
     def __len__(self):
         return len(self.cloudset)

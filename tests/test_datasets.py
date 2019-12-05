@@ -18,6 +18,7 @@ def test_cloud_traversion():
     min_dist = 10000
     source = 0
     data = CloudSet(wd, min_dist, 1000, global_source=source)
+    data.analyse_data()
 
     graph = data.curr_hybrid.graph()
     chosen = graphs.global_bfs_dist(graph, min_dist*data.radius_factor, source=source)

@@ -22,7 +22,6 @@ class CloudSet:
                  transform: Callable = clouds.Identity(),
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
-                 epoch_size: int = 1000,
                  radius_factor: float = 1.5):
         """ Initializes Dataset.
 
@@ -34,7 +33,6 @@ class CloudSet:
                 data.
             iterator_method: The method with which each cell should be iterated.
             global_source: The starting point of the iterator method.
-            epoch_size: Size of the data set
             radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
                 adjusts the overlap between the cloud chunks
         """
@@ -43,10 +41,13 @@ class CloudSet:
         self.radius_nm = radius_nm
         self.sample_num = sample_num
         self.iterator_method = iterator_method
-        self.epoch_size = epoch_size
         self.global_source = global_source
         self.transform = transform
         self.radius_factor = radius_factor
+        self.files = glob.glob(data_path + '*.pkl')
+
+        # analyse data
+        self.size = 0
 
         # option for single processing
         self.process_single = False
@@ -57,12 +58,11 @@ class CloudSet:
         self.radius_nm_global = radius_nm*self.radius_factor
 
         # load first file
-        self.files = glob.glob(data_path + '*.pkl')
         self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
         self.curr_hybrid.traverser(method=iterator_method, min_dist=self.radius_nm_global, source=self.global_source)
 
     def __len__(self):
-        return self.epoch_size
+        return self.size
 
     def __getitem__(self, index):
         """ Index gets ignored. """
@@ -71,6 +71,13 @@ class CloudSet:
 
             # in this case only one hybrid should be processed
             if self.process_single is True:
+                # switch back to normal mode
+                self.curr_node_idx = 0
+                self.process_single = False
+                self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
+                self.curr_hybrid.traverser(method=self.iterator_method,
+                                           min_dist=self.radius_nm_global,
+                                           source=self.global_source)
                 return None
 
             # reset all counters
@@ -101,6 +108,22 @@ class CloudSet:
 
     def activate_single(self, hybrid: HybridCloud):
         """ Switch cloudset mode to only process the given hybrid """
+
         self.curr_hybrid = hybrid
-        self.curr_hybrid.traverser()
+        self.curr_hybrid.traverser(method=self.iterator_method,
+                                   min_dist=self.radius_nm_global,
+                                   source=self.global_source)
         self.process_single = True
+        self.curr_node_idx = 0
+
+    def analyse_data(self):
+        """ Count number of chunks which can be generated with current settings. """
+
+        print("Analysing data...")
+        datasize = 0
+        for file in self.files:
+            hybrid = clouds.load_gt(file)
+            traverser = hybrid.traverser(method=self.iterator_method, min_dist=self.radius_nm_global,
+                                         source=self.global_source)
+            datasize += len(traverser)
+        self.size = datasize
