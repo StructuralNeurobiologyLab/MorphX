@@ -72,6 +72,32 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         return PointCloud(sample)
 
 
+def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
+    """ Returns a pointcloud which contains only those vertices witch labels occuring in 'labels'. If 'cloud'
+        is a HybridCloud, the skeleton is taken as it is and should later be filtered with the 'filter_traverser'
+        method.
+
+    Args:
+        cloud: PointCloud which should be filtered.
+        labels: List of labels for which the corresponding vertices should be extracted.
+
+    Returns:
+        PointCloud object which contains only vertices with the filtered labels. Skeletons in case of HybridClouds are
+        the same.
+    """
+
+    mask = np.zeros(cloud.labels.shape, dtype=bool)
+    for label in labels:
+        mask = np.logical_or(mask, cloud.labels == label)
+
+    mask = mask.reshape(len(mask))
+    if isinstance(cloud, HybridCloud):
+        f_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices[mask], labels=cloud.labels[mask])
+    else:
+        f_cloud = PointCloud(cloud.vertices[mask], labels=cloud.labels[mask])
+    return f_cloud
+
+
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
 

@@ -130,3 +130,22 @@ class HybridCloud(PointCloud):
                 self._traverser = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
 
         return self._traverser
+
+    def filter_traverser(self):
+        """ Removes all nodes from traverser which have no vertices to which they are the nearest node. Used for
+            making sure that label filtered clouds can be traversed without processing overhead for nodes without
+            vertices.
+
+        Returns:
+            Filtered traverser array.
+        """
+
+        f_traverser = []
+        mapping = self.vert2skel
+        for node in self.traverser():
+            if len(mapping[node]) != 0:
+                f_traverser.append(node)
+        f_traverser = np.array(f_traverser)
+        self._traverser = f_traverser
+
+        return f_traverser

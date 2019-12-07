@@ -18,6 +18,8 @@ parser = argparse.ArgumentParser(description='Evaluate validation set.')
 parser.add_argument('--na', type=str, required=True, help='Experiment name')
 parser.add_argument('--sr', type=str, default='~/gt/simple_training/', help='Save root')
 parser.add_argument('--ip', type=str, required=True, help='Inspection path')
+parser.add_argument('--ra', action='store_true', help='View in random order')
+parser.add_argument('--et', type=int, default=0, help='Entry point for viewing. Gets ignored when --ra flag is set.')
 
 args = parser.parse_args()
 
@@ -30,9 +32,13 @@ if not os.path.exists(save_path):
 
 print(data_path)
 files = glob.glob(data_path + '*.pkl')
-random.shuffle(files)
+files.sort()
 
-idx = 0
+if args.ra:
+    print("Shuffle files")
+    random.shuffle(files)
+
+idx = args.et
 reverse = False
 while idx < len(files):
     file = files[idx]
