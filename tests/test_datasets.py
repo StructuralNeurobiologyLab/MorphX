@@ -10,7 +10,17 @@ import torch
 import networkx as nx
 from morphx.data.cloudset import CloudSet
 from morphx.data.torchset import TorchSet
-from morphx.processing import graphs
+from morphx.processing import graphs, clouds
+
+
+def test_cloudset_sanity():
+    wd = os.path.expanduser('~/gt/gt_results/')
+    radius_nm = 10000
+    sample_num = 1000
+    data = CloudSet(wd, radius_nm, sample_num, transform=clouds.Center(), label_filter=[1, 3, 4])
+    data.analyse_data()
+    for i in range(len(data)):
+        pc = data[0]
 
 
 def test_cloud_traversion():

@@ -139,10 +139,11 @@ class HybridCloud(PointCloud):
         Returns:
             Filtered traverser array.
         """
-
+        # TODO: This could remove potentially useful nodes => Improve and include better criteria for removal
         f_traverser = []
         mapping = self.vert2skel
         for node in self.traverser():
+            # get only those nodes which are the nearest neighbors to some vertices
             if len(mapping[node]) != 0:
                 f_traverser.append(node)
         f_traverser = np.array(f_traverser)

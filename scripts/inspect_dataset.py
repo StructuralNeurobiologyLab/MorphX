@@ -21,8 +21,8 @@ original = clouds.load_gt(files[0])
 
 transform = clouds.Compose([clouds.Center(), clouds.RandomRotate(), clouds.RandomVariation(limits=(-10, 10))])
 radius = 10000
-sample_num = 800
-data = CloudSet(data_path, radius, sample_num, transform=transform)
+sample_num = 1000
+data = CloudSet(data_path, radius, sample_num, transform=transform, label_filter=[1, 3, 4])
 
 size = len(data.curr_hybrid.traverser())
 regex = re.findall(r"_(\d+).", files[0])

@@ -23,7 +23,8 @@ class TorchSet(data.Dataset):
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
                  radius_factor: float = 1.5,
-                 class_num: int = 2):
+                 class_num: int = 2,
+                 label_filter: list = None):
         """ Initializes Dataset.
 
         Args:
@@ -44,7 +45,8 @@ class TorchSet(data.Dataset):
                                  iterator_method=iterator_method,
                                  global_source=global_source,
                                  radius_factor=radius_factor,
-                                 class_num=class_num)
+                                 class_num=class_num,
+                                 label_filter=label_filter)
         self.cloudset.analyse_data()
 
     def __len__(self):
@@ -61,12 +63,6 @@ class TorchSet(data.Dataset):
         pts = torch.from_numpy(sample.vertices).float()
         lbs = torch.from_numpy(labels).long()
         features = torch.ones(sample.vertices.shape[0], 1).float()
-
-        # sample = {
-        #     'pts': pts,
-        #     'feats': features,
-        #     'target': lbs
-        # }
 
         return pts, features, lbs
 

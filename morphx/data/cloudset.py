@@ -9,7 +9,7 @@ import glob
 import numpy as np
 from typing import Callable
 from morphx.processing import graphs, hybrids, clouds
-from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.hybridcloud import HybridCloud, PointCloud
 
 
 class CloudSet:
@@ -23,7 +23,8 @@ class CloudSet:
                  iterator_method: str = 'global_bfs',
                  global_source: int = -1,
                  radius_factor: float = 1.5,
-                 class_num: int = 2):
+                 class_num: int = 2,
+                 label_filter: list = None):
         """ Initializes Dataset.
 
         Args:
@@ -37,6 +38,7 @@ class CloudSet:
             radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
                 adjusts the overlap between the cloud chunks.
             class_num: Number of classes.
+            label_filter: List of labels after which the dataset should be filtered.
         """
 
         self.data_path = data_path
@@ -47,9 +49,10 @@ class CloudSet:
         self.transform = transform
         self.radius_factor = radius_factor
         self.class_num = class_num
-        self.files = glob.glob(data_path + '*.pkl')
+        self.label_filter = label_filter
 
-        # analyse data
+        # find and prepare analysis parameters
+        self.files = glob.glob(data_path + '*.pkl')
         self.size = 0
         self._weights = np.ones(class_num)
 
@@ -62,8 +65,8 @@ class CloudSet:
         self.radius_nm_global = radius_nm*self.radius_factor
 
         # load first file
-        self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
-        self.curr_hybrid.traverser(method=iterator_method, min_dist=self.radius_nm_global, source=self.global_source)
+        self.curr_hybrid = None
+        self.load_new()
 
     def __len__(self):
         return self.size
@@ -73,28 +76,13 @@ class CloudSet:
         # prepare new cell if current one is exhausted
         if self.curr_node_idx >= len(self.curr_hybrid.traverser()):
 
-            # in this case only one hybrid should be processed
+            # process_single finished => switch back to normal when done
             if self.process_single is True:
-                # switch back to normal mode
-                self.curr_node_idx = 0
                 self.process_single = False
-                self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
-                self.curr_hybrid.traverser(method=self.iterator_method,
-                                           min_dist=self.radius_nm_global,
-                                           source=self.global_source)
+                self.load_new()
                 return None
-
-            # reset all counters
-            self.curr_node_idx = 0
-            self.curr_hybrid_idx += 1
-            # start over if all cells have been processed
-            if self.curr_hybrid_idx >= len(self.files):
-                self.curr_hybrid_idx = 0
-
-            # load and prepare new cell
-            self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
-            self.curr_hybrid.traverser(method=self.iterator_method, min_dist=self.radius_nm_global,
-                                       source=self.global_source)
+            else:
+                self.load_new()
 
         # perform local BFS, extract mesh at the respective nodes, sample this set and return it as a point cloud
         spoint = self.curr_hybrid.traverser()[self.curr_node_idx]
@@ -102,7 +90,7 @@ class CloudSet:
         subset = hybrids.extract_mesh_subset(self.curr_hybrid, local_bfs)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
-        # apply transformations from elektronn3.data.transform.transform3d
+        # apply transformations
         aug_cloud = self.transform(sample_cloud)
 
         # Set pointer to next node of global BFS
@@ -115,7 +103,11 @@ class CloudSet:
         return self._weights
 
     def activate_single(self, hybrid: HybridCloud):
-        """ Switch cloudset mode to only process the given hybrid """
+        """ Switch cloudset mode to only process the given hybrid
+
+        Args:
+            hybrid: The specific hybrid pointcloud which should be processed.
+        """
 
         self.curr_hybrid = hybrid
         self.curr_hybrid.traverser(method=self.iterator_method,
@@ -124,41 +116,44 @@ class CloudSet:
         self.process_single = True
         self.curr_node_idx = 0
 
+    def load_new(self):
+        """ Load next hybrid from dataset and apply possible filters """
+
+        self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
+        if self.label_filter is not None:
+            self.curr_hybrid = clouds.filter_labels(self.curr_hybrid, self.label_filter)
+        self.curr_hybrid.traverser(method=self.iterator_method,
+                                   min_dist=self.radius_nm_global,
+                                   source=self.global_source)
+        if self.label_filter is not None:
+            self.curr_hybrid.filter_traverser()
+
+        self.curr_hybrid_idx += 1
+        # start over if all files have been processed
+        if self.curr_hybrid_idx >= len(self.files):
+            self.curr_hybrid_idx = 0
+
+        self.curr_node_idx = 0
+
+        # load next if current cloud doesn't contain the requested labels
+        if len(self.curr_hybrid.traverser()) == 0:
+            self.load_new()
+
     def analyse_data(self):
         """ Count number of chunks which can be generated with current settings and calculate class
             weights based on occurences in dataset. """
 
         print("Analysing data...")
-        total_pc = None
-        datasize = 0
-        for file in self.files:
-            hybrid = clouds.load_gt(file)
-            if total_pc is None:
-                total_pc = hybrid
-            else:
-                total_pc = clouds.merge_clouds(total_pc, hybrid)
-            traverser = hybrid.traverser(method=self.iterator_method, min_dist=self.radius_nm_global,
-                                         source=self.global_source)
-            datasize += len(traverser)
+        # put all clouds together for weight calculation
+        total_pc = self.curr_hybrid
+        datasize = len(self.curr_hybrid.traverser())
+
+        # iterate remaining files
+        for i in range(len(self.files)-1):
+            self.load_new()
+            total_pc = clouds.merge_clouds(total_pc, self.curr_hybrid)
+            datasize += len(self.curr_hybrid.traverser())
         self.size = datasize
         print("Chunking data into {} pieces.".format(datasize))
 
-        # extract frequences for each class and calculate weights as frequences.mean() / frequences,
-        # ignoring any labels which don't appear in the dataset (setting their weight to 0)
-        total_labels = total_pc.labels
-        non_zero = []
-        freq = []
-        for i in range(self.class_num):
-            freq.append((total_labels == i).sum())
-            if freq[i] != 0:
-                non_zero.append(freq[i])
-            else:
-                freq[i] = 1
-        mean = np.array(non_zero).mean()
-        freq = mean / np.array(freq)
-        freq[(freq == mean)] = 0
-        self._weights = freq
-
-
-
-
+        self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)

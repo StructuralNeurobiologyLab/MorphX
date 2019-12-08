@@ -249,6 +249,55 @@ class RandomVariation:
         pc.set_vertices(vertices+variation)
         return pc
 
+# -------------------------------------- CLOUD ANALYSIS ------------------------------------------- #
+
+
+def get_variation(pc: PointCloud):
+    var = np.unique(pc.labels, return_counts=True)
+    return var[1] / len(pc.labels)
+
+
+def calculate_weights_mean(pc: PointCloud, class_num: int):
+    """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
+    labels which don't appear in the dataset (setting their weight to 0).
+
+    Args:
+        pc: Pointcloud for which the weights should be calculated.
+        class_num: Number of classes.
+    """
+
+    total_labels = pc.labels
+    non_zero = []
+    freq = []
+    for i in range(class_num):
+        freq.append((total_labels == i).sum())
+        if freq[i] != 0:
+            # save for mean calculation
+            non_zero.append(freq[i])
+        else:
+            # prevent division by zero
+            freq[i] = 1
+    mean = np.array(non_zero).mean()
+    freq = mean / np.array(freq)
+    freq[(freq == mean)] = 0
+    return freq
+
+
+def calculate_weights_occurence(pc: PointCloud, class_num: int):
+    """ Extract frequences for each class and calculate weights as len(vertices) / frequences.
+
+    Args:
+        pc: Pointcloud for which the weights should be calculated.
+        class_num: Number of classes.
+    """
+
+    total_labels = pc.labels
+    freq = []
+    for i in range(class_num):
+        freq.append((total_labels == i).sum())
+    freq = len(total_labels) / np.array(freq)
+    return freq
+
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
 

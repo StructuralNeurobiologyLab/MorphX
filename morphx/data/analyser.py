@@ -10,7 +10,7 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from morphx.processing import clouds, visualize, analyse
+from morphx.processing import clouds, visualize
 from morphx.data.cloudset import CloudSet
 
 
@@ -130,7 +130,7 @@ class Analyser:
 
             # create histogram plots
             if to_file:
-                analyse.create_hist(total_labels, save_path + '{}_chunked_hist.png'.format(name[:-4]))
+                create_hist(total_labels, save_path + '{}_chunked_hist.png'.format(name[:-4]))
 
         total_output += chunked_info
 
@@ -210,7 +210,7 @@ class Analyser:
 
             # create histogram plots
             if to_file:
-                analyse.create_hist(labels, save_path + '{}_hist.png'.format(name[:-4]))
+                create_hist(labels, save_path + '{}_hist.png'.format(name[:-4]))
 
         # ----- GET TOTAL INFORMATION ----- #
 
@@ -224,7 +224,7 @@ class Analyser:
             total_info += str(el) + " -> count: " + str(counts[idx]) + " -> " + str(percentage) + "%\n"
 
         if to_file:
-            analyse.create_hist(total_labels, save_path + 'total_hist.png')
+            create_hist(total_labels, save_path + 'total_hist.png')
 
         # build printable output
         total_output += total_info
