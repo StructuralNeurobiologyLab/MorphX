@@ -14,22 +14,28 @@ from morphx.classes.pointcloud import PointCloud
 
 
 class HybridCloud(PointCloud):
-    """
-    Class which represents a skeleton in form of a graph structure and a mesh which surrounds this skeleton.
-    """
+    """ Class which represents a skeleton in form of a graph structure and vertices which surround this skeleton and
+        which represent the actual shape of the object. """
 
-    def __init__(self, nodes: np.ndarray, edges: np.ndarray, vertices: np.ndarray, vert2skel=None, labels=None):
+    def __init__(self,
+                 nodes: np.ndarray,
+                 edges: np.ndarray,
+                 vertices: np.ndarray,
+                 vert2skel: defaultdict = None,
+                 labels: np.ndarray = None,
+                 encoding: dict = None):
         """
         Args:
-            nodes: coordinates of the nodes of the skeleton with shape (n, 3).
-            edges: edge list with indices of nodes in skel_nodes with shape (n, 2).
-            vertices: coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
-            vert2skel: dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
+            nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
+            edges: Edge list with indices of nodes in skel_nodes with shape (n, 2).
+            vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
+            vert2skel: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
-            labels: vertex label array (integer number representing respective classe) with same dimensions as
+            labels: Vertex label array (integer number representing respective classe) with same dimensions as
                 vertices.
+            encoding: Dict with unique labels as keys and description string for respective label as value.
         """
-        super().__init__(vertices, labels=labels)
+        super().__init__(vertices, labels=labels, encoding=encoding)
 
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")

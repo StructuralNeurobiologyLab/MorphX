@@ -161,6 +161,7 @@ def load_gt(path: str) -> HybridCloud:
     keys: 'skel_nodes', 'skel_edges', 'mesh_verts' and 'vert_labels' representing skeleton nodes and edges and mesh
     vertices and labels. """
 
+    path = os.path.expanduser(path)
     with open(path, "rb") as f:
         info_dict = pickle.load(f)
     f.close()

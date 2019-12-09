@@ -12,7 +12,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 
 
-def extract_mesh_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
+def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
     """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
 
     Args:

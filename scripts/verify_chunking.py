@@ -66,7 +66,7 @@ if __name__ == '__main__':
     for spoint in spoints:
         start = time.time()
         local_bfs = graphs.local_bfs_dist(graph, spoint, radius+overlap)
-        subset = hybrids.extract_mesh_subset(hybrid, local_bfs)
+        subset = hybrids.extract_cloud_subset(hybrid, local_bfs)
         subset = clouds.sample_cloud(subset, sample_num)
         duration += time.time()-start
 
