@@ -7,6 +7,7 @@
 
 import pickle
 import os
+import time
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -38,7 +39,7 @@ def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClo
         return PointCloud(vertices[total])
 
 
-def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
+def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> tuple:
     """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
 
     Args:
@@ -54,8 +55,17 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
     total = []
     for i in local_bfs:
         total.extend(mapping[i])
+    new_vertices = hm.vertices[total]
+    new_labels = hm.labels[total]
 
+    # filter faces belonging to the chosen vertices
+    start = time.time()
     new_faces = faces[np.all(np.isin(faces, total), axis=1)]
-    return MeshCloud(hm.vertices, new_faces, np.array([]), labels=hm.labels, encoding=hm.encoding)
+    print("Filtering done in {} seconds".format(time.time()-start))
+
+    # return full vertices and labels as filtered faces still point to original indices of vertices
+    # The return object can then be reduced to the actual sample cloud by performing mesh sampling on it
+    mc = MeshCloud(hm.vertices, new_faces, np.array([]), labels=hm.labels, encoding=hm.encoding)
+    return mc, new_vertices, new_labels
 
 
