@@ -8,15 +8,18 @@
 import os
 import pickle
 import point_cloud_utils as pcu
+from morphx.processing import clouds
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.meshcloud import MeshCloud
 from morphx.classes.pointcloud import PointCloud
+from scipy.spatial import cKDTree
 
 
 # -------------------------------------- MESH SAMPLING ------------------------------------------- #
 
 def sample_mesh_poisson_disk(mesh: MeshCloud, sample_num) -> PointCloud:
-    """ Uses Point-Disk-Sampling as described at https://github.com/fwilliams/point-cloud-utils
+    """ Uses Point-Disk-Sampling as described at https://github.com/fwilliams/point-cloud-utils and maps existing
+        labels using a KDTree.
 
     Args:
         mesh: The MeshCloud from which the samples should be generated
@@ -25,8 +28,22 @@ def sample_mesh_poisson_disk(mesh: MeshCloud, sample_num) -> PointCloud:
     Returns:
         PointCloud consisting of sampled points.
     """
-    s_vertices, s_normals = pcu.sample_mesh_poisson_disk(mesh.vertices, mesh.faces, mesh.normals, sample_num)
-    return PointCloud(s_vertices)
+    vertices = mesh.vertices.astype(float)
+    s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mesh.faces, mesh.normals, sample_num)
+
+    # TODO: This can be improved
+    labels = None
+    # map labels from input cloud to sample
+    if mesh.labels is not None:
+        tree = cKDTree(mesh.vertices)
+        dist, ind = tree.query(s_vertices, k=1)
+        labels = mesh.labels[ind]
+
+    # sample again, as pcu.sample doesn't always return the requested number of samples
+    # (only a few points must be added)
+    spc = clouds.sample_cloud(PointCloud(s_vertices, labels=labels), sample_num)
+
+    return spc
 
 
 # -------------------------------------- MESH I/O ------------------------------------------- #
