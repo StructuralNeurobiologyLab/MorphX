@@ -109,17 +109,19 @@ def build_pcd(cloud_list: list, random_seed: int = 4):
     labels = merged.labels
     vertices = merged.vertices
 
-    # count labels in all clouds
-    labels = labels.reshape(len(labels))
-    label_num = int(max(np.unique(labels)) + 1)
-
-    # generate colors
-    colors = np.random.choice(range(256), size=(label_num, 3)) / 255
-    colors = colors[labels.astype(int)]
-
     # visualize result
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(vertices)
-    pcd.colors = o3d.utility.Vector3dVector(colors)
+
+    # assign colors if labels exist
+    if labels is not None:
+        labels = labels.reshape(len(labels))
+        label_num = int(max(np.unique(labels)) + 1)
+
+        # generate colors
+        colors = np.random.choice(range(256), size=(label_num, 3)) / 255
+        colors = colors[labels.astype(int)]
+
+        pcd.colors = o3d.utility.Vector3dVector(colors)
 
     return pcd
