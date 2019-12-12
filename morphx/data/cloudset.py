@@ -7,6 +7,7 @@
 
 import glob
 import numpy as np
+from tqdm import tqdm
 from typing import Callable
 from morphx.processing import graphs, hybrids, clouds
 from morphx.classes.hybridcloud import HybridCloud, PointCloud
@@ -149,7 +150,7 @@ class CloudSet:
         datasize = len(self.curr_hybrid.traverser())
 
         # iterate remaining files
-        for i in range(len(self.files)-1):
+        for i in tqdm(range(len(self.files)-1)):
             self.load_new()
             total_pc = clouds.merge_clouds(total_pc, self.curr_hybrid)
             datasize += len(self.curr_hybrid.traverser())

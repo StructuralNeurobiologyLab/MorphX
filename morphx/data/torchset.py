@@ -24,7 +24,8 @@ class TorchSet(data.Dataset):
                  global_source: int = -1,
                  radius_factor: float = 1.5,
                  class_num: int = 2,
-                 label_filter: list = None):
+                 label_filter: list = None,
+                 elektronn3: bool = False):
         """ Initializes Dataset.
 
         Args:
@@ -48,6 +49,7 @@ class TorchSet(data.Dataset):
                                  class_num=class_num,
                                  label_filter=label_filter)
         self.cloudset.analyse_data()
+        self.elektronn3 = elektronn3
 
     def __len__(self):
         return len(self.cloudset)
@@ -64,7 +66,13 @@ class TorchSet(data.Dataset):
         lbs = torch.from_numpy(labels).long()
         features = torch.ones(sample.vertices.shape[0], 1).float()
 
-        return pts, features, lbs
+        if self.elektronn3:
+            sample = {'pts': pts,
+                      'features': features,
+                      'lbs': lbs}
+            return sample
+        else:
+            return pts, features, lbs
 
     @property
     def weights(self):
