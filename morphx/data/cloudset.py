@@ -55,6 +55,7 @@ class CloudSet:
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
         self.size = 0
+        self.size_cache = 0
         self._weights = np.ones(class_num)
 
         # option for single processing
@@ -67,7 +68,8 @@ class CloudSet:
 
         # load first file
         self.curr_hybrid = None
-        self.load_new()
+        if len(self.files) > 0:
+            self.load_new()
 
     def __len__(self):
         return self.size
@@ -80,6 +82,7 @@ class CloudSet:
             # process_single finished => switch back to normal when done
             if self.process_single is True:
                 self.process_single = False
+                self.size = self.size_cache
                 self.load_new()
                 return None
             else:
@@ -114,6 +117,8 @@ class CloudSet:
         self.curr_hybrid.traverser(method=self.iterator_method,
                                    min_dist=self.radius_nm_global,
                                    source=self.global_source)
+        self.size_cache = self.size
+        self.size = len(self.curr_hybrid.traverser())
         self.process_single = True
         self.curr_node_idx = 0
 
@@ -143,6 +148,9 @@ class CloudSet:
     def analyse_data(self):
         """ Count number of chunks which can be generated with current settings and calculate class
             weights based on occurences in dataset. """
+
+        if len(self.files) == 0:
+            return
 
         print("Analysing data...")
         # put all clouds together for weight calculation

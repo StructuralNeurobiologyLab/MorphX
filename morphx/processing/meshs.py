@@ -7,7 +7,6 @@
 
 import os
 import pickle
-import time
 import numpy as np
 import point_cloud_utils as pcu
 from morphx.processing import clouds
@@ -34,25 +33,19 @@ def sample_mesh_poisson_disk(mesh: MeshCloud,
         PointCloud consisting of sampled points.
     """
     vertices = mesh.vertices.astype(float)
-    start = time.time()
     s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mesh.faces, mesh.normals, sample_num)
-    print("Sampling done in {} seconds".format(time.time()-start))
 
     # TODO: This can be improved
     labels = None
-    start = time.time()
     # map labels from input cloud to sample
     if mesh.labels is not None:
         tree = cKDTree(vertices_small)
         dist, ind = tree.query(s_vertices, k=1)
         labels = labels_small[ind]
-    print("Label mapping done in {} seconds".format(time.time() - start))
 
     # sample again, as pcu.sample doesn't always return the requested number of samples
     # (only a few points must be added)
-    start = time.time()
     spc = clouds.sample_cloud(PointCloud(s_vertices, labels=labels), sample_num)
-    print("Second sampling done in {} seconds".format(time.time() - start))
 
     return spc
 

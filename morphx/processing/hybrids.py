@@ -5,9 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import pickle
-import os
-import time
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -59,10 +56,9 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> tuple:
     new_labels = hm.labels[total]
 
     # filter faces belonging to the chosen vertices
-    start = time.time()
     new_faces = faces[np.all(np.isin(faces, total), axis=1)]
-    print("Filtering done in {} seconds".format(time.time()-start))
 
+    # TODO: Improve forwarding
     # return full vertices and labels as filtered faces still point to original indices of vertices
     # The return object can then be reduced to the actual sample cloud by performing mesh sampling on it
     mc = MeshCloud(hm.vertices, new_faces, np.array([]), labels=hm.labels, encoding=hm.encoding)

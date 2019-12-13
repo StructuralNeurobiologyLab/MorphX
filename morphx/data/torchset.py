@@ -10,6 +10,7 @@ from typing import Callable
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.cloudset import CloudSet
+from morphx.classes.hybridcloud import HybridCloud
 
 
 class TorchSet(data.Dataset):
@@ -59,6 +60,8 @@ class TorchSet(data.Dataset):
 
         # get new sample from base dataloader
         sample = self.cloudset[0]
+        if sample is None:
+            return None, None, None
         labels = sample.labels.reshape(sample.labels.shape[0])
 
         # pack all numpy arrays into torch tensors
@@ -77,3 +80,6 @@ class TorchSet(data.Dataset):
     @property
     def weights(self):
         return self.cloudset.weights
+
+    def activate_single(self, hybrid: HybridCloud):
+        self.cloudset.activate_single(hybrid)
