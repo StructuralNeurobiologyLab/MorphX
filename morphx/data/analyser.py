@@ -110,7 +110,7 @@ class Analyser:
                 idx += 1
 
             if to_png:
-                visualize.visualize_single([chunk_build], capture=True,
+                visualize.visualize_clouds([chunk_build], capture=True,
                                            path=image_folder + '{}_chunked.png'.format(name))
 
             # evaluate information
@@ -188,7 +188,7 @@ class Analyser:
             total_chunks += len(traverser)
 
             if to_png:
-                visualize.visualize_single([hybrid], capture=True, path=image_folder + '{}.png'.format(name))
+                visualize.visualize_clouds([hybrid], capture=True, path=image_folder + '{}.png'.format(name))
 
             # evaluate hybrid labels
             labels = hybrid.labels

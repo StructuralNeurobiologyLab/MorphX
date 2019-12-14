@@ -65,8 +65,8 @@ while idx < len(files):
         if key == keys.UP:
             print("Saving to png...")
             path = save_path + '{}_i{}'.format(filename, i)
-            visualize.visualize_single([orig], capture=True, path=path + '_1.png')
-            visualize.visualize_single([pred], capture=True, path=path + '_2.png')
+            visualize.visualize_clouds([orig], capture=True, path=path + '_1.png')
+            visualize.visualize_clouds([pred], capture=True, path=path + '_2.png')
         if key == keys.DOWN:
             print("Displaying interactive view...")
             # display images for interaction

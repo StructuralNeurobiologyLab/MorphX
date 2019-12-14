@@ -32,7 +32,7 @@ samples = []
 for i in range(size):
     sample = data[0]
     samples.append(sample)
-    visualize.visualize_single([sample], capture=True, path=data_path+'visualized_chunks/sso_{}_r{}_s{}_i{}.png'
+    visualize.visualize_clouds([sample], capture=True, path=data_path + 'visualized_chunks/sso_{}_r{}_s{}_i{}.png'
                                .format(sso_id, radius, sample_num, i))
 
-visualize.visualize_single([original], capture=True, path=data_path+'visualized_chunks/full_sso_{}.png'.format(sso_id))
+visualize.visualize_clouds([original], capture=True, path=data_path + 'visualized_chunks/full_sso_{}.png'.format(sso_id))
