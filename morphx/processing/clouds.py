@@ -330,6 +330,6 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         raise Exception("PointCloud label is None at one PointCloud but exists at the other. "
                         "PointClouds are not compatible")
     else:
-        merged_labels[:len(pc1.vertices)] = pc1.labels
-        merged_labels[len(pc1.vertices):] = pc2.labels
+        merged_labels[:len(pc1.vertices)] = pc1.labels.reshape((len(pc1.labels), 1))
+        merged_labels[len(pc1.vertices):] = pc2.labels.reshape((len(pc2.labels), 1))
         return PointCloud(merged_vertices, labels=merged_labels)
