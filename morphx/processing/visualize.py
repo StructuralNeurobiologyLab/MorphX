@@ -120,7 +120,7 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
     a_bfs_skel = np.zeros((size*sphere_size, 3))
     for i in range(sphere_size):
         a_bfs_skel[i * size:i * size + size] = bfs_skel
-        a_bfs_skel[i * size:i * size + size] += (np.random.random((size, 3))-0.5)*500
+    a_bfs_skel += (np.random.random((len(a_bfs_skel), 3))-0.5)*500
 
     bfs_skel = PointCloud(a_bfs_skel, labels=np.ones(len(a_bfs_skel)))
 
