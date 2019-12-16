@@ -104,11 +104,17 @@ class CloudSet:
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
 
-        return aug_cloud
+        if self.verbose:
+            return aug_cloud, local_bfs
+        else:
+            return aug_cloud
 
     @property
     def weights(self):
         return self._weights
+
+    def set_verbose(self):
+        self.verbose = True
 
     def activate_single(self, hybrid: HybridCloud):
         """ Switch cloudset mode to only process the given hybrid

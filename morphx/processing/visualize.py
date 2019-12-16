@@ -97,6 +97,34 @@ def visualize_skeleton(hc: HybridCloud, capture: bool = False, path="", random_s
     core_visualizer(pcd, capture=capture, path=path)
 
 
+def prepare_bfs(hc: HybridCloud, bfs: np.ndarray) -> PointCloud:
+    """ Enriches the BFS result with small point cubes for better visualization.
+
+    Args:
+        hc: The HybridCloud on whose skeleton the BFS was performed
+        bfs: The result of the BFS in form of an array of node indices.
+
+    Returns:
+        PointCloud with enriched BFS result.
+    """
+
+    nodes = hc.nodes
+    bfs = bfs.astype(int)
+    bfs_skel = nodes[bfs]
+
+    # create small point cubes around BFS points for better visualization
+    sphere_size = 1000
+    size = len(bfs_skel)
+    a_bfs_skel = np.zeros((size * sphere_size, 3))
+    for i in range(sphere_size):
+        a_bfs_skel[i * size:i * size + size] = bfs_skel
+    a_bfs_skel += (np.random.random((len(a_bfs_skel), 3)) - 0.5) * 500
+
+    labels = np.ones(len(a_bfs_skel))
+    labels[:] = 9
+    return PointCloud(a_bfs_skel, labels=labels)
+
+
 def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path="", random_seed: int = 4):
     """ Uses open3d to visualize the result of a breadth first search on the skeleton of the given HybridCloud. The
         image can be saved without showing.
@@ -112,17 +140,8 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
     bfs = bfs.astype(int)
     pure_skel = np.delete(nodes, bfs, axis=0)
     pure_skel = PointCloud(pure_skel, labels=np.zeros(len(pure_skel)))
-    bfs_skel = nodes[bfs]
 
-    # create small point cubes around BFS points for better visualization
-    sphere_size = 1000
-    size = len(bfs_skel)
-    a_bfs_skel = np.zeros((size*sphere_size, 3))
-    for i in range(sphere_size):
-        a_bfs_skel[i * size:i * size + size] = bfs_skel
-    a_bfs_skel += (np.random.random((len(a_bfs_skel), 3))-0.5)*500
-
-    bfs_skel = PointCloud(a_bfs_skel, labels=np.ones(len(a_bfs_skel)))
+    bfs_skel = prepare_bfs(hc, bfs)
 
     pcd = build_pcd([pure_skel, bfs_skel], random_seed=random_seed)
     core_visualizer(pcd, capture=capture, path=path)

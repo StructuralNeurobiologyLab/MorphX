@@ -7,6 +7,7 @@
 
 import os
 import glob
+import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -25,6 +26,27 @@ def create_hist(labels: np.ndarray, save_path: str):
     plt.close()
 
 
+def save_cloudset(cloudset: CloudSet, save_path: str):
+    save_path = os.path.expanduser(save_path)
+
+    cloudset.set_verbose()
+    idx = cloudset.curr_hybrid_idx
+    print("Save new hybrid to file.")
+    clouds.save_cloud(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx), simple=False)
+
+    for i in range(len(cloudset)):
+        if idx != cloudset.curr_hybrid_idx:
+            idx = cloudset.curr_hybrid_idx
+            print("Save new hybrid to file.")
+            clouds.save_cloud(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx), simple=False)
+
+        sample, loc_bfs = cloudset[0]
+        filename = save_path + 'h{}_s{}.pkl'.format(idx, i)
+        with open(filename, 'wb') as f:
+            pickle.dump([idx, loc_bfs, sample], f)
+
+
+# TODO: Change this to classless methods which do very specific tasks
 class Analyser:
     def __init__(self, data_path: str, cloudset: CloudSet):
         self.data_path = data_path

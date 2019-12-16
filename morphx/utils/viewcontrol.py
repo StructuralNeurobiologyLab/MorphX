@@ -12,7 +12,7 @@ class ViewControl(object):
         examples. """
 
     # TODO: Make this class more abstract and more uniform in terms of loading
-    def __init__(self, path1: str, save_path: str, path2: str = None):
+    def __init__(self, path1: str, save_path: str, path2: str = None, cloudset: bool = False):
         """
         Args:
             path1: path to pickle files (if path2 != None and comparison of ground truth is intended, this must be the
@@ -20,25 +20,35 @@ class ViewControl(object):
             path2: Set if comparison of ground truth is intended. This should point to the directory of processed files.
         """
 
-        self.path1 = os.path.expanduser(path1)
-        self.files1 = glob.glob(path1 + '*.pkl')
-        self.files1.sort()
-
+        self.cloudset = cloudset
         self.save_path = os.path.expanduser(save_path)
 
-        self.path2 = path2
-        self.files2 = None
-        self.cmp = False
-        if path2 is not None:
-            self.path2 = os.path.expanduser(path2)
-            self.files2 = glob.glob(path2 + '*.pkl')
-            self.files2.sort()
-            self.cmp = True
-
-        if self.cmp:
-            self.load = self.load_cmp
+        self.path1 = os.path.expanduser(path1)
+        if cloudset:
+            self.files1 = glob.glob(path1 + 'h*.pkl')
         else:
-            self.load = self.load_val
+            self.files1 = glob.glob(path1 + '*.pkl')
+        self.files1.sort()
+
+        if cloudset:
+            self.files2 = glob.glob(path1 + 'cloud*.pkl')
+        else:
+            self.cmp = False
+            if path2 is not None:
+                self.path2 = os.path.expanduser(path2)
+                self.files2 = glob.glob(path2 + '*.pkl')
+                self.files2.sort()
+                self.cmp = True
+            else:
+                self.path2 = None
+
+        if cloudset:
+            self.load = self.load_cloudset
+        else:
+            if self.cmp:
+                self.load = self.load_cmp
+            else:
+                self.load = self.load_val
 
     def start_view(self, idx: int):
         self.load(idx)
@@ -78,6 +88,32 @@ class ViewControl(object):
         if key == keys.ENTER:
             print("Aborting inspection...")
             return None
+
+    def load_cloudset(self, idx: int):
+        while idx < len(self.files1):
+            file = self.files1[idx]
+            slashs = [pos for pos, char in enumerate(file) if char == '/']
+            filename = file[slashs[-1]:-4]
+            print("Viewing: " + filename)
+
+            with open(file, 'rb') as f:
+                content = pickle.load(f)
+
+            hybrid_idx = content[0]
+            hybrid_file = [file for file in self.files2 if 'cloud_{}'.format(hybrid_idx) in file]
+            hybrid = clouds.load_cloud(hybrid_file[0])
+
+            local_bfs = content[1]
+            sample = content[2]
+            bfs_cloud = visualize.prepare_bfs(hybrid, local_bfs)
+
+            hybrid_bfs = clouds.merge_clouds(hybrid, bfs_cloud)
+            res = self.core_next(hybrid_bfs, sample, 'sample_h{}_i{}'.format(hybrid_idx, idx))
+
+            if res is None:
+                return
+            else:
+                idx += res
 
     def load_val(self, idx: int):
         """ Method for viewing validation or training examples. These examples must be saved as a list in the pickle
