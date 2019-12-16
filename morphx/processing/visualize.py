@@ -128,17 +128,6 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
     core_visualizer(pcd, capture=capture, path=path)
 
 
-def core_visualizer(pcd: o3d.geometry.PointCloud, capture: bool, path: str):
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.add_geometry(pcd)
-
-    if capture:
-        vis.capture_screen_image(path, True)
-    else:
-        vis.run()
-
-
 def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
     """ Builds an Open3d point cloud object out of the given list of morphx PointClouds.
 
@@ -176,3 +165,14 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
         pcd.colors = o3d.utility.Vector3dVector(colors)
 
     return pcd
+
+
+def core_visualizer(pcd: o3d.geometry.PointCloud, capture: bool, path: str):
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(pcd)
+
+    if capture:
+        vis.capture_screen_image(path, True)
+    else:
+        vis.run()

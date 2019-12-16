@@ -1,15 +1,9 @@
-# -*- coding: utf-8 -*-
-# MorphX - Toolkit for morphology exploration and segmentation
-# Copyright (c) 2019 - now
-# Max Planck Institute of Neurobiology, Martinsried, Germany
-# Authors: Jonathan Klimesch
-
 import os
-import sys
 import glob
 import pickle
+import numpy as np
 from getkey import keys
-from morphx.processing import visualize, clouds
+from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
 
 
@@ -17,6 +11,7 @@ class ViewControl(object):
     """ Viewer class for comparison of ground truth with processed files or for viewing validation and training
         examples. """
 
+    # TODO: Make this class more abstract and more uniform in terms of loading
     def __init__(self, path1: str, save_path: str, path2: str = None):
         """
         Args:
@@ -45,10 +40,25 @@ class ViewControl(object):
         else:
             self.load = self.load_val
 
-    def start_view(self):
-        self.load()
+    def start_view(self, idx: int):
+        self.load(idx)
 
     def core_next(self, cloud1: PointCloud, cloud2: PointCloud, save_name):
+        """ Visualizes given clouds and waits for user input:
+            Right arrow: Next image
+            Left arrow: Previous image
+            Up arrow: Save images to png
+            Down arrow: Change from static to dynamic view (enable interactive view)
+
+        Args:
+            cloud1: First cloud to be visualized.
+            cloud2: Second cloud to be visualized.
+            save_name: Files will be saved to self.save_path + save_name + _1.png / _2.png
+
+        Returns:
+            Change for viewing indices.
+        """
+
         key = visualize.visualize_parallel([cloud1], [cloud2], static=True)
         if key == keys.RIGHT:
             return 1
@@ -57,21 +67,27 @@ class ViewControl(object):
             path = self.save_path + save_name
             visualize.visualize_clouds([cloud1], capture=True, path=path + '_1.png')
             visualize.visualize_clouds([cloud2], capture=True, path=path + '_2.png')
+            return 0
         if key == keys.DOWN:
             print("Displaying interactive view...")
             # display images for interaction
             visualize.visualize_parallel([cloud1], [cloud2])
+            return 0
         if key == keys.LEFT:
             return -1
         if key == keys.ENTER:
             print("Aborting inspection...")
-            sys.exit()
+            return None
 
-    def load_val(self):
-        idx = 0
+    def load_val(self, idx: int):
+        """ Method for viewing validation or training examples. These examples must be saved as a list in the pickle
+            file and should alternate between target and prediction. E.g. [targetcloud1, predictedcloud1, targetcloud2
+            predictedcloud2, ...]
+        """
+
         reverse = False
 
-        # TODO: Make this pythonic and simpler
+        # TODO: Make this pythonic and less ugly
         while idx < len(self.files1):
             file = self.files1[idx]
             slashs = [pos for pos, char in enumerate(file) if char == '/']
@@ -85,7 +101,12 @@ class ViewControl(object):
             else:
                 i = 0
             while i < int(len(results)):
-                res = self.core_next(results[i], results[i + 1], filename + '_i{}'.format(i))
+                orig = results[i]
+                pred = results[i+1]
+                pred = PointCloud(pred.vertices, np.argmax(pred.vertices, axis=1), encoding=pred.encoding)
+                res = self.core_next(orig, pred, filename + '_i{}'.format(i))
+                if res is None:
+                    return
                 i += 2*res
                 if res < 0:
                     reverse = True
@@ -98,8 +119,11 @@ class ViewControl(object):
             else:
                 idx += 1
 
-    def load_cmp(self):
-        idx = 0
+    def load_cmp(self, idx: int):
+        """ Method for comparing ground truth with processed data. Ground truth must be given in first file list,
+            processed files in the second file list.
+        """
+
         while idx < len(self.files1):
             gt_file = self.files1[idx]
             pred_file = self.files2[idx]
@@ -110,4 +134,8 @@ class ViewControl(object):
             gt = clouds.load_gt(gt_file)
             pred = clouds.load_cloud(pred_file)
 
-            idx += self.core_next(gt, pred, filename)
+            res = self.core_next(gt, pred, filename)
+            if res is None:
+                return
+            else:
+                idx += res
