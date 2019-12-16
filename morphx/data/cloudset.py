@@ -25,7 +25,8 @@ class CloudSet:
                  global_source: int = -1,
                  radius_factor: float = 1.5,
                  class_num: int = 2,
-                 label_filter: list = None):
+                 label_filter: list = None,
+                 verbose: bool = False):
         """ Initializes Dataset.
 
         Args:
@@ -51,6 +52,7 @@ class CloudSet:
         self.radius_factor = radius_factor
         self.class_num = class_num
         self.label_filter = label_filter
+        self.verbose = verbose
 
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
@@ -95,7 +97,8 @@ class CloudSet:
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
         # apply transformations
-        aug_cloud = self.transform(sample_cloud)
+        if len(sample_cloud.vertices) > 0:
+            aug_cloud = self.transform(sample_cloud)
 
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
@@ -125,9 +128,16 @@ class CloudSet:
     def load_new(self):
         """ Load next hybrid from dataset and apply possible filters """
 
-        self.curr_hybrid = clouds.load_gt(self.files[self.curr_hybrid_idx])
+        if self.verbose:
+            print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
+
+        self.curr_hybrid = clouds.load_cloud(self.files[self.curr_hybrid_idx])
         if self.label_filter is not None:
             self.curr_hybrid = clouds.filter_labels(self.curr_hybrid, self.label_filter)
+
+        if self.verbose:
+            print("Calculating traverser...")
+
         self.curr_hybrid.traverser(method=self.iterator_method,
                                    min_dist=self.radius_nm_global,
                                    source=self.global_source)

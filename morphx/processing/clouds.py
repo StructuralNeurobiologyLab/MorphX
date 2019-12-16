@@ -185,6 +185,10 @@ class Compose:
         self.transforms = transforms
 
     def __call__(self, pc: PointCloud):
+
+        if len(pc.vertices) == 0:
+            return pc
+
         for t in self.transforms:
             pc = t(pc)
         return pc
@@ -199,6 +203,9 @@ class RandomRotate:
     def __call__(self, pc: PointCloud) -> PointCloud:
         """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
          from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. """
+
+        if len(pc.vertices) == 0:
+            return pc
 
         angles = np.random.uniform(self.angle_range[0], self.angle_range[1], (1, 3))[0]
         r = Rot.from_euler('xyz', angles, degrees=True)
@@ -217,6 +224,9 @@ class Center:
     def __call__(self, pc: PointCloud) -> PointCloud:
         """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
          get centered as well but are not taken into account for centroid calculation. """
+
+        if len(pc.vertices) == 0:
+            return pc
 
         vertices = pc.vertices
         centroid = np.mean(vertices, axis=0)
@@ -242,6 +252,9 @@ class RandomVariation:
 
     def __call__(self, pc: PointCloud) -> PointCloud:
         """ Adds some random variation to vertices of the given PointCloud. Possible nodes get ignored. """
+
+        if len(pc.vertices) == 0:
+            return pc
 
         if self.limits == (0, 0):
             return pc

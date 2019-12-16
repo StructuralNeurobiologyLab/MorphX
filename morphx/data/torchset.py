@@ -25,8 +25,7 @@ class TorchSet(data.Dataset):
                  global_source: int = -1,
                  radius_factor: float = 1.5,
                  class_num: int = 2,
-                 label_filter: list = None,
-                 elektronn3: bool = False):
+                 label_filter: list = None):
         """ Initializes Dataset.
 
         Args:
@@ -50,7 +49,6 @@ class TorchSet(data.Dataset):
                                  class_num=class_num,
                                  label_filter=label_filter)
         self.cloudset.analyse_data()
-        self.elektronn3 = elektronn3
 
     def __len__(self):
         return len(self.cloudset)
@@ -60,8 +58,15 @@ class TorchSet(data.Dataset):
 
         # get new sample from base dataloader
         sample = self.cloudset[0]
+
         if sample is None:
-            return None, None, None
+            return None
+
+        # TODO: Implement better handling for empty clouds
+        # skip samples without any points
+        while len(sample.vertices) == 0:
+            sample = self.cloudset[0]
+
         labels = sample.labels.reshape(sample.labels.shape[0])
 
         # pack all numpy arrays into torch tensors
@@ -69,13 +74,7 @@ class TorchSet(data.Dataset):
         lbs = torch.from_numpy(labels).long()
         features = torch.ones(sample.vertices.shape[0], 1).float()
 
-        if self.elektronn3:
-            sample = {'pts': pts,
-                      'features': features,
-                      'lbs': lbs}
-            return sample
-        else:
-            return pts, features, lbs
+        return {'pts': pts, 'features': features, 'target': lbs}
 
     @property
     def weights(self):
