@@ -97,6 +97,7 @@ class CloudSet:
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
         # apply transformations
+        aug_cloud = sample_cloud
         if len(sample_cloud.vertices) > 0:
             aug_cloud = self.transform(sample_cloud)
 
