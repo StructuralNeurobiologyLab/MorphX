@@ -194,16 +194,30 @@ class Compose:
         return pc
 
 
+class Normalization:
+    """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
+        valid (<= 0) it gets set to 1, so that the normalization has no effect. """
+
+    def __init__(self, radius: int):
+        if radius <= 0:
+            self.radius = 1
+        self.radius = radius
+
+    def __call__(self, pc: PointCloud) -> PointCloud:
+        n_vertices = pc.vertices / self.radius
+        pc.set_vertices(n_vertices)
+        return pc
+
+
 class RandomRotate:
-    """ Rotation of 3D PointClouds. Range of possible angles can be set with angle_range. """
+    """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
+        from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. Operates
+        in-place for the given Pointcloud. """
 
     def __init__(self, angle_range: tuple = (-180, 180)):
         self.angle_range = angle_range
 
     def __call__(self, pc: PointCloud) -> PointCloud:
-        """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
-         from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. """
-
         if len(pc.vertices) == 0:
             return pc
 
@@ -216,14 +230,14 @@ class RandomRotate:
 
         if isinstance(pc, HybridCloud):
             pc.set_nodes(r.apply(pc.nodes))
-
         return pc
 
 
 class Center:
     def __call__(self, pc: PointCloud) -> PointCloud:
         """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
-         get centered as well but are not taken into account for centroid calculation. """
+         get centered as well but are not taken into account for centroid calculation. Operates in-place for the
+         given PointCloud"""
 
         if len(pc.vertices) == 0:
             return pc
@@ -235,12 +249,12 @@ class Center:
 
         if isinstance(pc, HybridCloud):
             pc.set_nodes(pc.nodes - centroid)
-
         return pc
 
 
 class RandomVariation:
-    """ Additional noise for PointCloud objects. The noise amplitude range can be set with limits. """
+    """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
+        Possible nodes get ignored. Operates in-place for the given PointCloud. """
 
     def __init__(self, limits: tuple = (-1, 1)):
         if limits[0] < limits[1]:
@@ -251,8 +265,6 @@ class RandomVariation:
             self.limits = (0, 0)
 
     def __call__(self, pc: PointCloud) -> PointCloud:
-        """ Adds some random variation to vertices of the given PointCloud. Possible nodes get ignored. """
-
         if len(pc.vertices) == 0:
             return pc
 
