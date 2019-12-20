@@ -7,8 +7,8 @@
 
 import numpy as np
 import numba as nb
+import warnings
 from collections import defaultdict
-from scipy.spatial import cKDTree
 from morphx.classes.hybridcloud import HybridCloud
 
 
@@ -64,28 +64,16 @@ class HybridMesh(HybridCloud):
         """
         if self._faces2node is None:
             self._faces2node = dict()
-            sh = self.faces.shape
             for node_ix, vert_ixs in self.vert2skel.items():
                 if len(vert_ixs) == 0:
                     self._faces2node[node_ix] = []
                     continue
-                new_faces = any_in_1d_nb(self.faces, set(vert_ixs))
+                # TODO: Depreciated use of set with numba => change when numba has published typed_set
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    new_faces = any_in_1d_nb(self.faces, set(vert_ixs))
                 new_faces = np.nonzero(new_faces)[0].tolist()
                 self._faces2node[node_ix] = new_faces
-        return self._faces2node
-
-    @property
-    def faces2node_OLD(self) -> dict:
-        """ Creates python defaultdict with indices of ``:py:attr:~nodes`` as
-        keys and lists of face indices associated with the nodes as values.
-
-        Returns:
-            Python defaultdict with mapping information.
-        """
-        self._faces2node = dict()
-        for node_ix, vert_ixs in self.vert2skel.items():
-            new_faces = np.all(np.isin(self.faces, vert_ixs), axis=1)
-            self._faces2node[node_ix] = new_faces
         return self._faces2node
 
 
