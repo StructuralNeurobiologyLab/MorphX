@@ -8,6 +8,7 @@
 import os
 import glob
 import pickle
+import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -27,8 +28,16 @@ def create_hist(labels: np.ndarray, save_path: str):
 
 
 def save_cloudset(cloudset: CloudSet, save_path: str):
-    save_path = os.path.expanduser(save_path)
+    """ This method iterates through the dataset of the given cloudset and saves all the results so that they can be
+        inspected by using the morphx.utils.viewcontrol load_cloudset method.
 
+    Args:
+        cloudset: CloudSet which was initialized on the dataset of intereset.
+        save_path: path to folder where results should get saved into.
+    """
+
+    save_path = os.path.expanduser(save_path)
+    ipdb.set_trace()
     cloudset.set_verbose()
     idx = cloudset.curr_hybrid_idx
     print("Save new hybrid to file.")
@@ -49,6 +58,10 @@ def save_cloudset(cloudset: CloudSet, save_path: str):
 # TODO: Change this to classless methods which do very specific tasks
 class Analyser:
     def __init__(self, data_path: str, cloudset: CloudSet):
+        """ The analyser gets a dataset and a cloudset and is then applying the cloudset to that dataset by also
+            performing some cloudset-independent analysis on the dataset.
+        """
+
         self.data_path = data_path
         self.cloudset = cloudset
         self.files = glob.glob(data_path + '*.pkl')

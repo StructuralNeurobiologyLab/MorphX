@@ -185,7 +185,6 @@ class Compose:
         self.transforms = transforms
 
     def __call__(self, pc: PointCloud):
-
         if len(pc.vertices) == 0:
             return pc
 

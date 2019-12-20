@@ -73,6 +73,8 @@ class CloudSet:
         if len(self.files) > 0:
             self.load_new()
 
+        self.analyse_data()
+
     def __len__(self):
         return self.size
 

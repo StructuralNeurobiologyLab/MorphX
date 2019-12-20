@@ -90,6 +90,13 @@ class ViewControl(object):
             return None
 
     def load_cloudset(self, idx: int):
+        """ Gets executed when cloudset flag is set and visualizes the results from cloudset chunking performed by
+            the morphx.data.analyser save_cloudset method.
+
+        Args:
+            idx: Index at which file the viewing should start.
+        """
+
         while idx < len(self.files1):
             file = self.files1[idx]
             slashs = [pos for pos, char in enumerate(file) if char == '/']

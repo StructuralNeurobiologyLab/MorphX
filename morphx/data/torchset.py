@@ -48,7 +48,6 @@ class TorchSet(data.Dataset):
                                  radius_factor=radius_factor,
                                  class_num=class_num,
                                  label_filter=label_filter)
-        self.cloudset.analyse_data()
 
     def __len__(self):
         return len(self.cloudset)
