@@ -1,0 +1,6 @@
+[run]
+include =
+    morphx/*
+omit =
+    tests/*
+    */__init__.py

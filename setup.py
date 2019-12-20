@@ -2,11 +2,11 @@ from setuptools import setup
 
 setup(
     name='MorphX',
-    version='0.0.0',
+    version='0.0.1',
     description='Toolkit for exploration and segmentation of 3D morphologies in form of point clouds or meshes.',
     url='https://github.com/StructuralNeurobiologyLab/MorphX',
     download_url='https://github.com/StructuralNeurobiologyLab/MorphX.git',
-    author='Jonathan Klimesch',
+    author='Jonathan Klimesch, Philipp Schubert',
     author_email='jklimesch@neuro.mpg.de',
     classifiers=[
         'Development Status :: 1 - Planning',
@@ -14,5 +14,7 @@ setup(
         'Intended Audience :: Science/Research'
         'Topic :: Scientific/Engineering :: Morphology Analysis',
         'Programming Language :: Python :: 3.7',
-    ], install_requires=['numpy', 'networkx', 'scipy', 'open3d']
+    ],
+    install_requires=[],
+    tests_require=['pytest', 'pytest-cov', ],
 )

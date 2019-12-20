@@ -7,22 +7,26 @@
 
 import os
 import torch
+import pytest
 import networkx as nx
 from morphx.data.cloudset import CloudSet
 from morphx.data.torchset import TorchSet
 from morphx.processing import graphs, clouds
 
 
+@pytest.mark.skip(reason="WIP")
 def test_cloudset_sanity():
     wd = os.path.expanduser('~/gt/gt_results/')
     radius_nm = 10000
-    sample_num = 1000
-    data = CloudSet(wd, radius_nm, sample_num, transform=clouds.Center(), label_filter=[1, 3, 4])
+    sample_num = 100
+    data = CloudSet(wd, radius_nm, sample_num, transform=clouds.Center(),
+                    label_filter=[1, 3, 4])
     data.analyse_data()
     for i in range(len(data)):
         pc = data[0]
 
 
+@pytest.mark.skip(reason="WIP")
 def test_cloud_traversion():
     wd = os.path.expanduser('~/gt/gt_results/')
     min_dist = 10000
@@ -49,6 +53,7 @@ def test_cloud_traversion():
             assert dist > min_dist * data.radius_factor
 
 
+@pytest.mark.skip(reason="WIP")
 def test_torch_dimensions():
     wd = os.path.expanduser('~/gt/gt_results/')
     min_dist = 10000

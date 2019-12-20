@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2019 - now
 # Max Planck Institute of Neurobiology, Martinsried, Germany
-# Authors: Jonathan Klimesch
+# Authors: Jonathan Klimesch, Philipp Schubert
 
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
@@ -36,8 +36,9 @@ def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClo
         return PointCloud(vertices[total])
 
 
-def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> tuple:
-    """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
+def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
+    """ Returns the mesh subset of given skeleton nodes based on the face
+     mapping dict between skeleton and mesh.
 
     Args:
         hm: HybridMesh from which the subset should be extracted.
@@ -46,22 +47,37 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> tuple:
     Returns:
         Mesh subset as PointCloud object
     """
-    mapping = hm.vert2skel
-    faces = hm.faces
+    mapping_face = hm.faces2node
 
-    total = []
-    for i in local_bfs:
-        total.extend(mapping[i])
-    new_vertices = hm.vertices[total]
-    new_labels = hm.labels[total]
+    total_face = set()
+    for node_ix in local_bfs:
+        total_face.update(set(mapping_face[node_ix]))
 
-    # filter faces belonging to the chosen vertices
-    new_faces = faces[np.all(np.isin(faces, total), axis=1)]
+    total_face = list(total_face)
 
-    # TODO: Improve forwarding
-    # return full vertices and labels as filtered faces still point to original indices of vertices
-    # The return object can then be reduced to the actual sample cloud by performing mesh sampling on it
-    mc = MeshCloud(hm.vertices, new_faces, np.array([]), labels=hm.labels, encoding=hm.encoding)
-    return mc, new_vertices, new_labels
-
-
+    if len(total_face) == len(hm.faces):
+        # all faces haven been selected
+        new_faces = hm.faces
+        new_vertices = hm.vertices
+        new_labels = hm.labels
+    else:
+        new_faces = hm.faces[total_face]
+        total_vertex = np.unique(new_faces.flatten())
+        new_vertices = hm.vertices[total_vertex]
+        new_labels = hm.labels[total_vertex]
+        # normalize new faces to be contiguous
+        face_shape = new_faces.shape
+        new_faces = new_faces.flatten()
+        updated_face_ixs = dict()
+        cnt = 0
+        for ix, old_face_ix in enumerate(new_faces):
+            if old_face_ix not in updated_face_ixs:
+                updated_face_ixs[old_face_ix] = cnt
+                cnt += 1
+            # update face indices
+            new_faces[ix] = updated_face_ixs[old_face_ix]
+        # switch to original shape
+        new_faces = new_faces.reshape(face_shape)
+    mc = MeshCloud(new_vertices, new_faces, np.array([]), labels=new_labels,
+                   encoding=hm.encoding)
+    return mc
