@@ -67,7 +67,8 @@ class HybridCloud(PointCloud):
         return self._edges
 
     @property
-    def vert2skel(self) -> defaultdict:
+    # think about renaming it into verts2nodes
+    def vert2skel(self) -> dict:
         """ Creates python defaultdict with indices of skel_nodes as keys and lists of vertex
         indices which have their key node as nearest skeleton node.
 
@@ -78,10 +79,9 @@ class HybridCloud(PointCloud):
             tree = cKDTree(self.nodes)
             dist, ind = tree.query(self.vertices, k=1)
 
-            self._vert2skel = defaultdict(list)
+            self._vert2skel = {ix: [] for ix in range(len(self.nodes))}
             for vertex_idx, skel_idx in enumerate(ind):
                 self._vert2skel[skel_idx].append(vertex_idx)
-
         return self._vert2skel
 
     def graph(self, simple=False) -> nx.Graph:
@@ -119,7 +119,7 @@ class HybridCloud(PointCloud):
 
     def traverser(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
         """ Creates or returns an array of node indices which can be used as the order in which the hybrid
-        should be traversed. With method = 'global_bfs', this method calculates the global BFS for the weighted
+        should be traversed. With ``method = 'global_bfs'``, this method calculates the global BFS for the weighted
         graph of this hybrid object.
 
         Args:
@@ -138,9 +138,9 @@ class HybridCloud(PointCloud):
         return self._traverser
 
     def filter_traverser(self):
-        """ Removes all nodes from traverser which have no vertices to which they are the nearest node. Used for
-            making sure that label filtered clouds can be traversed without processing overhead for nodes without
-            vertices.
+        """ Removes all nodes from `:py:func:~traverser` which have no vertices to which they are the nearest node.
+        Used for making sure that label filtered clouds can be traversed without processing overhead for nodes without
+        vertices.
 
         Returns:
             Filtered traverser array.

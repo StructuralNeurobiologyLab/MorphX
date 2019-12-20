@@ -1,0 +1,49 @@
+# Dependencies marked with "(optional)" are not required for core functionality
+# and can be commented out if there are conflicts.
+
+name: morphx
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  # From -c pytorch
+  - pytorch =1.1  # (version depends on elektronn3 revision)
+
+  # From conda-forge and defaults
+  - python >=3.7  # (3.6 should also work)
+  - pip
+  - ipdb
+  - m2r
+  - ipython
+  - h5py
+  - matplotlib
+  - tqdm
+  - scipy
+  - networkx <= 2.3  # AttributeError: module 'networkx' has no attribute 'connected_component_subgraphs'
+  - numpy
+  - coloredlogs
+  - scikit-learn
+  - numba
+  - openmesh-python
+  - point_cloud_utils
+
+  # For tests (optional):
+  - pytest
+  - pytest-runner
+  - pytest-cov
+  - pytest-forked
+
+  # For docs (optional):
+  - sphinx
+  - sphinx_rtd_theme
+  - sphinx-autodoc-typehints
+
+  # Required dependencies that are not yet available via conda:
+  - pip:
+    - plyfile
+    - open3d
+
+    # Pre-release packages
+    - git+https://github.com/ELEKTRONN/elektronn3.git@phil#egg=elektronn3
+    - git+https://github.com/knossos-project/knossos_utils@dev#egg=knossos_utils

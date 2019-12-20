@@ -1,0 +1,8 @@
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - pip install --upgrade --no-deps -e .
+    - pytest

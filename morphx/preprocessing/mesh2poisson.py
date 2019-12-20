@@ -8,7 +8,7 @@
 import os
 import glob
 from tqdm import tqdm
-from morphx.processing import meshs, clouds, graphs, hybrids
+from morphx.processing import meshes, clouds, graphs, hybrids
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -31,7 +31,7 @@ def process_dataset(input_path: str, output_path: str):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
 
-        hm = meshs.load_mesh_gt(file)
+        hm = meshes.load_mesh_gt(file)
         hc = hybridmesh2poisson(hm)
         clouds.save_cloud(hc, output_path, name=name)
 
@@ -48,7 +48,7 @@ def process_single(args):
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = meshs.load_mesh_gt(file)
+    hm = meshes.load_mesh_gt(file)
     hc = hybridmesh2poisson(hm)
     clouds.save_cloud(hc, output_path, name=name)
 
@@ -62,7 +62,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
         if len(mc.faces) == 0:
             continue
 
-        pc = meshs.sample_mesh_poisson_disk(mc, new_vertices, new_labels, len(new_vertices))
+        pc = meshes.sample_mesh_poisson_disk(mc, new_vertices, new_labels, len(new_vertices))
         if total_pc is None:
             total_pc = pc
         else:

@@ -3,10 +3,12 @@
 #
 # Copyright (c) 2019 - now
 # Max Planck Institute of Neurobiology, Martinsried, Germany
-# Authors: Jonathan Klimesch
+# Authors: Jonathan Klimesch, Philipp Schubert
 
 import numpy as np
+import numba as nb
 from collections import defaultdict
+from scipy.spatial import cKDTree
 from morphx.classes.hybridcloud import HybridCloud
 
 
@@ -39,6 +41,7 @@ class HybridMesh(HybridCloud):
 
         self._faces = faces
         self._normals = normals
+        self._faces2node = None
 
     @property
     def faces(self) -> np.ndarray:
@@ -47,3 +50,51 @@ class HybridMesh(HybridCloud):
     @property
     def normals(self) -> np.ndarray:
         return self._normals
+
+    @property
+    def faces2node(self) -> dict:
+        # TODO: slow, optimization required.
+        """ Creates python dict with indices of ``:py:attr:~nodes`` as
+        keys and lists of face indices associated with the nodes as values.
+        All faces which contain at least ONE "node"-vertex are associated with
+        this node.
+
+        Returns:
+            Python dict with mapping information.
+        """
+        if self._faces2node is None:
+            self._faces2node = dict()
+            sh = self.faces.shape
+            for node_ix, vert_ixs in self.vert2skel.items():
+                if len(vert_ixs) == 0:
+                    self._faces2node[node_ix] = []
+                    continue
+                new_faces = any_in_1d_nb(self.faces, set(vert_ixs))
+                new_faces = np.nonzero(new_faces)[0].tolist()
+                self._faces2node[node_ix] = new_faces
+        return self._faces2node
+
+    @property
+    def faces2node_OLD(self) -> dict:
+        """ Creates python defaultdict with indices of ``:py:attr:~nodes`` as
+        keys and lists of face indices associated with the nodes as values.
+
+        Returns:
+            Python defaultdict with mapping information.
+        """
+        self._faces2node = dict()
+        for node_ix, vert_ixs in self.vert2skel.items():
+            new_faces = np.all(np.isin(self.faces, vert_ixs), axis=1)
+            self._faces2node[node_ix] = new_faces
+        return self._faces2node
+
+
+@nb.njit(parallel=True)
+def any_in_1d_nb(matrix, indices):
+    out = np.empty(matrix.shape[0], dtype=nb.boolean)
+    for i in nb.prange(matrix.shape[0]):
+        if (matrix[i, 0] in indices) or (matrix[i, 1] in indices) or (matrix[i, 2] in indices):
+            out[i] = True
+        else:
+            out[i] = False
+    return out
