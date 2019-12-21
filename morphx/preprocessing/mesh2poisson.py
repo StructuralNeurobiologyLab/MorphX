@@ -31,7 +31,7 @@ def process_dataset(input_path: str, output_path: str):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
 
-        hm = meshes.load_mesh_gt(file)
+        hm = clouds.load_cloud(file)
         print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
         clouds.save_cloud(hc, output_path, name=name+'_poisson')
@@ -48,7 +48,7 @@ def process_single(file: str, output_path: str):
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = meshes.load_mesh_gt(file)
+    hm = clouds.load_cloud(file)
     hc = hybridmesh2poisson(hm)
     clouds.save_cloud(hc, output_path, name=name+'_poisson')
 

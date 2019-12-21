@@ -5,12 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
-import pickle
 import point_cloud_utils as pcu
 from morphx.processing import clouds
-from morphx.classes.hybridmesh import HybridMesh
-from morphx.classes.meshcloud import MeshCloud
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial import cKDTree
 
@@ -28,6 +24,7 @@ def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
     Returns:
         PointCloud consisting of sampled points.
     """
+
     vertices = mc.vertices.astype(float)
     s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mc.faces, mc.normals, sample_num)
 
@@ -44,22 +41,3 @@ def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
     spc = clouds.sample_cloud(PointCloud(s_vertices, labels=labels), sample_num)
 
     return spc
-
-
-# -------------------------------------- MESH I/O ------------------------------------------- #
-
-
-def load_mesh_gt(path: str) -> HybridMesh:
-    """ Loads MeshHybrid from a pickle file at the given path. Pickle files should contain a dict with the
-    keys: 'nodes', 'edges', 'vertices', 'indices', 'normals', 'labels' and 'encoding', representing skeleton nodes
-    and edges, mesh vertices, indices, normals and labels and the respective label encoding. """
-
-    path = os.path.expanduser(path)
-    with open(path, "rb") as f:
-        data = pickle.load(f)
-    f.close()
-    faces = data['indices']
-    faces = faces.reshape((-1, 3))
-    mh = HybridMesh(data['nodes'], data['edges'], data['vertices'], faces, data['normals'],
-                    labels=data['labels'], encoding=data['encoding'])
-    return mh
