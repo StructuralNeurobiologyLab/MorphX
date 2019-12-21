@@ -8,8 +8,6 @@
 import os
 import glob
 from tqdm import tqdm
-
-import morphx.processing.clouds
 from morphx.processing import meshes, clouds, graphs, hybrids
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
@@ -33,41 +31,56 @@ def process_dataset(input_path: str, output_path: str):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
 
-        hm = morphx.processing.clouds.load_cloud(file)
+        hm = meshes.load_mesh_gt(file)
+        print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
-        clouds.save_cloud(hc, output_path, name=name)
+        clouds.save_cloud(hc, output_path, name=name+'_poisson')
 
 
-def process_single(args):
+def process_single(file: str, output_path: str):
     """ Converts single pickle file into poisson disk sampled HybridCloud.
 
     Args:
-        args: (file, output_path) with file as the full path to a specific pickle file and output_path as the folder
-            where the result should be stored.
+        file: The full path to a specific pickle file
+        output_path: The folder where the result should be stored.
     """
 
-    file, output_path = args
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = morphx.processing.clouds.load_cloud(file)
+    hm = meshes.load_mesh_gt(file)
     hc = hybridmesh2poisson(hm)
-    clouds.save_cloud(hc, output_path, name=name)
+    clouds.save_cloud(hc, output_path, name=name+'_poisson')
 
 
 def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
+    """ Extracts base points on skeleton of hm with a global BFS, performs local BFS around each base point and samples
+        the vertices cloud around the local BFS result with poisson disk sampling. The uniform distances of the samples
+        are not guaranteed, as the total sample cloud will always be constructed from two different sample processes
+        which have their individual uniform distance.
+
+    Args:
+        hm: HybridMesh which should be transformed into a HybridCloud with poisson disk sampled points.
+    """
+
     total_pc = None
     distance = 1000
+    skel2node_mapping = True
     for base in tqdm(hm.traverser(min_dist=distance)):
+        # local BFS radius = global BFS radius, so that the total number of poisson sampled vertices will double.
         local_bfs = graphs.local_bfs_dist(hm.graph(), source=base, max_dist=distance)
-        mc, new_vertices, new_labels = hybrids.extract_mesh_subset(hm, local_bfs)
+        if skel2node_mapping:
+            print("Mapping skeleton to node for further processing. This might take a few minutes...")
+            skel2node_mapping = False
+        mc = hybrids.extract_mesh_subset(hm, local_bfs)
         if len(mc.faces) == 0:
             continue
 
-        pc = meshes.sample_mesh_poisson_disk(mc, new_vertices, new_labels, len(new_vertices))
+        pc = meshes.sample_mesh_poisson_disk(mc, len(mc.vertices))
         if total_pc is None:
             total_pc = pc
         else:
             total_pc = clouds.merge_clouds(total_pc, pc)
+
     hc = HybridCloud(hm.nodes, hm.edges, total_pc.vertices, labels=total_pc.labels, encoding=total_pc.encoding)
     return hc
