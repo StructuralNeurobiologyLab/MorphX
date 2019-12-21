@@ -174,7 +174,7 @@ class ViewControl(object):
             slashs = [pos for pos, char in enumerate(gt_file) if char == '/']
             filename = gt_file[slashs[-1]+1:-4]
 
-            gt = clouds.load_gt(gt_file)
+            gt = clouds.load_cloud(gt_file)
             pred = clouds.load_cloud(pred_file)
 
             res = self.core_next(gt, pred, filename)

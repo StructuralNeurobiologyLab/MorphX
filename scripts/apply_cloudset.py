@@ -30,7 +30,7 @@ radius = args.ra
 sample_num = args.sp
 
 for file in files:
-    hc = clouds.load_gt(file)
+    hc = clouds.load_cloud(file)
 
     data = CloudSet(data_path, radius, sample_num)
     data.activate_single(hc)

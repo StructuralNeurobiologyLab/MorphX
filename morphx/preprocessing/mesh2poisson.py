@@ -8,6 +8,8 @@
 import os
 import glob
 from tqdm import tqdm
+
+import morphx.processing.clouds
 from morphx.processing import meshes, clouds, graphs, hybrids
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
@@ -31,7 +33,7 @@ def process_dataset(input_path: str, output_path: str):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
 
-        hm = meshes.load_mesh_gt(file)
+        hm = morphx.processing.clouds.load_cloud(file)
         hc = hybridmesh2poisson(hm)
         clouds.save_cloud(hc, output_path, name=name)
 
@@ -48,7 +50,7 @@ def process_single(args):
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = meshes.load_mesh_gt(file)
+    hm = morphx.processing.clouds.load_cloud(file)
     hc = hybridmesh2poisson(hm)
     clouds.save_cloud(hc, output_path, name=name)
 

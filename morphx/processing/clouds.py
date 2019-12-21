@@ -11,6 +11,7 @@ import pickle
 import numpy as np
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.hybridmesh import HybridMesh
 from scipy.spatial.transform import Rotation as Rot
 
 
@@ -144,30 +145,34 @@ def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
 
 
 def load_cloud(path) -> PointCloud:
-    """ Loads and returns PointCloud object from given path. """
+    """ Loads an MorphX object or an attribute dict from a pickle file.
 
-    with open(path, 'rb') as f:
-        cloud = pickle.load(f)
-
-    if isinstance(cloud, dict):
-        return HybridCloud(cloud['nodes'], cloud['edges'], cloud['vertices'], labels=cloud['labels'])
-
-    return cloud
-
-
-# TODO: Remove when ground truth gets changed to new standard
-def load_gt(path: str) -> HybridCloud:
-    """ Loads morphx hybrid from a pickle file at the given path. Pickle files should contain a dict with the
-    keys: 'skel_nodes', 'skel_edges', 'mesh_verts' and 'vert_labels' representing skeleton nodes and edges and mesh
-    vertices and labels. """
+    Args:
+        path: Location of pickle file.
+    """
 
     path = os.path.expanduser(path)
-    with open(path, "rb") as f:
-        info_dict = pickle.load(f)
+    if not os.path.exists(path):
+        print("File with name: {} was not found at this location.".format(path))
+
+    with open(path, 'rb') as f:
+        obj = pickle.load(f)
     f.close()
-    hc = HybridCloud(info_dict['skel_nodes'], info_dict['skel_edges'], info_dict['mesh_verts'],
-                     labels=info_dict['vert_labels'])
-    return hc
+
+    # return if loaded object is MorphX class already
+    if isinstance(obj, PointCloud):
+        return obj
+
+    # check dict keys to find which object is saved and load the respective MorphX class
+    if isinstance(obj, dict):
+        keys = obj.keys()
+        if 'indices' in keys:
+            return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'].reshape(-1, 3),
+                              obj['normals'], labels=obj['labels'], encoding=obj['encoding'])
+        elif 'nodes' in keys:
+            return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
+        elif 'skel_nodes' in keys:
+            return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'], labels=obj['vert_labels'])
 
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #

@@ -7,14 +7,14 @@
 
 import numpy as np
 import os
-from morphx.processing.meshes import load_mesh_gt
+from morphx.processing.clouds import load_cloud
 from morphx.processing.hybrids import extract_mesh_subset
 import time
 
 
 def test_hybridmesh_load():
     p = os.path.abspath(os.path.dirname(__file__) + '/../example_data/example_cell.pkl')
-    hm = load_mesh_gt(p)
+    hm = load_cloud(p)
     return hm
 
 

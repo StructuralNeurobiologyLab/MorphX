@@ -112,7 +112,7 @@ class Analyser:
             print("Processing: " + name)
 
             # prepare iteration
-            hybrid = clouds.load_gt(file)
+            hybrid = clouds.load_cloud(file)
             traverser = hybrid.traverser(min_dist=cloudset.radius_nm * cloudset.radius_factor)
             chunk_num = len(traverser)
 
@@ -218,7 +218,7 @@ class Analyser:
             print("Processing: " + name)
 
             # prepare hybrid
-            hybrid = clouds.load_gt(file)
+            hybrid = clouds.load_cloud(file)
             traverser = hybrid.traverser(min_dist=cloudset.radius_nm*cloudset.radius_factor)
             total_chunks += len(traverser)
 
