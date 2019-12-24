@@ -23,6 +23,7 @@ class HybridCloud(PointCloud):
                  vertices: np.ndarray,
                  vert2skel: defaultdict = None,
                  labels: np.ndarray = None,
+                 node_labels: np.ndarray = None,
                  encoding: dict = None):
         """
         Args:
@@ -31,8 +32,9 @@ class HybridCloud(PointCloud):
             vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
             vert2skel: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
-            labels: Vertex label array (integer number representing respective classe) with same dimensions as
+            labels: Vertex label array (integer number representing respective class) with same dimensions as
                 vertices.
+            node_labels: node label array (integer number representing respective class) with same dimensions as nodes.
             encoding: Dict with unique labels as keys and description string for respective label as value.
         """
         super().__init__(vertices, labels=labels, encoding=encoding)
@@ -40,6 +42,7 @@ class HybridCloud(PointCloud):
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
+        self._node_labels = node_labels  # len(node_labels) can be less then len(nodes)
 
         if edges.max() > len(nodes):
             raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
@@ -56,6 +59,10 @@ class HybridCloud(PointCloud):
     @property
     def nodes(self) -> np.ndarray:
         return self._nodes
+
+    @property
+    def nodes_labels(self) -> np.ndarray:
+        return self._node_labels
 
     def set_nodes(self, nodes) -> None:
         if nodes.shape != self._nodes.shape:

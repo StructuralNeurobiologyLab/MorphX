@@ -164,15 +164,20 @@ def load_cloud(path) -> PointCloud:
         return obj
 
     # check dict keys to find which object is saved and load the respective MorphX class
+    try:
+        node_labels = obj['node_labels']
+    except:
+        node_labels = None
     if isinstance(obj, dict):
         keys = obj.keys()
         if 'indices' in keys:
             return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'].reshape(-1, 3),
-                              obj['normals'], labels=obj['labels'], encoding=obj['encoding'])
+                              obj['normals'], labels=obj['labels'], node_labels=node_labels, encoding=obj['encoding'])
         elif 'nodes' in keys:
-            return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
+            return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'], node_labels=node_labels)
         elif 'skel_nodes' in keys:
-            return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'], labels=obj['vert_labels'])
+            return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'],
+                               labels=obj['vert_labels'], node_labels=node_labels)
 
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #

@@ -10,6 +10,7 @@ from typing import Callable
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.cloudset import CloudSet
+from morphx.data.merger_cloudset import MergerCloudSet
 from morphx.classes.hybridcloud import HybridCloud
 
 
@@ -25,11 +26,13 @@ class TorchSet(data.Dataset):
                  global_source: int = -1,
                  radius_factor: float = 1.5,
                  class_num: int = 2,
-                 label_filter: list = None):
+                 label_filter: list = None,
+                 data_type: str = ''):
         """ Initializes Dataset.
 
         Args:
             data_path: Absolute path to data.
+            data_type: If it's 'merger' then we use MergerCloudSet, otherwise we use CloudSet
             radius_nm: The size of the chunks in nanometers.
             sample_num: The number of samples for each chunk.
             transform: Transformations from elektronn3.data.transform.transforms3d which should be applied to incoming
@@ -41,13 +44,22 @@ class TorchSet(data.Dataset):
             class_num: Number of classes
         """
 
-        self.cloudset = CloudSet(data_path, radius_nm, sample_num,
-                                 transform=transform,
-                                 iterator_method=iterator_method,
-                                 global_source=global_source,
-                                 radius_factor=radius_factor,
-                                 class_num=class_num,
-                                 label_filter=label_filter)
+        if data_type == 'merger':
+            self.cloudset = MergerCloudSet(data_path, radius_nm, sample_num,
+                                           transform=transform,
+                                           iterator_method=iterator_method,
+                                           global_source=global_source,
+                                           radius_factor=radius_factor,
+                                           class_num=class_num,
+                                           label_filter=label_filter)
+        else:
+            self.cloudset = CloudSet(data_path, radius_nm, sample_num,
+                                     transform=transform,
+                                     iterator_method=iterator_method,
+                                     global_source=global_source,
+                                     radius_factor=radius_factor,
+                                     class_num=class_num,
+                                     label_filter=label_filter)
 
     def __len__(self):
         return len(self.cloudset)
