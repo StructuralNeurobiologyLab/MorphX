@@ -66,12 +66,12 @@ class TorchSet(data.Dataset):
         while len(sample.vertices) == 0:
             sample = self.cloudset[0]
 
-        labels = sample.labels.reshape(sample.labels.shape[0])
+        labels = sample.labels.reshape(len(sample.labels))
 
         # pack all numpy arrays into torch tensors
         pts = torch.from_numpy(sample.vertices).float()
         lbs = torch.from_numpy(labels).long()
-        features = torch.ones(sample.vertices.shape[0], 1).float()
+        features = torch.ones(len(sample.vertices), 1).float()
 
         return {'pts': pts, 'features': features, 'target': lbs}
 
