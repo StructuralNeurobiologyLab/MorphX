@@ -10,21 +10,6 @@ import numpy as np
 from collections import defaultdict, deque
 
 
-def global_bfs(g: nx.Graph, source: int) -> np.ndarray:
-    """ Performs a BFS on the given graph.
-
-    Args:
-        g: networkx graph on which BFS should be performed.
-        source: index of node which should be used as starting point of BFS.
-
-    Returns:
-        np.ndarray with nodes sorted recording to the result of the BFS.
-    """
-    tree = nx.bfs_tree(g, source)
-    # TODO: Return iterator instead of array
-    return np.array(list(tree.nodes))
-
-
 def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
     neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal
@@ -44,26 +29,24 @@ def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
 
     visited = [source]
     chosen = [source]
-    neighbors = list(nx.neighbors(g, source))
-    # TODO speed it up by getting rid of the for loops => see networkx implementation
-    weights = [g[source][i]['weight'] for i in neighbors]
 
     # add all neighbors with respective weights
-    de = deque([(neighbors[i], weights[i]) for i in range(len(neighbors))])
+    neighbors = g.neighbors(source)
+    de = deque([(i, g[source][i]['weight']) for i in neighbors])
     while de:
         curr, weight = de.pop()
         if curr not in visited:
             visited.append(curr)
 
             # only nodes with minimum distance to other chosen nodes get added
+            # TODO: Does euclidic distance restriction make sense?
             if weight >= min_dist:
                 chosen.append(curr)
                 weight = 0
 
             # add all neighbors with their weights added to the current weight
-            neighbors = list(nx.neighbors(g, curr))
-            weights = [g[curr][i]['weight'] + weight for i in neighbors]
-            de.extendleft([(neighbors[i], weights[i]) for i in range(len(neighbors))])
+            neighbors = g.neighbors(curr)
+            de.extendleft([(i, g[curr][i]['weight'] + weight) for i in neighbors if i not in visited])
 
     # return only chosen nodes
     return np.array(chosen)
@@ -111,18 +94,14 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
         np.ndarray with nodes sorted recording to the result of the limited BFS
     """
     visited = [source]
-    neighbors = list(nx.neighbors(g, source))
-    # TODO speed it up by getting rid of the for loops => see networkx implementation
-    weights = [g[source][i]['weight'] for i in neighbors]
-    de = deque([(neighbors[i], weights[i])
-                for i in range(len(neighbors)) if weights[i] <= max_dist])
+    neighbors = g.neighbors(source)
+    de = deque([(i, g[source][i]['weight']) for i in neighbors if g[source][i]['weight'] <= max_dist])
     while de:
         curr, weight = de.pop()
         if curr not in visited:
             visited.append(curr)
-            neighbors = list(nx.neighbors(g, curr))
-            weights = [g[curr][i]['weight'] + weight for i in neighbors]
-            de.extendleft([(neighbors[i], weights[i])
-                           for i in range(len(neighbors)) if weights[i] <= max_dist])
+            neighbors = g.neighbors(curr)
+            de.extendleft([(i, g[curr][i]['weight'] + weight)
+                           for i in neighbors if g[curr][i]['weight'] + weight <= max_dist and i not in visited])
 
     return np.array(visited)
