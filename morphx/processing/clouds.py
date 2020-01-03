@@ -12,7 +12,6 @@ import numpy as np
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
-from scipy.spatial.transform import Rotation as Rot
 
 
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
@@ -86,16 +85,58 @@ def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
         the same.
     """
 
-    mask = np.zeros(cloud.labels.shape, dtype=bool)
+    mask = np.zeros(len(cloud.labels), dtype=bool)
     for label in labels:
         mask = np.logical_or(mask, cloud.labels == label)
 
-    mask = mask.reshape(len(mask))
     if isinstance(cloud, HybridCloud):
         f_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices[mask], labels=cloud.labels[mask])
     else:
         f_cloud = PointCloud(cloud.vertices[mask], labels=cloud.labels[mask])
     return f_cloud
+
+
+def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
+    """ Returns a PointCloud where all labels given in the labels list got mapped to the target label. E.g. if the
+        label array was [1,1,2,3] and the label 1 and 2 were mapped onto the target 3, the label array now is [3,3,3,3].
+        This method works for PointClouds and HybridClouds, not for more specific classes.
+
+    Args:
+        cloud: The PointCloud whose labels should get merged.
+        labels: A list of keys of the encoding dict of the PointCloud, or a list of actual labels which should get
+            mapped onto the target.
+        target: A key of the encoding dict of the PointCloud, or an actual label on which the labels should be mapped.
+
+    Returns:
+        A PointCloud where the labels were replaced by the target.
+    """
+
+    mask = np.zeros(cloud.labels.shape, dtype=bool)
+    for label in labels:
+        if cloud.encoding is not None and label in cloud.encoding.keys():
+            label = cloud.encoding[label]
+            mask = np.logical_or(mask, cloud.labels == label)
+        else:
+            mask = np.logical_or(mask, cloud.labels == label)
+
+    if cloud.encoding is not None and target in cloud.encoding.keys():
+        target = cloud.encoding[target]
+
+    new_labels = cloud.labels.copy()
+    new_labels[mask] = target
+
+    if cloud.encoding is not None:
+        new_encoding = cloud.encoding.copy()
+        for label in labels:
+            new_encoding.pop(label, None)
+    else:
+        new_encoding = None
+
+    if isinstance(cloud, HybridCloud):
+        new_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices, labels=new_labels, encoding=new_encoding)
+    else:
+        new_cloud = PointCloud(cloud.vertices, labels=new_labels, encoding=new_encoding)
+    return new_cloud
 
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #

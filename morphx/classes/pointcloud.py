@@ -28,9 +28,9 @@ class PointCloud(object):
         if labels is None:
             self._labels = np.ndarray([])
         if labels is not None:
-            if labels.shape != (len(vertices), 1):
-                raise ValueError("Labels array must have shape (N, 1) with N as the number of vertices.")
-            self._labels = labels
+            if len(labels) != len(vertices):
+                raise ValueError("Labels array must have same length as vertices array.")
+            self._labels = labels.reshape(len(labels), 1)
 
         self._encoding = encoding
         self._class_num = len(np.unique(labels))
