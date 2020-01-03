@@ -184,4 +184,4 @@ class CloudSet:
         self.size = datasize
         print("Chunking data into {} pieces.".format(datasize))
 
-        self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)
+        self._weights = total_pc.weights_mean

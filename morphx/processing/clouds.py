@@ -64,7 +64,6 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
                 sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
             offset += compensation
 
-        # TODO: change to augmentation method from elektronn3
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
     if labels is not None:
@@ -178,24 +177,22 @@ def load_cloud(path) -> PointCloud:
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #
 
 
-class Identity:
-    def __call__(self, pc: PointCloud):
-        return pc
-
-
 class Compose:
-    """ Composes several transforms together. """
+    """ Composes several transformations together. """
 
     def __init__(self, transforms: list):
         self.transforms = transforms
 
     def __call__(self, pc: PointCloud):
-        if len(pc.vertices) == 0:
-            return pc
-
         for t in self.transforms:
-            pc = t(pc)
-        return pc
+            t(pc)
+
+
+class Identity:
+    """ This transformation does nothing. """
+
+    def __call__(self, pc: PointCloud):
+        return
 
 
 class Normalization:
@@ -203,14 +200,10 @@ class Normalization:
         valid (<= 0) it gets set to 1, so that the normalization has no effect. """
 
     def __init__(self, radius: int):
-        if radius <= 0:
-            self.radius = 1
         self.radius = radius
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        n_vertices = pc.vertices / self.radius
-        pc.set_vertices(n_vertices)
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.normalize(self.radius)
 
 
 class RandomRotate:
@@ -221,39 +214,17 @@ class RandomRotate:
     def __init__(self, angle_range: tuple = (-180, 180)):
         self.angle_range = angle_range
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        if len(pc.vertices) == 0:
-            return pc
-
-        angles = np.random.uniform(self.angle_range[0], self.angle_range[1], (1, 3))[0]
-        r = Rot.from_euler('xyz', angles, degrees=True)
-
-        vertices = pc.vertices
-        r_vertices = r.apply(vertices)
-        pc.set_vertices(r_vertices)
-
-        if isinstance(pc, HybridCloud):
-            pc.set_nodes(r.apply(pc.nodes))
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.rotate_randomly(self.angle_range)
 
 
 class Center:
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
-         get centered as well but are not taken into account for centroid calculation. Operates in-place for the
-         given PointCloud"""
+    """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
+     get centered as well but are not taken into account for centroid calculation. Operates in-place for the
+     given PointCloud"""
 
-        if len(pc.vertices) == 0:
-            return pc
-
-        vertices = pc.vertices
-        centroid = np.mean(vertices, axis=0)
-        c_vertices = vertices - centroid
-        pc.set_vertices(c_vertices)
-
-        if isinstance(pc, HybridCloud):
-            pc.set_nodes(pc.nodes - centroid)
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.center()
 
 
 class RandomVariation:
@@ -261,72 +232,10 @@ class RandomVariation:
         Possible nodes get ignored. Operates in-place for the given PointCloud. """
 
     def __init__(self, limits: tuple = (-1, 1)):
-        if limits[0] < limits[1]:
-            self.limits = limits
-        elif limits[0] > limits[1]:
-            self.limits = (limits[1], limits[0])
-        else:
-            self.limits = (0, 0)
+        self.limits = limits
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        if len(pc.vertices) == 0:
-            return pc
-
-        if self.limits == (0, 0):
-            return pc
-        vertices = pc.vertices
-        variation = np.random.random(vertices.shape) * (self.limits[1] - self.limits[0]) + self.limits[0]
-        pc.set_vertices(vertices+variation)
-        return pc
-
-# -------------------------------------- CLOUD ANALYSIS ------------------------------------------- #
-
-
-def get_variation(pc: PointCloud):
-    var = np.unique(pc.labels, return_counts=True)
-    return var[1] / len(pc.labels)
-
-
-def calculate_weights_mean(pc: PointCloud, class_num: int):
-    """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
-    labels which don't appear in the dataset (setting their weight to 0).
-
-    Args:
-        pc: Pointcloud for which the weights should be calculated.
-        class_num: Number of classes.
-    """
-
-    total_labels = pc.labels
-    non_zero = []
-    freq = []
-    for i in range(class_num):
-        freq.append((total_labels == i).sum())
-        if freq[i] != 0:
-            # save for mean calculation
-            non_zero.append(freq[i])
-        else:
-            # prevent division by zero
-            freq[i] = 1
-    mean = np.array(non_zero).mean()
-    freq = mean / np.array(freq)
-    freq[(freq == mean)] = 0
-    return freq
-
-
-def calculate_weights_occurence(pc: PointCloud, class_num: int):
-    """ Extract frequences for each class and calculate weights as len(vertices) / frequences.
-
-    Args:
-        pc: Pointcloud for which the weights should be calculated.
-        class_num: Number of classes.
-    """
-
-    total_labels = pc.labels
-    freq = []
-    for i in range(class_num):
-        freq.append((total_labels == i).sum())
-    freq = len(total_labels) / np.array(freq)
-    return freq
+    def __call__(self, pc: PointCloud):
+        pc.add_noise()
 
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #

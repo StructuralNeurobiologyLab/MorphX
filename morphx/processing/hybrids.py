@@ -22,7 +22,7 @@ def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClo
     Returns:
         Mesh subset as PointCloud object
     """
-    mapping = hybrid.vert2skel
+    mapping = hybrid.verts2nodes
     vertices = hybrid.vertices
     labels = hybrid.labels
 

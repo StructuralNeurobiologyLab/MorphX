@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
+from scipy.spatial.transform import Rotation as Rot
 
 
 class PointCloud(object):
@@ -17,29 +18,26 @@ class PointCloud(object):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).
-            labels: Vertex label array with same shape as vertices.
+            labels: Vertex label array with shape (n, 1).
             encoding: Dict with unique labels as keys and description string for respective label as value.
         """
         if vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = vertices
 
-        self._labels = None
+        if labels is None:
+            self._labels = np.ndarray([])
         if labels is not None:
-            if len(labels) != len(vertices):
-                raise ValueError("Labels array must have same length as vertices array.")
+            if labels.shape != (len(vertices), 1):
+                raise ValueError("Labels array must have shape (N, 1) with N as the number of vertices.")
             self._labels = labels
 
         self._encoding = encoding
+        self._class_num = len(np.unique(labels))
 
     @property
     def vertices(self) -> np.ndarray:
         return self._vertices
-
-    def set_vertices(self, vertices) -> None:
-        if vertices.shape != self._vertices.shape:
-            raise ValueError("Shape of vertices must not change as labels would loose their reference.")
-        self._vertices = vertices
 
     @property
     def labels(self) -> np.ndarray:
@@ -48,3 +46,92 @@ class PointCloud(object):
     @property
     def encoding(self) -> dict:
         return self._encoding
+
+    @property
+    def class_num(self) -> int:
+        return self._class_num
+
+    @property
+    def weights_mean(self) -> np.ndarray:
+        """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
+        labels which don't appear in the dataset (setting their weight to 0).
+
+        Returns:
+            np.ndarray with weights for each class.
+        """
+
+        if len(self._labels) != 0:
+            total_labels = self._labels
+            non_zero = []
+            freq = []
+            for i in range(self._class_num):
+                freq.append((total_labels == i).sum())
+                if freq[i] != 0:
+                    # save for mean calculation
+                    non_zero.append(freq[i])
+                else:
+                    # prevent division by zero
+                    freq[i] = 1
+            mean = np.array(non_zero).mean()
+            freq = mean / np.array(freq)
+            freq[(freq == mean)] = 0
+            return freq
+        else:
+            return np.array([])
+
+    @property
+    def weights_occurence(self) -> np.ndarray:
+        """ Extract frequences for each class and calculate weights as len(vertices) / frequences.
+
+        Returns:
+            np.ndarray with weights for each class.
+        """
+
+        if len(self._labels) != 0:
+            class_num = self._class_num
+            total_labels = self._labels
+            freq = []
+            for i in range(class_num):
+                freq.append((total_labels == i).sum())
+            freq = len(total_labels) / np.array(freq)
+            return freq
+        else:
+            return np.array([])
+
+    # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
+
+    def normalize(self, radius: int):
+        """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
+            valid (<= 0) it gets set to 1, so that the normalization has no effect. """
+
+        if radius <= 0:
+            radius = 1
+        self._vertices = self._vertices / radius
+
+    def rotate_randomly(self, angle_range: tuple = (-180, 180)):
+        """ Randomly rotates the vertices by performing an Euler rotation. The three angles are choosen randomly
+            from the given angle_range. """
+
+        angles = np.random.uniform(angle_range[0], angle_range[1], (1, 3))[0]
+        r = Rot.from_euler('xyz', angles, degrees=True)
+        if len(self._vertices) > 0:
+            self._vertices = r.apply(self._vertices)
+
+    def center(self):
+        """ Centers the vertices around the centroid of the vertices. """
+
+        centroid = np.mean(self._vertices, axis=0)
+        self._vertices = self._vertices - centroid
+
+    def add_noise(self, limits: tuple = (-1, 1)):
+        """ Adds some random variation (amplitude given by the limits parameter) to the vertices. """
+
+        # switch limits if lower limit is larger
+        if limits[0] > limits[1]:
+            limits = (limits[1], limits[0])
+        # do nothing if limits are the same
+        if limits[0] == limits[1]:
+            return
+
+        variation = np.random.random(self._vertices.shape) * (limits[1] - limits[0]) + limits[0]
+        self._vertices = self._vertices + variation
