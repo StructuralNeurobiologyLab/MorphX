@@ -18,9 +18,9 @@ def test_hybridmesh_load():
     return hm
 
 
-def test_hybridmesh_vert2skel():
+def test_hybridmesh_verts2node():
     hm = test_hybridmesh_load()
-    _ = hm.vert2skel
+    _ = hm.verts2node
 
 
 def test_hybridmesh_submesh():

@@ -112,6 +112,10 @@ class PointCloud(object):
         """ Randomly rotates the vertices by performing an Euler rotation. The three angles are choosen randomly
             from the given angle_range. """
 
+        # switch limits if lower limit is larger
+        if angle_range[0] > angle_range[1]:
+            angle_range = (angle_range[1], angle_range[0])
+
         angles = np.random.uniform(angle_range[0], angle_range[1], (1, 3))[0]
         r = Rot.from_euler('xyz', angles, degrees=True)
         if len(self._vertices) > 0:
