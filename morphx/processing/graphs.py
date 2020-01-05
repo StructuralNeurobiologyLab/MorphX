@@ -39,7 +39,7 @@ def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
             visited.append(curr)
 
             # only nodes with minimum distance to other chosen nodes get added
-            # TODO: Does euclidic distance restriction make sense?
+            # TODO: Does additional euclidic distance restriction make sense?
             if weight >= min_dist:
                 chosen.append(curr)
                 weight = 0
@@ -52,7 +52,7 @@ def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
     return np.array(chosen)
 
 
-def local_bfs_num(g: nx.Graph, source: int, num: int, mapping: defaultdict) -> np.ndarray:
+def local_bfs_verts(g: nx.Graph, source: int, num: int, mapping: defaultdict) -> np.ndarray:
     """ Performs a BFS on the given graph until the number of corresponding mesh vertices is larger
     than the given threshold.
 
@@ -103,5 +103,31 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
             neighbors = g.neighbors(curr)
             de.extendleft([(i, g[curr][i]['weight'] + weight)
                            for i in neighbors if g[curr][i]['weight'] + weight <= max_dist and i not in visited])
+
+    return np.array(visited)
+
+
+def local_bfs_num(g: nx.Graph, source: int, neighbor_num: int) -> np.ndarray:
+    """ Performs a BFS on a graph until maximum number of visited nodes is reached.
+
+    Args:
+        g: The networkx graph on which the BFS should be performed.
+        source: The source node from which the BFS should start.
+        neighbor_num: The maximum number of nodes which should limit the BFS.
+
+    Returns:
+        np.ndarray with nodes sorted recording to the result of the limited BFS
+    """
+    visited = [source]
+    neighbors = g.neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        if len(visited) > neighbor_num:
+            return np.array(visited)
+        curr = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            neighbors = g.neighbors(curr)
+            de.extendleft([i for i in neighbors if i not in visited])
 
     return np.array(visited)

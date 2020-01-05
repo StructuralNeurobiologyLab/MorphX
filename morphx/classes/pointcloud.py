@@ -29,7 +29,7 @@ class PointCloud(object):
             self._labels = np.ndarray([])
         if labels is not None:
             if len(labels) != len(vertices):
-                raise ValueError("Labels array must have same length as vertices array.")
+                raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1)
 
         self._encoding = encoding
