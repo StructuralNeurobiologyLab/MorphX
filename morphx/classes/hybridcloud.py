@@ -22,8 +22,8 @@ class HybridCloud(PointCloud):
                  nodes: np.ndarray,
                  edges: np.ndarray,
                  vertices: np.ndarray,
-                 labels: np.ndarray = None,
                  verts2node: defaultdict = None,
+                 labels: np.ndarray = None,
                  node_labels: np.ndarray = None,
                  encoding: dict = None):
         """

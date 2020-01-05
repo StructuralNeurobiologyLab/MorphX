@@ -8,7 +8,6 @@
 
 import os
 import time
-import ipdb
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.processing.clouds import load_cloud
