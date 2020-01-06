@@ -14,12 +14,15 @@ class PointCloud(object):
     Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None):
+    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None, obj_bounds: dict = None):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).
             labels: Vertex label array with shape (n, 1).
             encoding: Dict with unique labels as keys and description string for respective label as value.
+            obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object.
+                E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to obj1, the
+                vertices from index 10 to 19 belong to obj2.
         """
         if vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
@@ -33,6 +36,7 @@ class PointCloud(object):
             self._labels = labels.reshape(len(labels), 1)
 
         self._encoding = encoding
+        self._obj_bounds = obj_bounds
         self._class_num = len(np.unique(labels))
 
     @property
@@ -46,6 +50,10 @@ class PointCloud(object):
     @property
     def encoding(self) -> dict:
         return self._encoding
+
+    @property
+    def obj_bounds(self) -> dict:
+        return self._obj_bounds
 
     @property
     def class_num(self) -> int:

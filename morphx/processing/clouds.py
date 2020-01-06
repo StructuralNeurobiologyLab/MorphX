@@ -71,8 +71,11 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         return PointCloud(sample)
 
 
+# -------------------------------------- CLOUD FILTERING / LABEL MAPPING ------------------------------------------- #
+
+
 def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
-    """ Returns a pointcloud which contains only those vertices witch labels occuring in 'labels'. If 'cloud'
+    """ Returns a pointcloud which contains only those vertices which labels occuring in 'labels'. If 'cloud'
         is a HybridCloud, the skeleton is taken as it is and should later be filtered with the 'filter_traverser'
         method.
 
@@ -84,7 +87,6 @@ def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
         PointCloud object which contains only vertices with the filtered labels. Skeletons in case of HybridClouds are
         the same.
     """
-
     mask = np.zeros(len(cloud.labels), dtype=bool)
     for label in labels:
         mask = np.logical_or(mask, cloud.labels == label)
@@ -94,6 +96,42 @@ def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
     else:
         f_cloud = PointCloud(cloud.vertices[mask], labels=cloud.labels[mask])
     return f_cloud
+
+
+def filter_objects(cloud: PointCloud, objects: list) -> PointCloud:
+    """ Creates a PointCloud which contains only the objects given in objects. There must exist an obj_bounds dict in
+     order to use this method. The dict gets updated with the new object boundaries.
+
+    Args:
+        cloud: The initial Pointcloud from which objects should be filtered.
+        objects: List of objects where each entry is also a key in the obj_bounds dict of the cloud.
+
+    Returns:
+        A PointCloud containing only the desired objects.
+    """
+    if cloud.obj_bounds is None:
+        raise ValueError("Objects cannot be filtered because obj_bounds dict doesn't exist (is None).")
+    size = 0
+    for obj in objects:
+        bounds = cloud.obj_bounds[obj]
+        size += bounds[1]-bounds[0]
+
+    new_vertices = np.zeros((size, 3))
+    new_labels = None
+    if cloud.labels is not None:
+        new_labels = np.zeros((size, 1))
+    new_obj_bounds = {}
+
+    offset = 0
+    for obj in objects:
+        bounds = cloud.obj_bounds[obj]
+        obj_size = bounds[1]-bounds[0]
+        new_vertices[offset:offset+obj_size] = cloud.vertices[bounds[0]:bounds[1]]
+        if cloud.labels is not None:
+            new_labels[offset:offset+obj_size] = cloud.labels[bounds[0]:bounds[1]]
+        new_obj_bounds[obj] = [offset, offset+obj_size]
+
+    return PointCloud(new_vertices, labels=new_labels, encoding=cloud.encoding, obj_bounds=new_obj_bounds)
 
 
 def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
@@ -110,7 +148,6 @@ def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
     Returns:
         A PointCloud where the labels were replaced by the target.
     """
-
     mask = np.zeros(cloud.labels.shape, dtype=bool)
     for label in labels:
         if cloud.encoding is not None and label in cloud.encoding.keys():
@@ -190,7 +227,6 @@ def load_cloud(path) -> PointCloud:
     Args:
         path: Location of pickle file.
     """
-
     path = os.path.expanduser(path)
     if not os.path.exists(path):
         print("File with name: {} was not found at this location.".format(path))
