@@ -136,6 +136,9 @@ class CloudSet:
     def load_new(self):
         """ Load next hybrid from dataset and apply possible filters """
 
+        if len(self.files) == 0:
+            return
+
         if self.verbose:
             print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
 

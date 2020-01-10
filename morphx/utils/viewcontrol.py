@@ -6,7 +6,6 @@ from getkey import keys
 from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
 
-
 class ViewControl(object):
     """ Viewer class for comparison of ground truth with processed files or for viewing validation and training
         examples. """
