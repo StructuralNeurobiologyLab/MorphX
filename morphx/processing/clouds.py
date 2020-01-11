@@ -190,7 +190,7 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
             total object.
 
     Returns:
-        1 if saving process was successful, 0 otherwise.
+        0 if saving process was successful, 1 otherwise.
     """
     full_path = os.path.join(path, name + '.pkl')
     try:
@@ -203,8 +203,8 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
             pickle.dump(cloud, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
-        return 0
-    return 1
+        return 1
+    return 0
 
 
 # TODO: Improve
@@ -217,8 +217,8 @@ def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
             pickle.dump(clouds, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
-        return 0
-    return 1
+        return 1
+    return 0
 
 
 def load_cloud(path) -> PointCloud:
@@ -249,6 +249,8 @@ def load_cloud(path) -> PointCloud:
             return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
         elif 'skel_nodes' in keys:
             return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'], labels=obj['vert_labels'])
+
+    raise ValueError("Datatype of given object was not understood.")
 
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #

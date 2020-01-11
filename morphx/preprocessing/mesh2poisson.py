@@ -8,7 +8,7 @@
 import os
 import glob
 from tqdm import tqdm
-from morphx.processing import meshes, clouds, graphs, hybrids
+from morphx.processing import meshes, clouds, graphs, hybrids, ensembles
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -30,11 +30,19 @@ def process_dataset(input_path: str, output_path: str):
     for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
-
-        hm = clouds.load_cloud(file)
+        ce = None
+        try:
+            hm = clouds.load_cloud(file)
+        except ValueError:
+            ce = ensembles.load_ensemble(file)
+            hm = ce.get_cloud('cell')
         print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
-        clouds.save_cloud(hc, output_path, name=name+'_poisson')
+        if ce is None:
+            clouds.save_cloud(hc, output_path, name=name+'_poisson')
+        else:
+            ce.set_cloud(hc, 'cell')
+            ensembles.save_ensemble(ce, output_path, name=name+'_poisson')
 
 
 def process_single_thread(args):
@@ -70,7 +78,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
     total_pc = None
     distance = 1000
     skel2node_mapping = True
-    for base in hm.traverser(min_dist=distance):
+    for base in tqdm(hm.traverser(min_dist=distance)):
         # local BFS radius = global BFS radius, so that the total number of poisson sampled vertices will double.
         local_bfs = graphs.local_bfs_dist(hm.graph(), source=base, max_dist=distance)
         if skel2node_mapping:
@@ -91,4 +99,4 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/gt/gt_all/batch2/', '/u/jklimesch/gt/gt_all/')
+    process_dataset('/u/jklimesch/gt/gt_ensembles/batch2/', '/u/jklimesch/gt/gt_ensembles/')

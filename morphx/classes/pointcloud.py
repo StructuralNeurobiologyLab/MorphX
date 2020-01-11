@@ -33,7 +33,7 @@ class PointCloud(object):
         if labels is not None:
             if len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
-            self._labels = labels.reshape(len(labels), 1)
+            self._labels = labels.reshape(len(labels), 1).astype(int)
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds
