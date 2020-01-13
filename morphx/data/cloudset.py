@@ -9,7 +9,7 @@ import glob
 import numpy as np
 from tqdm import tqdm
 from typing import Callable
-from morphx.processing import graphs, hybrids, clouds
+from morphx.processing import graphs, hybrids, clouds, ensembles
 from morphx.classes.hybridcloud import HybridCloud, PointCloud
 
 
@@ -26,7 +26,9 @@ class CloudSet:
                  radius_factor: float = 1.5,
                  class_num: int = 2,
                  label_filter: list = None,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 ensemble: bool = False,
+                 size: int = 0):
         """ Initializes Dataset.
 
         Args:
@@ -41,6 +43,12 @@ class CloudSet:
                 adjusts the overlap between the cloud chunks.
             class_num: Number of classes.
             label_filter: List of labels after which the dataset should be filtered.
+            verbose: Enable printing of more detailed messages, __get_item__ will return sample_cloud and local_bfs of
+                that current sample.
+            ensemble: Enable loading from a pickled CloudEnsemble objects
+            size: Leave out analysis step by forwarding the resulting size for the options of this dataset from a
+                previous analysis. E.g. if a previous analysis with a radius of 20000 nm gave 2000 pieces, size should
+                be 2000.
         """
 
         self.data_path = data_path
@@ -53,10 +61,11 @@ class CloudSet:
         self.class_num = class_num
         self.label_filter = label_filter
         self.verbose = verbose
+        self.ensemble = ensemble
 
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
-        self.size = 0
+        self.size = size
         self.size_cache = 0
         self._weights = np.ones(class_num)
 
@@ -73,7 +82,8 @@ class CloudSet:
         if len(self.files) > 0:
             self.load_new()
 
-        self.analyse_data()
+        if size == 0:
+            self.analyse_data()
 
     def __len__(self):
         return self.size
@@ -142,7 +152,12 @@ class CloudSet:
         if self.verbose:
             print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
 
-        self.curr_hybrid = clouds.load_cloud(self.files[self.curr_hybrid_idx])
+        if self.ensemble:
+            ce = ensembles.load_ensemble(self.files[self.curr_hybrid_idx])
+            hc = ce.get_cloud('cell')
+            self.curr_hybrid = hc
+        else:
+            self.curr_hybrid = clouds.load_cloud(self.files[self.curr_hybrid_idx])
         if self.label_filter is not None:
             self.curr_hybrid = clouds.filter_labels(self.curr_hybrid, self.label_filter)
 

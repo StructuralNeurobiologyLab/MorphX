@@ -25,7 +25,10 @@ class TorchSet(data.Dataset):
                  global_source: int = -1,
                  radius_factor: float = 1.5,
                  class_num: int = 2,
-                 label_filter: list = None):
+                 label_filter: list = None,
+                 verbose: bool = False,
+                 ensemble: bool = False,
+                 size: int = 0):
         """ Initializes Dataset.
 
         Args:
@@ -39,6 +42,13 @@ class TorchSet(data.Dataset):
             radius_factor: Factor with which radius of global BFS should be calculated. Should be larger than 1, as it
                 adjusts the overlap between the cloud chunks
             class_num: Number of classes
+                        label_filter: List of labels after which the dataset should be filtered.
+            verbose: Enable printing of more detailed messages, __get_item__ will return sample_cloud and local_bfs of
+                that current sample.
+            ensemble: Enable loading from a pickled CloudEnsemble objects
+            size: Leave out analysis step by forwarding the resulting size for the options of this dataset from a
+                previous analysis. E.g. if a previous analysis with a radius of 20000 nm gave 2000 pieces, size should
+                be 2000.
         """
 
         self.cloudset = CloudSet(data_path, radius_nm, sample_num,
@@ -47,7 +57,10 @@ class TorchSet(data.Dataset):
                                  global_source=global_source,
                                  radius_factor=radius_factor,
                                  class_num=class_num,
-                                 label_filter=label_filter)
+                                 label_filter=label_filter,
+                                 verbose=verbose,
+                                 ensemble=ensemble,
+                                 size=size)
 
     def __len__(self):
         return len(self.cloudset)

@@ -199,7 +199,7 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
         with open(full_path, 'wb') as f:
             if isinstance(cloud, HybridCloud) and simple:
                 cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
-                         'labels': cloud.labels}
+                         'labels': cloud.labels, 'encoding': cloud.encoding}
             pickle.dump(cloud, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
@@ -239,6 +239,7 @@ def load_cloud(path) -> PointCloud:
     if isinstance(obj, PointCloud):
         return obj
 
+    # TODO: Create standard notation
     # check dict keys to find which object is saved and load the respective MorphX class
     if isinstance(obj, dict):
         keys = obj.keys()
@@ -246,7 +247,11 @@ def load_cloud(path) -> PointCloud:
             return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'], obj['normals'],
                               labels=obj['labels'], encoding=obj['encoding'])
         elif 'nodes' in keys:
-            return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
+            try:
+                return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'],
+                                   encoding=obj['encoding'])
+            except KeyError:
+                return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
         elif 'skel_nodes' in keys:
             return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'], labels=obj['vert_labels'])
 
