@@ -19,24 +19,24 @@ class ChunkLoader:
                  chunk_size: int,
                  sample_num: int,
                  transform: Callable = clouds.Identity(),
-                 validation: bool = False):
+                 specific: bool = False):
         self.data_path = os.path.expanduser(data_path)
 
         # Load chunks or split dataset into chunks if it was not done already
-        if not os.path.exists(data_path + 'splitted/' + str(chunk_size) + '.pkl'):
+        if not os.path.exists(self.data_path + 'splitted/' + str(chunk_size) + '.pkl'):
             splitting.split(data_path, chunk_size)
-        with open(data_path + 'splitted/' + str(chunk_size) + '.pkl', 'rb') as f:
+        with open(self.data_path + 'splitted/' + str(chunk_size) + '.pkl', 'rb') as f:
             self.splitted_hcs = pickle.load(f)
         f.close()
 
         self.sample_num = sample_num
         self.transform = transform
-        self.validation = validation
+        self.specific = specific
 
         # In training mode, the entire dataset gets loaded
         self.hc_names = []
         self.hcs = []
-        if not self.validation:
+        if not self.specific:
             files = glob.glob(data_path + '*.pkl')
             for file in files:
                 slashs = [pos for pos, char in enumerate(file) if char == '/']
@@ -53,25 +53,41 @@ class ChunkLoader:
         self.chunk_idx = 0
         # Size of entire dataset
         self.size = 0
-        for hc in self.splitted_hcs:
-            self.size += len(self.splitted_hcs[hc])
+        for name in self.hc_names:
+            self.size += len(self.splitted_hcs[name])
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
-        curr_hc_chunks = self.splitted_hcs[self.hc_names[self.hc_idx]]
-        if self.chunk_idx >= len(curr_hc_chunks):
-            self.hc_idx += 1
-            if self.hc_idx >= len(self.hcs):
-                self.hc_idx = 0
-            self.chunk_idx = 0
-        
-        local_bfs = curr_hc_chunks[self.chunk_idx]
-        subset = hybrids.extract_cloud_subset(self.hcs[self.hc_idx], local_bfs)
-        sample = clouds.sample_cloud(subset, self.sample_num)
+        # Get specific item (e.g. chunk 5 of HybridCloud 1)
+        if self.specific:
+            if isinstance(item, tuple):
+                if item[0] >= len(self.splitted_hcs) or abs(item[0]) > len(self.splitted_hcs):
+                    raise ValueError('This chunk index does not exist in the given HybridCloud.')
+                splitted_hc = self.splitted_hcs[item[0]]
+                hc_idx = self.hc_names.index(item[0])
+                local_bfs = splitted_hc[item[1]]
+                subset = hybrids.extract_cloud_subset(self.hcs[hc_idx], local_bfs)
+                sample = clouds.sample_cloud(subset, self.sample_num)
+            else:
+                raise ValueError('In validation mode, items can only be requested with a tuple'
+                                 'of HybridCloud name and chunk index within that cloud.')
+        # Get the next item while iterating the entire dataset
+        else:
+            curr_hc_chunks = self.splitted_hcs[self.hc_names[self.hc_idx]]
+            if self.chunk_idx >= len(curr_hc_chunks):
+                self.hc_idx += 1
+                if self.hc_idx >= len(self.hcs):
+                    self.hc_idx = 0
+                self.chunk_idx = 0
+
+            local_bfs = curr_hc_chunks[self.chunk_idx]
+            subset = hybrids.extract_cloud_subset(self.hcs[self.hc_idx], local_bfs)
+            sample = clouds.sample_cloud(subset, self.sample_num)
+            self.chunk_idx += 1
 
         if len(sample.vertices) > 0:
             self.transform(sample)
-        self.chunk_idx += 1
+
         return sample
