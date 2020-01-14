@@ -10,7 +10,7 @@ import numpy as np
 from collections import defaultdict, deque
 
 
-def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1, euclidian=False) -> np.ndarray:
+def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
     neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal
     size based on the output of this method.
@@ -20,9 +20,6 @@ def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1, euclidian=False) ->
             by g[a][b]['weight'] for the edge from node a to node b.
         source: The source node from which the BFS should start. Default is -1 which stands for a random node
         min_dist: The minimum distance between nodes in the BFS result.
-        euclidian: Flag for using the euclidian distance as an additional minimum distance between nodes. If true, a bfs
-            point is only added if it is min_dist nm away (both in skeleton weights and in euclidian distance) from the
-            previous point.
 
     Returns:
         np.ndarray with nodes sorted recording to the result of the filtered BFS
@@ -84,7 +81,7 @@ def local_bfs_verts(g: nx.Graph, source: int, num: int, mapping: defaultdict) ->
     return np.array(visited)
 
 
-def local_bfs_dist(g: nx.Graph, source: int, max_dist: int) -> np.ndarray:
+def local_bfs_dist(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
     """ Performs a BFS on a weighted graph until maximum distance for each path is reached.
 
     Args:

@@ -9,6 +9,7 @@ import math
 import os
 import pickle
 import numpy as np
+from typing import Union
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -223,7 +224,7 @@ def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
     return 0
 
 
-def load_cloud(path) -> PointCloud:
+def load_cloud(path) -> Union[PointCloud, HybridCloud, HybridMesh]:
     """ Loads an MorphX object or an attribute dict from a pickle file.
 
     Args:
