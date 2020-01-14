@@ -122,17 +122,22 @@ class ViewControl(object):
             else:
                 idx += res
 
-    def load_val(self, idx: int):
+    def load_val(self, epoch_num: int):
         """ Method for viewing validation or training examples. These examples must be saved as a list in the pickle
             file and should alternate between target and prediction. E.g. [targetcloud1, predictedcloud1, targetcloud2
             predictedcloud2, ...]
-        """
 
+
+        Args:
+            epoch_num: number of epoch whose examples should be visualized.
+        """
         reverse = False
+        req_files = [file for file in self.files1 if str(epoch_num) in file]
+        idx = 0
 
         # TODO: Make this pythonic and less ugly
-        while idx < len(self.files1):
-            file = self.files1[idx]
+        while idx < len(req_files):
+            file = self.req_files[idx]
             slashs = [pos for pos, char in enumerate(file) if char == '/']
             filename = file[slashs[-1]:-4]
             print("Viewing: " + filename)

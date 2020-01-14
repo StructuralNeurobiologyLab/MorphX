@@ -201,6 +201,7 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
                 cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
                          'labels': cloud.labels, 'encoding': cloud.encoding}
             pickle.dump(cloud, f)
+        f.close()
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
         return 1
@@ -215,6 +216,7 @@ def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
             os.makedirs(path)
         with open(full_path, 'wb') as f:
             pickle.dump(clouds, f)
+        f.close()
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
         return 1

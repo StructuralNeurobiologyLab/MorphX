@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import torch
+import numpy as np
 from typing import Callable
 from torch.utils import data
 from morphx.processing import clouds
@@ -28,7 +29,8 @@ class TorchSet(data.Dataset):
                  label_filter: list = None,
                  verbose: bool = False,
                  ensemble: bool = False,
-                 size: int = 0):
+                 size: int = 0,
+                 validation: bool = False):
         """ Initializes Dataset.
 
         Args:
@@ -49,6 +51,7 @@ class TorchSet(data.Dataset):
             size: Leave out analysis step by forwarding the resulting size for the options of this dataset from a
                 previous analysis. E.g. if a previous analysis with a radius of 20000 nm gave 2000 pieces, size should
                 be 2000.
+            validation: Enable prediction mapping onto generated samples.
         """
 
         self.cloudset = CloudSet(data_path, radius_nm, sample_num,
@@ -60,7 +63,8 @@ class TorchSet(data.Dataset):
                                  label_filter=label_filter,
                                  verbose=verbose,
                                  ensemble=ensemble,
-                                 size=size)
+                                 size=size,
+                                 validation=validation)
 
     def __len__(self):
         return len(self.cloudset)
@@ -94,3 +98,6 @@ class TorchSet(data.Dataset):
 
     def activate_single(self, hybrid: HybridCloud):
         self.cloudset.activate_single(hybrid)
+
+    def map_prediction(self, pred_labels: np.ndarray):
+        self.cloudset.map_prediction(pred_labels)
