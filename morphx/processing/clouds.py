@@ -247,13 +247,13 @@ def load_cloud(path) -> PointCloud:
     if isinstance(obj, dict):
         keys = obj.keys()
         if 'indices' in keys:
-<<<<<<< HEAD
-            return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'].reshape(-1, 3),
-                              obj['normals'], labels=obj['labels'], node_labels=node_labels, encoding=obj['encoding'])
-=======
+# <<<<<<< HEAD
+#             return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'].reshape(-1, 3),
+#                               obj['normals'], labels=obj['labels'], node_labels=node_labels, encoding=obj['encoding'])
+# =======
             return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'], obj['normals'],
                               labels=obj['labels'], encoding=obj['encoding'])
->>>>>>> origin/master
+
         elif 'nodes' in keys:
             return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'], node_labels=node_labels)
         elif 'skel_nodes' in keys:
