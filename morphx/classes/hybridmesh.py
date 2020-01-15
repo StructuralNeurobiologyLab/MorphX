@@ -21,7 +21,7 @@ class HybridMesh(HybridCloud):
                  vertices: np.ndarray,
                  faces: np.ndarray,
                  normals: np.ndarray,
-                 vert2skel: defaultdict = None,
+                 verts2node: defaultdict = None,
                  labels: np.ndarray = None,
                  encoding: dict = None):
         """
@@ -31,13 +31,13 @@ class HybridMesh(HybridCloud):
             vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
             faces: The faces of the mesh as array of the respective vertices with shape (n, 3).
             normals: The normal vectors of the mesh.
-            vert2skel: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
+            verts2node: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
             labels: Vertex label array (integer number representing respective classe) with same dimensions as
                 vertices.
             encoding: Dict with unique labels as keys and description string for respective label as value.
         """
-        super().__init__(nodes, edges, vertices, vert2skel, labels=labels, encoding=encoding)
+        super().__init__(nodes, edges, vertices, verts2node, labels=labels, encoding=encoding)
 
         self._faces = faces
         self._normals = normals
@@ -64,7 +64,7 @@ class HybridMesh(HybridCloud):
         """
         if self._faces2node is None:
             self._faces2node = dict()
-            for node_ix, vert_ixs in self.vert2skel.items():
+            for node_ix, vert_ixs in self.verts2node.items():
                 if len(vert_ixs) == 0:
                     self._faces2node[node_ix] = []
                     continue

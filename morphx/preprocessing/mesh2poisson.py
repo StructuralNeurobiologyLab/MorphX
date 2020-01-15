@@ -8,7 +8,7 @@
 import os
 import glob
 from tqdm import tqdm
-from morphx.processing import meshes, clouds, graphs, hybrids
+from morphx.processing import meshes, clouds, graphs, hybrids, ensembles
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -27,30 +27,42 @@ def process_dataset(input_path: str, output_path: str):
         os.makedirs(output_path)
 
     print("Starting to transform mesh dataset into poisson dataset...")
-    for file in files:
+    for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1]+1:-4]
-
-        hm = clouds.load_cloud(file)
+        ce = None
+        try:
+            hm = clouds.load_cloud(file)
+        except ValueError:
+            ce = ensembles.load_ensemble(file)
+            hm = ce.get_cloud('cell')
         print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
-        clouds.save_cloud(hc, output_path, name=name+'_poisson')
+        if ce is None:
+            clouds.save_cloud(hc, output_path, name=name+'_poisson')
+        else:
+            ce.set_cloud(hc, 'cell')
+            ensembles.save_ensemble(ce, output_path, name=name+'_poisson')
 
 
-def process_single(file: str, output_path: str):
+def process_single_thread(args):
     """ Converts single pickle file into poisson disk sampled HybridCloud.
 
     Args:
-        file: The full path to a specific pickle file
-        output_path: The folder where the result should be stored.
+        args:
+            args[0] - file: The full path to a specific pickle file
+            args[1] - output_path: The folder where the result should be stored.
     """
+
+    file = args[0]
+    output_path = args[1]
 
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
     hm = clouds.load_cloud(file)
-    hc = hybridmesh2poisson(hm)
-    clouds.save_cloud(hc, output_path, name=name+'_poisson')
+    # hc = hybridmesh2poisson(hm)
+    clouds.save_cloud(hm, output_path, name=name+'_poisson')
 
 
 def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
@@ -84,3 +96,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
 
     hc = HybridCloud(hm.nodes, hm.edges, total_pc.vertices, labels=total_pc.labels, encoding=total_pc.encoding)
     return hc
+
+
+if __name__ == '__main__':
+    process_dataset('/u/jklimesch/gt/gt_ensembles/batch2/', '/u/jklimesch/gt/gt_ensembles/')

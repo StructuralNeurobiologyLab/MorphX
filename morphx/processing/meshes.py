@@ -8,6 +8,7 @@
 import point_cloud_utils as pcu
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.meshcloud import MeshCloud
 from scipy.spatial import cKDTree
 
 

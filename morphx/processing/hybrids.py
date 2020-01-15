@@ -21,7 +21,7 @@ def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClo
     Returns:
         Mesh subset as PointCloud object
     """
-    mapping = hybrid.vert2skel
+    mapping = hybrid.verts2node
     vertices = hybrid.vertices
     labels = hybrid.labels
 
@@ -61,7 +61,7 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
         new_labels = hm.labels
     else:
         new_faces = hm.faces[total_face]
-        total_vertex = np.unique(new_faces.flatten())
+        total_vertex = np.unique(new_faces.flatten()).astype(int)
         new_vertices = hm.vertices[total_vertex]
         new_labels = hm.labels[total_vertex]
         # normalize new faces to be contiguous

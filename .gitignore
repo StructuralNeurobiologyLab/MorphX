@@ -13,4 +13,7 @@ docs/_build/
 # PyCharm
 .idea/
 
+# Tests
+tests/.coverage
+
 

@@ -6,7 +6,6 @@ from getkey import keys
 from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
 
-
 class ViewControl(object):
     """ Viewer class for comparison of ground truth with processed files or for viewing validation and training
         examples. """
@@ -18,6 +17,7 @@ class ViewControl(object):
             path1: path to pickle files (if path2 != None and comparison of ground truth is intended, this must be the
                 folder to the ground truth files).
             path2: Set if comparison of ground truth is intended. This should point to the directory of processed files.
+            cloudset: Flag for viewing results from the morphx.data.analyser save_cloudset method.
         """
 
         self.cloudset = cloudset
@@ -146,7 +146,7 @@ class ViewControl(object):
             while i < int(len(results)):
                 orig = results[i]
                 pred = results[i+1]
-                pred = PointCloud(pred.vertices, np.argmax(pred.vertices, axis=1), encoding=pred.encoding)
+                pred = PointCloud(pred.vertices, np.argmax(pred.labels, axis=1), encoding=pred.encoding)
                 res = self.core_next(orig, pred, filename + '_i{}'.format(i))
                 if res is None:
                     return

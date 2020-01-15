@@ -99,17 +99,16 @@ class CloudSet:
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
         # apply transformations
-        aug_cloud = sample_cloud
         if len(sample_cloud.vertices) > 0:
-            aug_cloud = self.transform(sample_cloud)
+            self.transform(sample_cloud)
 
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
 
         if self.verbose:
-            return aug_cloud, local_bfs
+            return sample_cloud, local_bfs
         else:
-            return aug_cloud
+            return sample_cloud
 
     @property
     def weights(self):
@@ -136,6 +135,9 @@ class CloudSet:
 
     def load_new(self):
         """ Load next hybrid from dataset and apply possible filters """
+
+        if len(self.files) == 0:
+            return
 
         if self.verbose:
             print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
@@ -184,4 +186,4 @@ class CloudSet:
         self.size = datasize
         print("Chunking data into {} pieces.".format(datasize))
 
-        self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)
+        self._weights = total_pc.weights_mean

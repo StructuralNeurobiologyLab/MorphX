@@ -12,7 +12,6 @@ import numpy as np
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
-from scipy.spatial.transform import Rotation as Rot
 
 
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
@@ -64,7 +63,6 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
                 sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
             offset += compensation
 
-        # TODO: change to augmentation method from elektronn3
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
     if labels is not None:
@@ -73,8 +71,11 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         return PointCloud(sample)
 
 
+# -------------------------------------- CLOUD FILTERING / LABEL MAPPING ------------------------------------------- #
+
+
 def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
-    """ Returns a pointcloud which contains only those vertices witch labels occuring in 'labels'. If 'cloud'
+    """ Returns a pointcloud which contains only those vertices which labels occuring in 'labels'. If 'cloud'
         is a HybridCloud, the skeleton is taken as it is and should later be filtered with the 'filter_traverser'
         method.
 
@@ -86,17 +87,93 @@ def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
         PointCloud object which contains only vertices with the filtered labels. Skeletons in case of HybridClouds are
         the same.
     """
-
-    mask = np.zeros(cloud.labels.shape, dtype=bool)
+    mask = np.zeros(len(cloud.labels), dtype=bool)
     for label in labels:
         mask = np.logical_or(mask, cloud.labels == label)
 
-    mask = mask.reshape(len(mask))
     if isinstance(cloud, HybridCloud):
         f_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices[mask], labels=cloud.labels[mask])
     else:
         f_cloud = PointCloud(cloud.vertices[mask], labels=cloud.labels[mask])
     return f_cloud
+
+
+def filter_objects(cloud: PointCloud, objects: list) -> PointCloud:
+    """ Creates a PointCloud which contains only the objects given in objects. There must exist an obj_bounds dict in
+     order to use this method. The dict gets updated with the new object boundaries.
+
+    Args:
+        cloud: The initial Pointcloud from which objects should be filtered.
+        objects: List of objects where each entry is also a key in the obj_bounds dict of the cloud.
+
+    Returns:
+        A PointCloud containing only the desired objects.
+    """
+    if cloud.obj_bounds is None:
+        raise ValueError("Objects cannot be filtered because obj_bounds dict doesn't exist (is None).")
+    size = 0
+    for obj in objects:
+        bounds = cloud.obj_bounds[obj]
+        size += bounds[1]-bounds[0]
+
+    new_vertices = np.zeros((size, 3))
+    new_labels = None
+    if cloud.labels is not None:
+        new_labels = np.zeros((size, 1))
+    new_obj_bounds = {}
+
+    offset = 0
+    for obj in objects:
+        bounds = cloud.obj_bounds[obj]
+        obj_size = bounds[1]-bounds[0]
+        new_vertices[offset:offset+obj_size] = cloud.vertices[bounds[0]:bounds[1]]
+        if cloud.labels is not None:
+            new_labels[offset:offset+obj_size] = cloud.labels[bounds[0]:bounds[1]]
+        new_obj_bounds[obj] = [offset, offset+obj_size]
+
+    return PointCloud(new_vertices, labels=new_labels, encoding=cloud.encoding, obj_bounds=new_obj_bounds)
+
+
+def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
+    """ Returns a PointCloud where all labels given in the labels list got mapped to the target label. E.g. if the
+        label array was [1,1,2,3] and the label 1 and 2 were mapped onto the target 3, the label array now is [3,3,3,3].
+        This method works for PointClouds and HybridClouds, not for more specific classes.
+
+    Args:
+        cloud: The PointCloud whose labels should get merged.
+        labels: A list of keys of the encoding dict of the PointCloud, or a list of actual labels which should get
+            mapped onto the target.
+        target: A key of the encoding dict of the PointCloud, or an actual label on which the labels should be mapped.
+
+    Returns:
+        A PointCloud where the labels were replaced by the target.
+    """
+    mask = np.zeros(cloud.labels.shape, dtype=bool)
+    for label in labels:
+        if cloud.encoding is not None and label in cloud.encoding.keys():
+            label = cloud.encoding[label]
+            mask = np.logical_or(mask, cloud.labels == label)
+        else:
+            mask = np.logical_or(mask, cloud.labels == label)
+
+    if cloud.encoding is not None and target in cloud.encoding.keys():
+        target = cloud.encoding[target]
+
+    new_labels = cloud.labels.copy()
+    new_labels[mask] = target
+
+    if cloud.encoding is not None:
+        new_encoding = cloud.encoding.copy()
+        for label in labels:
+            new_encoding.pop(label, None)
+    else:
+        new_encoding = None
+
+    if isinstance(cloud, HybridCloud):
+        new_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices, labels=new_labels, encoding=new_encoding)
+    else:
+        new_cloud = PointCloud(cloud.vertices, labels=new_labels, encoding=new_encoding)
+    return new_cloud
 
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
@@ -113,7 +190,7 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
             total object.
 
     Returns:
-        1 if saving process was successful, 0 otherwise.
+        0 if saving process was successful, 1 otherwise.
     """
     full_path = os.path.join(path, name + '.pkl')
     try:
@@ -126,8 +203,8 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
             pickle.dump(cloud, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
-        return 0
-    return 1
+        return 1
+    return 0
 
 
 # TODO: Improve
@@ -140,8 +217,8 @@ def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
             pickle.dump(clouds, f)
     except FileNotFoundError:
         print("Saving was not successful as given path is not valid.")
-        return 0
-    return 1
+        return 1
+    return 0
 
 
 def load_cloud(path) -> PointCloud:
@@ -150,7 +227,6 @@ def load_cloud(path) -> PointCloud:
     Args:
         path: Location of pickle file.
     """
-
     path = os.path.expanduser(path)
     if not os.path.exists(path):
         print("File with name: {} was not found at this location.".format(path))
@@ -171,36 +247,41 @@ def load_cloud(path) -> PointCloud:
     if isinstance(obj, dict):
         keys = obj.keys()
         if 'indices' in keys:
+<<<<<<< HEAD
             return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'].reshape(-1, 3),
                               obj['normals'], labels=obj['labels'], node_labels=node_labels, encoding=obj['encoding'])
+=======
+            return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'], obj['normals'],
+                              labels=obj['labels'], encoding=obj['encoding'])
+>>>>>>> origin/master
         elif 'nodes' in keys:
             return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'], node_labels=node_labels)
         elif 'skel_nodes' in keys:
             return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'],
                                labels=obj['vert_labels'], node_labels=node_labels)
 
+    raise ValueError("Datatype of given object was not understood.")
+
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #
 
 
-class Identity:
-    def __call__(self, pc: PointCloud):
-        return pc
-
-
 class Compose:
-    """ Composes several transforms together. """
+    """ Composes several transformations together. """
 
     def __init__(self, transforms: list):
         self.transforms = transforms
 
     def __call__(self, pc: PointCloud):
-        if len(pc.vertices) == 0:
-            return pc
-
         for t in self.transforms:
-            pc = t(pc)
-        return pc
+            t(pc)
+
+
+class Identity:
+    """ This transformation does nothing. """
+
+    def __call__(self, pc: PointCloud):
+        return
 
 
 class Normalization:
@@ -208,14 +289,10 @@ class Normalization:
         valid (<= 0) it gets set to 1, so that the normalization has no effect. """
 
     def __init__(self, radius: int):
-        if radius <= 0:
-            self.radius = 1
         self.radius = radius
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        n_vertices = pc.vertices / self.radius
-        pc.set_vertices(n_vertices)
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.normalize(self.radius)
 
 
 class RandomRotate:
@@ -226,39 +303,17 @@ class RandomRotate:
     def __init__(self, angle_range: tuple = (-180, 180)):
         self.angle_range = angle_range
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        if len(pc.vertices) == 0:
-            return pc
-
-        angles = np.random.uniform(self.angle_range[0], self.angle_range[1], (1, 3))[0]
-        r = Rot.from_euler('xyz', angles, degrees=True)
-
-        vertices = pc.vertices
-        r_vertices = r.apply(vertices)
-        pc.set_vertices(r_vertices)
-
-        if isinstance(pc, HybridCloud):
-            pc.set_nodes(r.apply(pc.nodes))
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.rotate_randomly(self.angle_range)
 
 
 class Center:
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
-         get centered as well but are not taken into account for centroid calculation. Operates in-place for the
-         given PointCloud"""
+    """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
+     get centered as well but are not taken into account for centroid calculation. Operates in-place for the
+     given PointCloud"""
 
-        if len(pc.vertices) == 0:
-            return pc
-
-        vertices = pc.vertices
-        centroid = np.mean(vertices, axis=0)
-        c_vertices = vertices - centroid
-        pc.set_vertices(c_vertices)
-
-        if isinstance(pc, HybridCloud):
-            pc.set_nodes(pc.nodes - centroid)
-        return pc
+    def __call__(self, pc: PointCloud):
+        pc.center()
 
 
 class RandomVariation:
@@ -266,72 +321,10 @@ class RandomVariation:
         Possible nodes get ignored. Operates in-place for the given PointCloud. """
 
     def __init__(self, limits: tuple = (-1, 1)):
-        if limits[0] < limits[1]:
-            self.limits = limits
-        elif limits[0] > limits[1]:
-            self.limits = (limits[1], limits[0])
-        else:
-            self.limits = (0, 0)
+        self.limits = limits
 
-    def __call__(self, pc: PointCloud) -> PointCloud:
-        if len(pc.vertices) == 0:
-            return pc
-
-        if self.limits == (0, 0):
-            return pc
-        vertices = pc.vertices
-        variation = np.random.random(vertices.shape) * (self.limits[1] - self.limits[0]) + self.limits[0]
-        pc.set_vertices(vertices+variation)
-        return pc
-
-# -------------------------------------- CLOUD ANALYSIS ------------------------------------------- #
-
-
-def get_variation(pc: PointCloud):
-    var = np.unique(pc.labels, return_counts=True)
-    return var[1] / len(pc.labels)
-
-
-def calculate_weights_mean(pc: PointCloud, class_num: int):
-    """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
-    labels which don't appear in the dataset (setting their weight to 0).
-
-    Args:
-        pc: Pointcloud for which the weights should be calculated.
-        class_num: Number of classes.
-    """
-
-    total_labels = pc.labels
-    non_zero = []
-    freq = []
-    for i in range(class_num):
-        freq.append((total_labels == i).sum())
-        if freq[i] != 0:
-            # save for mean calculation
-            non_zero.append(freq[i])
-        else:
-            # prevent division by zero
-            freq[i] = 1
-    mean = np.array(non_zero).mean()
-    freq = mean / np.array(freq)
-    freq[(freq == mean)] = 0
-    return freq
-
-
-def calculate_weights_occurence(pc: PointCloud, class_num: int):
-    """ Extract frequences for each class and calculate weights as len(vertices) / frequences.
-
-    Args:
-        pc: Pointcloud for which the weights should be calculated.
-        class_num: Number of classes.
-    """
-
-    total_labels = pc.labels
-    freq = []
-    for i in range(class_num):
-        freq.append((total_labels == i).sum())
-    freq = len(total_labels) / np.array(freq)
-    return freq
+    def __call__(self, pc: PointCloud):
+        pc.add_noise()
 
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
