@@ -77,7 +77,7 @@ class MergerCloudSet():
         # For segmentation of false-merger, this list should contain equal number of merger/non-merger nodes.
         self.sampled_node_idx = []
         # Number of positive/negative samples, resulting in total number of
-        self.num_samples = 5
+        self.num_posneg_samples = 5
         self.query_radius = 10e3
         # =============================
         # =============================
@@ -87,7 +87,7 @@ class MergerCloudSet():
         if len(self.files) > 0:
             self.load_new()
 
-        # self.analyse_data()
+        self.analyse_data()
 
     def __len__(self):
         return self.size
@@ -126,7 +126,7 @@ class MergerCloudSet():
         # apply transformations
         aug_cloud = sample_cloud
         if len(sample_cloud.vertices) > 0:
-            aug_cloud = self.transform(sample_cloud)
+            self.transform(sample_cloud)
 
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
@@ -181,8 +181,8 @@ class MergerCloudSet():
         node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
         node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
 
-        num_samples = self.num_samples
-        if len(node_idx_merger) < self.num_samples or len(node_idx_no_merger) < self.num_samples:
+        num_samples = self.num_posneg_samples
+        if len(node_idx_merger) < self.num_posneg_samples or len(node_idx_no_merger) < self.num_posneg_samples:
             num_samples = min(len(node_idx_merger), len(node_idx_no_merger))
 
         # Iterate through every merger_node, and query all the nodes within the radius that centered around the
@@ -241,17 +241,19 @@ class MergerCloudSet():
         if len(self.files) == 0:
             return
 
-        print("Analysing data...")
-        # put all clouds together for weight calculation
-        total_pc = self.curr_hybrid
-        datasize = len(self.curr_hybrid.traverser())
+        # print("Analysing data...")
+        # # put all clouds together for weight calculation
+        # total_pc = self.curr_hybrid
+        # datasize = len(self.curr_hybrid.traverser())
+        #
+        # # iterate remaining files
+        # for i in tqdm(range(len(self.files)-1)):
+        #     self.load_new()
+        #     total_pc = clouds.merge_clouds(total_pc, self.curr_hybrid)
+        #     datasize += len(self.curr_hybrid.traverser())
+        # self.size = datasize
+        # print("Chunking data into {} pieces.".format(datasize))
+        #
+        # self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)
 
-        # iterate remaining files
-        for i in tqdm(range(len(self.files)-1)):
-            self.load_new()
-            total_pc = clouds.merge_clouds(total_pc, self.curr_hybrid)
-            datasize += len(self.curr_hybrid.traverser())
-        self.size = datasize
-        print("Chunking data into {} pieces.".format(datasize))
-
-        self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)
+        self.size = len(self.files) * self.num_posneg_samples * 2
