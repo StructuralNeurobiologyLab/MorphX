@@ -26,14 +26,14 @@ def extract_cloud_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointClo
     vertices = hybrid.vertices
     labels = hybrid.labels
 
-    total = []
+    idcs = []
     for i in local_bfs:
-        total.extend(mapping[i])
+        idcs.extend(mapping[i])
 
     if labels is not None:
-        return PointCloud(vertices[total], labels=labels[total])
+        return PointCloud(vertices[idcs], labels=labels[idcs])
     else:
-        return PointCloud(vertices[total])
+        return PointCloud(vertices[idcs])
 
 
 def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:

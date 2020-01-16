@@ -8,7 +8,6 @@
 import numpy as np
 import networkx as nx
 import morphx.processing.graphs as graphs
-from collections import defaultdict
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -22,7 +21,7 @@ class HybridCloud(PointCloud):
                  nodes: np.ndarray,
                  edges: np.ndarray,
                  vertices: np.ndarray,
-                 verts2node: defaultdict = None,
+                 verts2node: dict = None,
                  labels: np.ndarray = None,
                  node_labels: np.ndarray = None,
                  encoding: dict = None):
@@ -202,13 +201,17 @@ class HybridCloud(PointCloud):
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
-    def normalize(self, radius: int):
-        """ Divides the coordinates of vertices and nodes by the context size (e.g. radius of the local BFS). If radius
-            is not valid (<= 0) it gets set to 1, so that the normalization has no effect. """
-        if radius <= 0:
-            radius = 1
-        self._vertices = self._vertices / radius
-        self._nodes = self._nodes / radius
+    def scale(self, factor: int):
+        """ If factor < 0 vertices and nodes are divided by the factor. If factor > 0 vertices and nodes are
+            multiplied by the factor. If factor == 0 nothing happens. """
+        if factor == 0:
+            return
+        elif factor < 0:
+            self._vertices = self._vertices / -factor
+            self._nodes = self._nodes / -factor
+        else:
+            self._vertices = self._vertices * factor
+            self._nodes = self.nodes * factor
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180)):
         """ Randomly rotates vertices and nodes by performing an Euler rotation. The three angles are choosen randomly
@@ -224,8 +227,7 @@ class HybridCloud(PointCloud):
         if len(self._nodes) > 0:
             self._nodes = r.apply(self._nodes)
 
-    def center(self):
-        """ Centers vertices and nodes around the centroid of the vertices. """
-        centroid = np.mean(self._vertices, axis=0)
-        self._vertices = self._vertices - centroid
-        self._nodes = self._nodes - centroid
+    def move(self, vector: np.ndarray):
+        """ Moves vertices and nodes by adding the given vector """
+        self._vertices = self._vertices + vector
+        self._nodes = self._nodes + vector

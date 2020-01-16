@@ -270,58 +270,70 @@ class Compose:
     def __init__(self, transforms: list):
         self.transforms = transforms
 
-    def __call__(self, pc: PointCloud):
+    def __call__(self, pc: PointCloud, invers: bool = False):
         for t in self.transforms:
-            t(pc)
+            t(pc, invers)
 
 
 class Identity:
     """ This transformation does nothing. """
 
-    def __call__(self, pc: PointCloud):
+    def __call__(self, pc: PointCloud, invers: bool = False):
         return
 
 
 class Normalization:
-    """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
-        valid (<= 0) it gets set to 1, so that the normalization has no effect. """
-
     def __init__(self, radius: int):
-        self.radius = radius
+        if radius <= 0:
+            radius = 1
+        self._radius = -radius
 
-    def __call__(self, pc: PointCloud):
-        pc.normalize(self.radius)
+    def __call__(self, pc: PointCloud, invers: bool = False):
+        """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
+            valid (<= 0) it gets set to 1, so that the normalization has no effect.
+        """
+        if invers:
+            pc.scale(-self._radius)
+        else:
+            pc.scale(self._radius)
 
 
 class RandomRotate:
-    """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
-        from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. Operates
-        in-place for the given Pointcloud. """
-
     def __init__(self, angle_range: tuple = (-180, 180)):
         self.angle_range = angle_range
 
-    def __call__(self, pc: PointCloud):
+    def __call__(self, pc: PointCloud, invers: bool = False):
+        """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
+            from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. Operates
+            in-place for the given Pointcloud.
+        """
         pc.rotate_randomly(self.angle_range)
 
 
 class Center:
-    """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
-     get centered as well but are not taken into account for centroid calculation. Operates in-place for the
-     given PointCloud"""
+    def __init__(self):
+        self._centroid = None
 
-    def __call__(self, pc: PointCloud):
-        pc.center()
+    def __call__(self, pc: PointCloud, invers: bool = False):
+        """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
+            get centered as well but are not taken into account for centroid calculation. Operates in-place for the
+            given PointCloud
+        """
+        if invers:
+            pc.move(self._centroid)
+        else:
+            self._centroid = np.mean(pc.vertices, axis=0)
+            pc.move(-self._centroid)
 
 
 class RandomVariation:
-    """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
-        Possible nodes get ignored. Operates in-place for the given PointCloud. """
-
     def __init__(self, limits: tuple = (-1, 1)):
         self.limits = limits
 
-    def __call__(self, pc: PointCloud):
+    def __call__(self, pc: PointCloud, invers: bool = False):
+        """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
+            Possible nodes get ignored. Operates in-place for the given PointCloud.
+        """
         pc.add_noise()
 
 

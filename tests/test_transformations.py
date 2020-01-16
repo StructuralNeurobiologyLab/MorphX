@@ -17,8 +17,8 @@ def test_normalization():
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
                      np.array([[10, 10, 10], [20, 20, 20]]))
 
-    pc.normalize(10)
-    hc.normalize(10)
+    pc.scale(-10)
+    hc.scale(-10)
 
     assert np.all(pc.vertices == np.array([[1, 1, 1], [2, 2, 2]]))
     assert np.all(hc.vertices == np.array([[1, 1, 1], [2, 2, 2]]))
@@ -75,11 +75,12 @@ def test_center():
                      np.array([[10, 10, 10], [20, 20, 20]]))
     relation = hc.vertices[0] - hc.nodes[1]
 
-    pc.center()
-    hc.center()
+    pc.move(np.array([1, 1, 1]))
+    hc.move(np.array([1, 1, 1]))
 
-    assert np.all(np.mean(pc.vertices, axis=0) == np.array([0, 0, 0]))
-    assert np.all(np.mean(hc.vertices, axis=0) == np.array([0, 0, 0]))
+    assert np.all(pc.vertices == np.array([[11, 11, 11], [21, 21, 21]]))
+    assert np.all(hc.vertices == np.array([[11, 11, 11], [21, 21, 21]]))
+    assert np.all(hc.nodes == np.array([[11, 11, 11], [21, 21, 21]]))
     assert np.all(hc.vertices[0] - hc.nodes[1] == relation)
 
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))

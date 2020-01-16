@@ -14,7 +14,8 @@ class PointCloud(object):
     Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None, obj_bounds: dict = None):
+    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None, obj_bounds: dict = None,
+                 predictions: dict = None):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).
@@ -23,6 +24,8 @@ class PointCloud(object):
             obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object.
                 E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to obj1, the
                 vertices from index 10 to 19 belong to obj2.
+            predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
+                got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
         """
         if vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
@@ -37,6 +40,7 @@ class PointCloud(object):
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds
+        self._predictions = predictions
         self._class_num = len(np.unique(labels))
 
     @property
@@ -56,6 +60,12 @@ class PointCloud(object):
         return self._obj_bounds
 
     @property
+    def predictions(self) -> dict:
+        if self._predictions is None:
+            self._predictions = {ix: [] for ix in range(len(self._vertices))}
+        return self._predictions
+
+    @property
     def class_num(self) -> int:
         return self._class_num
 
@@ -67,7 +77,6 @@ class PointCloud(object):
         Returns:
             np.ndarray with weights for each class.
         """
-
         if len(self._labels) != 0:
             total_labels = self._labels
             non_zero = []
@@ -94,7 +103,6 @@ class PointCloud(object):
         Returns:
             np.ndarray with weights for each class.
         """
-
         if len(self._labels) != 0:
             class_num = self._class_num
             total_labels = self._labels
@@ -108,18 +116,19 @@ class PointCloud(object):
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
-    def normalize(self, radius: int):
-        """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
-            valid (<= 0) it gets set to 1, so that the normalization has no effect. """
-
-        if radius <= 0:
-            radius = 1
-        self._vertices = self._vertices / radius
+    def scale(self, factor: int):
+        """ If factor < 0 vertices are divided by the factor. If factor > 0 vertices are multiplied by the
+            factor. If factor == 0 nothing happens. """
+        if factor == 0:
+            return
+        elif factor < 0:
+            self._vertices = self._vertices / -factor
+        else:
+            self._vertices = self._vertices * factor
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180)):
-        """ Randomly rotates the vertices by performing an Euler rotation. The three angles are choosen randomly
+        """ Randomly rotates vertices by performing an Euler rotation. The three angles are choosen randomly
             from the given angle_range. """
-
         # switch limits if lower limit is larger
         if angle_range[0] > angle_range[1]:
             angle_range = (angle_range[1], angle_range[0])
@@ -129,15 +138,12 @@ class PointCloud(object):
         if len(self._vertices) > 0:
             self._vertices = r.apply(self._vertices)
 
-    def center(self):
-        """ Centers the vertices around the centroid of the vertices. """
-
-        centroid = np.mean(self._vertices, axis=0)
-        self._vertices = self._vertices - centroid
+    def move(self, vector: np.ndarray):
+        """ Moves vertices by adding the given vector """
+        self._vertices = self._vertices + vector
 
     def add_noise(self, limits: tuple = (-1, 1)):
-        """ Adds some random variation (amplitude given by the limits parameter) to the vertices. """
-
+        """ Adds some random variation (amplitude given by the limits parameter) to vertices. """
         # switch limits if lower limit is larger
         if limits[0] > limits[1]:
             limits = (limits[1], limits[0])
