@@ -12,6 +12,18 @@ from morphx.processing import clouds, graphs
 
 
 def split(data_path: str, chunk_size: int):
+    """ Splits HybridClouds given as pickle files at data_path into multiple chunks and saves that chunking information
+        in the new folder 'splitted' as a pickled dict. The dict has filenames of the HybridClouds as keys and lists of
+        chunks as values. The chunks are saved as numpy arrays of the indices of skeleton nodes which belong to the
+        respective chunk.
+
+    Args:
+        data_path: Path to HybridClouds saved as pickle files.
+        chunk_size: Minimum distance between base points of different chunks. Used for a breadth first search as in
+            :func:`morphx.graphs.global_bfs_dist`. Each base point is then the starting point for a local BFS defined
+            in :func:`morphx.graphs.local_bfs_dist`, which takes `chunk_size`*1.5 as its maximum distance in order to
+            get overlapping chunks.
+    """
     data_path = os.path.expanduser(data_path)
     files = glob.glob(data_path + '*.pkl')
 

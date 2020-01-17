@@ -198,9 +198,6 @@ def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
         if not os.path.exists(path):
             os.makedirs(path)
         with open(full_path, 'wb') as f:
-            if isinstance(cloud, HybridCloud) and simple:
-                cloud = {'nodes': cloud.nodes, 'edges': cloud.edges, 'vertices': cloud.vertices,
-                         'labels': cloud.labels, 'encoding': cloud.encoding}
             pickle.dump(cloud, f)
         f.close()
     except FileNotFoundError:

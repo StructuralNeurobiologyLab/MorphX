@@ -17,15 +17,47 @@ from morphx.classes.pointcloud import PointCloud
 
 
 class ChunkHandler:
+    """ Helper class for loading, sampling and transforming chunks of different HybridClouds. Uses
+        :func:`morphx.preprocessing.splitting.split` to generate chunking information (or loads it
+        if it is already available for the given chunk_size.
+
+        :attr:`specific` defines two different modes. If the flag is False, the chunks are accessed
+        rather randomly, not preserving their original position in the HybridCloud. This mode can be
+        used for training purposes. If :attr:`specific` is True, the chunks ca be requested from a
+        specific index within a specific HybridCloud. After processing the chunks, the results can
+        then be mapped back to that position using :func:`map_predictions`. This mode can be used
+        during inference when predictions of chunk are generated and should be inserted into the
+        original HybridCloud.
+    """
+
     def __init__(self,
                  data_path: str,
                  chunk_size: int,
                  sample_num: int,
                  transform: Callable = clouds.Identity(),
-                 specific: bool = False):
+                 specific: bool = False,
+                 save_path: str = None):
+        """
+        Args:
+            data_path: Path to HybridClouds saved as pickle files. Existing chunking information would
+                be available in the folder 'splitted' at this location.
+            chunk_size: Size of the generated chunks. If existing chunking information should be used,
+                this must comply with the chunk size used for generating that information.
+            sample_num: Number of vertices which should be sampled from the surface of each chunk.
+            transform: Transformations which should be applied to the chunks before returning them
+                (e.g. see :func:`morphx.processing.clouds.Compose`)
+            specific: Flag for setting mode of requesting specific or rather randomly drawn chunks.
+            save_path: Location where mapped predictions from specific mode should be saved.
+        """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
+
+        if save_path is None and specific is True:
+            raise ValueError('In specific mode there must be a save_path as mapped predictions must be saved.')
+        self._save_path = os.path.expanduser(save_path)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
         # Load chunks or split dataset into chunks if it was not done already
         if not os.path.exists(self._data_path + 'splitted/' + str(chunk_size) + '.pkl'):
@@ -58,23 +90,49 @@ class ChunkHandler:
         self._hc_idx = 0
         # Index of current chunk in current hc
         self._chunk_idx = 0
-        # Size of entire dataset
-        self._size = 0
-        for name in self._hc_names:
-            self._size += len(self._splitted_hcs[name])
 
     def __len__(self):
-        return self._size
+        """ Depending on the mode either the sum of the number of chunks from each
+            HybridClouds gets returned or the number of chunks of the last requested
+            HybridCloud in specific mode.
+        """
+        if self._specific:
+            # Size of last requested hybrid
+            if self._curr_name is None:
+                size = 0
+            else:
+                size = len(self._splitted_hcs[self._curr_name])
+        else:
+            # Size of entire dataset
+            size = 0
+            for name in self._hc_names:
+                size += len(self._splitted_hcs[name])
+        return size
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
-        # Get specific item (e.g. chunk 5 of HybridCloud 1)
+        """ Returns either a chunk from a specific location and HybridCloud or iterates
+            the HybridClouds sequentially and returns the chunks in the order of the
+            chunking information.
+
+        Args:
+            item: With :attr:`specific` as False, this parameter gets ignored. With true
+            it must be a tuple of the filename of the requested HybridCloud and the index
+            of the chunk within that HybridCloud. E.g. if chunk 5 from HybridCloud in pickle
+            file HybridCloud.pkl is requested, this would be ('HybridCloud', 5).
+        """
         if self._specific:
+            # Get specific item (e.g. chunk 5 of HybridCloud 1)
             if isinstance(item, tuple):
                 splitted_hc = self._splitted_hcs[item[0]]
 
-                # In specific mode, the files should be loaded sequentially
+                # In specific mode, the files should be loaded sequentially (either raw files or files with existing
+                # predictions
                 if self._curr_name != item[0]:
-                    self._curr_hc = clouds.load_cloud(self._data_path + item[0] + '.pkl')
+                    clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
+                    try:
+                        self._curr_hc = clouds.load_cloud(self._save_path + item[0] + '.pkl')
+                    except FileNotFoundError:
+                        self._curr_hc = clouds.load_cloud(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist
@@ -112,22 +170,36 @@ class ChunkHandler:
         return sample
 
     def set_specific_mode(self, specific: bool):
+        """ Switch specific mode on and off. """
         self._specific = specific
 
     def get_hybrid_length(self, name: str):
+        """ Returns the number of chunks for a specific HybridCloud.
+
+        Args:
+            name: Filename of the requested HybridCloud. If the file is HybridCloud.pkl
+            this would be 'HybridCloud'.
+        """
         return len(self._splitted_hcs[name])
 
-    def map_predictions(self, pred_cloud: PointCloud, hybrid_name: str, chunk_idx: int, save_path: str):
-        save_path = os.path.expanduser(save_path)
+    def map_predictions(self, pred_cloud: PointCloud, hybrid_name: str, chunk_idx: int):
+        """ In specific mode, :func:`__getitem__` can be used to extract a specific
+            chunk from a specific HybridCloud. This chunk can then be processed and
+            labeled. When done, the processed cloud with the predicted labels can
+            then be mapped back to its original chunk and the predictions will be
+            saved in :attr:`PointCloud.predictions`.
 
+        Args:
+            pred_cloud: Processed cloud with predictions as labels.
+            hybrid_name: The Filename (without .pkl) of the HybridCloud from which the chunk was extracted.
+            chunk_idx: The index of the chunk within the HybridCloud with name :attr:`hybrid_name`.
+        """
         # If requested hybrid differs from hybrid in memory, save current hybrid and try loading new hybrid from save
         # path in case previous predictions were already saved before. If that fails, load new hybrid from data path
         if self._curr_name != hybrid_name:
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            clouds.save_cloud(self._curr_hc, save_path, name=hybrid_name)
+            clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
             try:
-                self._curr_hc = clouds.load_cloud(save_path + hybrid_name + '.pkl')
+                self._curr_hc = clouds.load_cloud(self._save_path + hybrid_name + '.pkl')
             except FileNotFoundError:
                 self._curr_hc = clouds.load_cloud(self._data_path + hybrid_name + '.pkl')
             self._curr_name = hybrid_name
@@ -148,4 +220,5 @@ class ChunkHandler:
         tree = cKDTree(self._curr_hc.vertices[idcs])
         dist, ind = tree.query(pred_cloud.vertices, k=1)
         for pred_idx, vertex_idx in enumerate(ind):
-            self._curr_hc.predictions[vertex_idx].append(pred_cloud.labels[pred_idx])
+            self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
+

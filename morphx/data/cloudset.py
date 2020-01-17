@@ -32,8 +32,7 @@ class CloudSet:
                  label_filter: list = None,
                  verbose: bool = False,
                  ensemble: bool = False,
-                 size: int = 0,
-                 validation: bool = False):
+                 size: int = 0):
         """ Initializes Dataset.
 
         Args:
@@ -69,7 +68,6 @@ class CloudSet:
         self.verbose = verbose
         self.ensemble = ensemble
         self.size = size
-        self.validation = validation
 
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
@@ -78,14 +76,6 @@ class CloudSet:
 
         # option for single processing
         self.process_single = False
-
-        # variables for validation
-        self.pred_hybrid = None
-        self.sample = deque()
-        self.save_path = self.data_path + 'predicted/'
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-        self.val_idx = 0
 
         # options for iterating the dataset
         self.curr_hybrid_idx = 0
@@ -113,7 +103,6 @@ class CloudSet:
                 self.process_single = False
                 self.size = self.size_cache
                 self.load_new()
-                self.sample.appendleft(None)
                 return None
             else:
                 self.load_new()
@@ -123,8 +112,6 @@ class CloudSet:
         local_bfs = graphs.local_bfs_dist(self.curr_hybrid.graph(), spoint, self.radius_nm)
         subset = hybrids.extract_cloud_subset(self.curr_hybrid, local_bfs)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
-        if self.validation:
-            self.sample.appendleft((self.curr_hybrid_idx-1, PointCloud(sample_cloud.vertices)))
 
         # apply transformations
         if len(sample_cloud.vertices) > 0:
@@ -141,36 +128,6 @@ class CloudSet:
     @property
     def weights(self):
         return self._weights
-
-    def map_prediction(self, pred_labels: np.array):
-        """ After a sample was generated using cloudset[0], the sample gets saved in self.sample. During
-            validation mode, the sample can then be processed and predicted in an external method. When the
-            prediction was done, this method can be used to map the prediction onto the original sample.
-            All samples to which predictions were mapped get merged into the full hybrid saved in self.pred_hybrid.
-            If another item was called in between then this method should not be called, as the cache contains a
-            different sample.
-
-        Args:
-            pred_labels: The predicted labels for the vertices of the sample in cache. pred_labels[0] belongs to
-                self.sample.vertices[0].
-            """
-        idx, sample = self.sample.pop()
-        if sample is None:
-            self.save_prediction()
-            sample = self.sample.pop()
-
-        pred_cloud = PointCloud(sample.vertices, pred_labels, encoding=sample.encoding,
-                                obj_bounds=sample.obj_bounds)
-
-    def save_prediction(self, hybrid_idx: int):
-        # save merged predictions if all predictions were added
-        file = self.files[hybrid_idx]
-        slashs = [pos for pos, char in enumerate(file) if char == '/']
-        name = file[slashs[-1] + 1:-4]
-        with open(self.save_path + name, 'wb') as f:
-            pickle.dump(self.pred_hybrid, f)
-        f.close()
-        self.pred_hybrid = None
 
     def set_verbose(self):
         self.verbose = True

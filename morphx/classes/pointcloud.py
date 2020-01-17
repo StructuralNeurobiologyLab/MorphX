@@ -69,6 +69,8 @@ class PointCloud(object):
     def class_num(self) -> int:
         return self._class_num
 
+    # -------------------------------------- LABEL ANALYSIS ------------------------------------------- #
+
     @property
     def weights_mean(self) -> np.ndarray:
         """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
@@ -113,6 +115,24 @@ class PointCloud(object):
             return freq
         else:
             return np.array([])
+
+    # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
+
+    def preds2labels(self) -> np.ndarray:
+        """ For each vertex, a majority vote is applied to the existing predictions and the prediction with the highest
+            occurance is set as label for this vertex. If there are no predictions, the label is set to -1.
+
+        Returns:
+            The newly generated labels.
+        """
+        for idx in range(len(self._labels)):
+            preds = np.array(self._predictions[idx])
+            if len(preds) > 0:
+                u_preds, counts = np.unique(preds, return_counts=True)
+                self._labels[idx] = u_preds[np.argmax(counts)]
+            else:
+                self._labels[idx] = -1
+        return self._labels
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 

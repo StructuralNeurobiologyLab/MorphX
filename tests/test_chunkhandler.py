@@ -29,12 +29,15 @@ def test_prediction_mapping():
     npoints = 5000
     cl = ChunkHandler(wd, radius, npoints, specific=True)
 
-    sample = cl[('example_cell', 0)]
-    pred_labels = np.arange(len(sample.vertices))
-    pred_cloud = PointCloud(sample.vertices, pred_labels)
+    size = cl.get_hybrid_length('example_cell')
+    for idx in range(size):
+        sample = cl[('example_cell', idx)]
+        pred_labels = np.ones(len(sample.vertices)) * (idx % 3)
+        pred_cloud = PointCloud(sample.vertices, pred_labels)
+        cl.map_predictions(pred_cloud, 'example_cell', idx, wd + 'predicted/')
 
-
+    cl.save_prediction(wd + 'predicted/')
 
 
 if __name__ == '__main__':
-    test_chunkloader_sanity()
+    test_prediction_mapping()
