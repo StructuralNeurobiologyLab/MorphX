@@ -29,8 +29,7 @@ class TorchSet(data.Dataset):
                  label_filter: list = None,
                  verbose: bool = False,
                  ensemble: bool = False,
-                 size: int = 0,
-                 validation: bool = False):
+                 size: int = 0):
         """ Initializes Dataset.
 
         Args:
@@ -51,7 +50,6 @@ class TorchSet(data.Dataset):
             size: Leave out analysis step by forwarding the resulting size for the options of this dataset from a
                 previous analysis. E.g. if a previous analysis with a radius of 20000 nm gave 2000 pieces, size should
                 be 2000.
-            validation: Enable prediction mapping onto generated samples.
         """
 
         self.cloudset = CloudSet(data_path, radius_nm, sample_num,
@@ -63,8 +61,7 @@ class TorchSet(data.Dataset):
                                  label_filter=label_filter,
                                  verbose=verbose,
                                  ensemble=ensemble,
-                                 size=size,
-                                 validation=validation)
+                                 size=size)
 
     def __len__(self):
         return len(self.cloudset)

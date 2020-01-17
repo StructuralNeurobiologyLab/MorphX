@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
+from typing import Callable
 from scipy.spatial.transform import Rotation as Rot
 
 

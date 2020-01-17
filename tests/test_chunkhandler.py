@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from morphx.data.chunkhandler import ChunkHandler
-from morphx.classes.pointcloud import PointCloud
+from morphx.processing import clouds
 
 
 def test_chunkhandler_sanity():
@@ -23,21 +23,19 @@ def test_chunkhandler_sanity():
         assert len(sample.labels) == npoints
 
 
-def test_prediction_mapping():
+def test_transformations():
     wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
     radius = 20000
     npoints = 5000
-    cl = ChunkHandler(wd, radius, npoints, specific=True)
+    transforms = clouds.Compose([clouds.Normalization(radius), clouds.Center()])
+    cl = ChunkHandler(wd, radius, npoints, transform=transforms)
 
-    size = cl.get_hybrid_length('example_cell')
-    for idx in range(size):
-        sample = cl[('example_cell', idx)]
-        pred_labels = np.ones(len(sample.vertices)) * (idx % 3)
-        pred_cloud = PointCloud(sample.vertices, pred_labels)
-        cl.map_predictions(pred_cloud, 'example_cell', idx, wd + 'predicted/')
-
-    cl.save_prediction(wd + 'predicted/')
+    for idx in range(len(cl)):
+        sample = cl[idx]
+        assert len(sample.vertices) == npoints
+        assert len(sample.labels) == npoints
+        assert np.all(np.round(np.mean(sample.vertices, axis=0)) == np.array([0., 0., 0.]))
 
 
 if __name__ == '__main__':
-    test_prediction_mapping()
+    test_chunkhandler_sanity()

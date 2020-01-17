@@ -35,8 +35,7 @@ class ChunkHandler:
                  chunk_size: int,
                  sample_num: int,
                  transform: Callable = clouds.Identity(),
-                 specific: bool = False,
-                 save_path: str = None):
+                 specific: bool = False):
         """
         Args:
             data_path: Path to HybridClouds saved as pickle files. Existing chunking information would
@@ -47,17 +46,10 @@ class ChunkHandler:
             transform: Transformations which should be applied to the chunks before returning them
                 (e.g. see :func:`morphx.processing.clouds.Compose`)
             specific: Flag for setting mode of requesting specific or rather randomly drawn chunks.
-            save_path: Location where mapped predictions from specific mode should be saved.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
-
-        if save_path is None and specific is True:
-            raise ValueError('In specific mode there must be a save_path as mapped predictions must be saved.')
-        self._save_path = os.path.expanduser(save_path)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
 
         # Load chunks or split dataset into chunks if it was not done already
         if not os.path.exists(self._data_path + 'splitted/' + str(chunk_size) + '.pkl'):
@@ -125,14 +117,9 @@ class ChunkHandler:
             if isinstance(item, tuple):
                 splitted_hc = self._splitted_hcs[item[0]]
 
-                # In specific mode, the files should be loaded sequentially (either raw files or files with existing
-                # predictions
+                # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
-                    try:
-                        self._curr_hc = clouds.load_cloud(self._save_path + item[0] + '.pkl')
-                    except FileNotFoundError:
-                        self._curr_hc = clouds.load_cloud(self._data_path + item[0] + '.pkl')
+                    self._curr_hc = clouds.load_cloud(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist
@@ -181,44 +168,3 @@ class ChunkHandler:
             this would be 'HybridCloud'.
         """
         return len(self._splitted_hcs[name])
-
-    def map_predictions(self, pred_cloud: PointCloud, hybrid_name: str, chunk_idx: int):
-        """ In specific mode, :func:`__getitem__` can be used to extract a specific
-            chunk from a specific HybridCloud. This chunk can then be processed and
-            labeled. When done, the processed cloud with the predicted labels can
-            then be mapped back to its original chunk and the predictions will be
-            saved in :attr:`PointCloud.predictions`.
-
-        Args:
-            pred_cloud: Processed cloud with predictions as labels.
-            hybrid_name: The Filename (without .pkl) of the HybridCloud from which the chunk was extracted.
-            chunk_idx: The index of the chunk within the HybridCloud with name :attr:`hybrid_name`.
-        """
-        # If requested hybrid differs from hybrid in memory, save current hybrid and try loading new hybrid from save
-        # path in case previous predictions were already saved before. If that fails, load new hybrid from data path
-        if self._curr_name != hybrid_name:
-            clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
-            try:
-                self._curr_hc = clouds.load_cloud(self._save_path + hybrid_name + '.pkl')
-            except FileNotFoundError:
-                self._curr_hc = clouds.load_cloud(self._data_path + hybrid_name + '.pkl')
-            self._curr_name = hybrid_name
-
-        local_bfs = self._splitted_hcs[hybrid_name][chunk_idx]
-
-        # Get indices of vertices for requested local BFS
-        idcs = []
-        for i in local_bfs:
-            idcs.extend(self._curr_hc.verts2node[i])
-
-        # Apply invers transformations to compare the predicted cloud with the original cloud
-        if len(pred_cloud.vertices) > 0:
-            self._transform(pred_cloud, invers=True)
-
-        # Vertices of predicted cloud can differ from the original ones as sampling is altering the order and may add
-        # additional points
-        tree = cKDTree(self._curr_hc.vertices[idcs])
-        dist, ind = tree.query(pred_cloud.vertices, k=1)
-        for pred_idx, vertex_idx in enumerate(ind):
-            self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
-

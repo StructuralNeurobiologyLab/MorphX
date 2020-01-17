@@ -6,7 +6,6 @@
 # Authors: Jonathan Klimesch
 
 import os
-import torch
 import time
 import pytest
 import networkx as nx
