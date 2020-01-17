@@ -9,7 +9,6 @@ import os
 import glob
 import pickle
 import numpy as np
-from scipy.spatial import cKDTree
 from typing import Callable, Union, Tuple
 from morphx.processing import clouds, hybrids
 from morphx.preprocessing import splitting

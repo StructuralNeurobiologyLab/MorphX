@@ -90,7 +90,10 @@ class PredictionMapper:
         # additional points
         tree = cKDTree(self._curr_hc.vertices[idcs])
         dist, ind = tree.query(pred_cloud.vertices, k=1)
-        for pred_idx, vertex_idx in enumerate(ind):
+
+        for pred_idx, subset_idx in enumerate(ind):
+            # Get indices of vertices in full HybridCloud (not only in the subset)
+            vertex_idx = idcs[subset_idx]
             self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
 
     def save_prediction(self):
