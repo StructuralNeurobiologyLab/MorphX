@@ -151,7 +151,10 @@ class ViewControl(object):
             while i < int(len(results)):
                 orig = results[i]
                 pred = results[i+1]
-                pred = PointCloud(pred.vertices, np.argmax(pred.labels, axis=1), encoding=pred.encoding)
+                try:
+                    pred = PointCloud(pred.vertices, pred.labels, encoding=pred.encoding)
+                except:
+                    pred = PointCloud(pred.vertices, np.argmax(pred.labels, axis=1), encoding=pred.encoding)
                 res = self.core_next(orig, pred, filename + '_i{}'.format(i))
                 if res is None:
                     return

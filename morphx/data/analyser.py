@@ -8,7 +8,6 @@
 import os
 import glob
 import pickle
-import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -37,7 +36,6 @@ def save_cloudset(cloudset: CloudSet, save_path: str):
     """
 
     save_path = os.path.expanduser(save_path)
-    ipdb.set_trace()
     cloudset.set_verbose()
     idx = cloudset.curr_hybrid_idx
     print("Save new hybrid to file.")

@@ -8,7 +8,6 @@
 import os
 import glob
 import pickle
-import ipdb
 import numpy as np
 from tqdm import tqdm
 from typing import Callable

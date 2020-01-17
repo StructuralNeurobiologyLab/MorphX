@@ -4,4 +4,3 @@ scipy
 open3d
 git+https://github.com/fwilliams/point-cloud-utils
 torch
-ipdb
