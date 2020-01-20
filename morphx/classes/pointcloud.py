@@ -28,7 +28,7 @@ class PointCloud(object):
             predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
         """
-        if vertices.shape[1] != 3:
+        if len(vertices) > 0 and vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = vertices
 

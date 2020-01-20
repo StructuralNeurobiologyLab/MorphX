@@ -95,6 +95,3 @@ class TorchSet(data.Dataset):
 
     def activate_single(self, hybrid: HybridCloud):
         self.cloudset.activate_single(hybrid)
-
-    def map_prediction(self, pred_labels: np.ndarray):
-        self.cloudset.map_prediction(pred_labels)

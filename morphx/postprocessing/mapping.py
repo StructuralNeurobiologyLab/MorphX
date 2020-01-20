@@ -18,8 +18,7 @@ class PredictionMapper:
     def __init__(self,
                  data_path: str,
                  save_path: str,
-                 chunk_size: int,
-                 transform: Callable = clouds.Identity()):
+                 chunk_size: int):
         """
         Args:
             data_path: Path to HybridClouds saved as pickle files. Existing chunking information would
@@ -27,8 +26,6 @@ class PredictionMapper:
             save_path: Location where mapped predictions from specific mode should be saved.
             chunk_size: Size of the generated chunks. If existing chunking information should be used,
                 this must comply with the chunk size used for generating that information.
-            transform: Transformations which should be applied to the chunks before returning them
-                (e.g. see :func:`morphx.processing.clouds.Compose`)
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -47,9 +44,12 @@ class PredictionMapper:
             self._splitted_hcs = pickle.load(f)
         f.close()
 
-        self._transform = transform
         self._curr_hc = None
         self._curr_name = None
+
+    @property
+    def save_path(self):
+        return self._save_path
 
     def map_predictions(self, pred_cloud: PointCloud, hybrid_name: str, chunk_idx: int):
         """ A processed chunk extracted by a ChunkHandler with the predicted labels can
@@ -82,10 +82,6 @@ class PredictionMapper:
         for i in local_bfs:
             idcs.extend(self._curr_hc.verts2node[i])
 
-        # Apply invers transformations to compare the predicted cloud with the original cloud
-        if len(pred_cloud.vertices) > 0:
-            self._transform(pred_cloud, invers=True)
-
         # Vertices of predicted cloud can differ from the original ones as sampling is altering the order and may add
         # additional points
         tree = cKDTree(self._curr_hc.vertices[idcs])
@@ -96,5 +92,7 @@ class PredictionMapper:
             vertex_idx = idcs[subset_idx]
             self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
 
-    def save_prediction(self):
-        clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
+    def save_prediction(self, name: str = None):
+        if name is None:
+            name = self._curr_name
+        clouds.save_cloud(self._curr_hc, self._save_path, name=name)
