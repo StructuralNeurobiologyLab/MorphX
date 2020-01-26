@@ -6,7 +6,6 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
-from typing import Callable
 from scipy.spatial.transform import Rotation as Rot
 
 
@@ -21,7 +20,7 @@ class PointCloud(object):
         Args:
             vertices: Point coordinates with shape (n, 3).
             labels: Vertex label array with shape (n, 1).
-            encoding: Dict with unique labels as keys and description string for respective label as value.
+            encoding: Dict with description strings for respective label as keys and unique labels as values.
             obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object.
                 E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to obj1, the
                 vertices from index 10 to 19 belong to obj2.
@@ -39,10 +38,15 @@ class PointCloud(object):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
+        if encoding is not None:
+            if len(encoding) != len(np.unique(labels)):
+                raise ValueError("Encoding must have as many entries as there are unique labels.")
         self._encoding = encoding
+
         self._obj_bounds = obj_bounds
         self._predictions = predictions
         self._class_num = len(np.unique(labels))
+        self._scale_count = 0
 
     @property
     def vertices(self) -> np.ndarray:
@@ -119,7 +123,7 @@ class PointCloud(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self) -> np.ndarray:
+    def preds2labels_mv(self) -> np.ndarray:
         """ For each vertex, a majority vote is applied to the existing predictions and the prediction with the highest
             occurance is set as label for this vertex. If there are no predictions, the label is set to -1.
 
@@ -133,6 +137,25 @@ class PointCloud(object):
                 self._labels[idx] = u_preds[np.argmax(counts)]
             else:
                 self._labels[idx] = -1
+        if self._encoding is not None and -1 in self._labels:
+            self._encoding['no_prediction'] = -1
+        return self._labels
+
+    def preds2labels_direct(self) -> np.ndarray:
+        """ For each vertex, the first predictions is taken as the new label. If there are no predictions, the label is
+            set to -1.
+
+        Returns:
+            The newly generated labels.
+        """
+        for idx in range(len(self._labels)):
+            preds = np.array(self._predictions[idx])
+            if len(preds) > 0:
+                self._labels[idx] = preds[0]
+            else:
+                self._labels[idx] = -1
+        if self._encoding is not None and -1 in self._labels:
+            self._encoding['no_prediction'] = -1
         return self._labels
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
@@ -146,6 +169,9 @@ class PointCloud(object):
             self._vertices = self._vertices / -factor
         else:
             self._vertices = self._vertices * factor
+        self._scale_count += 1
+        if self._scale_count > 1:
+            raise ValueError('Multiple scaling should not happen')
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180)):
         """ Randomly rotates vertices by performing an Euler rotation. The three angles are choosen randomly

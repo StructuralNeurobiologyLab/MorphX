@@ -61,8 +61,8 @@ def process_single_thread(args):
     name = file[slashs[-1] + 1:-4]
 
     hm = clouds.load_cloud(file)
-    # hc = hybridmesh2poisson(hm)
-    clouds.save_cloud(hm, output_path, name=name+'_poisson')
+    hc = hybridmesh2poisson(hm)
+    clouds.save_cloud(hc, output_path, name=name+'_poisson')
 
 
 def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:

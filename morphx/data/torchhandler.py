@@ -32,7 +32,6 @@ class TorchHandler(data.Dataset):
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
         """ Index gets ignored. """
-
         # Get new sample from base dataloader, skip samples without any points
         sample = PointCloud(np.array([]))
         while len(sample.vertices) == 0:

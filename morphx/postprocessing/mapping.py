@@ -8,7 +8,6 @@
 import os
 import pickle
 from scipy.spatial import cKDTree
-from typing import Callable
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 

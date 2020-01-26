@@ -15,7 +15,7 @@ def test_chunkhandler_sanity():
         assert len(sample.vertices) == npoints
         assert len(sample.labels) == npoints
 
-    cl.set_specific_mode(True)
+    cl.switch_mode()
     size = cl.get_hybrid_length('example_cell')
     for idx in range(size):
         sample = cl[('example_cell', idx)]
