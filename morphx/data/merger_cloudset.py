@@ -55,6 +55,9 @@ class MergerCloudSet():
         self.class_num = class_num
         self.label_filter = label_filter
         self.verbose = verbose
+        # This two kd-trees will be initialized every time a new pcl is loaded with self.load_new()
+        self.kdtree_vert = None
+        self.kdtree_node = None
 
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
@@ -76,8 +79,8 @@ class MergerCloudSet():
         # node_idx_list stores all the nodes that will be used as querying location to chunk the point cloud.
         # For segmentation of false-merger, this list should contain equal number of merger/non-merger nodes.
         self.sampled_node_idx = []
-        # Number of positive/negative samples, resulting in total number of
-        self.num_posneg_samples = 5
+        # Number of positive/negative samples, resulting in total number of 2*self.num_posneg_samples
+        self.num_posneg_samples = 50
         self.query_radius = 10e3
         # =============================
         # =============================
@@ -105,18 +108,18 @@ class MergerCloudSet():
                 return None
             else:
                 self.load_new()
+                print("Loaded new cell as point cloud.")
 
-        node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
-        node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
+        import time
+        start_time = time.time()
+
+        # node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
+        # node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
 
         spoint = self.sampled_node_idx[self.curr_node_idx]
-        kdtree_node = cKDTree(self.curr_hybrid.nodes)
         node_coord = self.curr_hybrid.nodes[spoint]
-
-        chunk_node_ixs = kdtree_node.query_ball_point(node_coord, r=self.query_radius)
-
-        kdtree_vert = cKDTree(self.curr_hybrid.vertices)
-        chunk_vert_ixs = kdtree_vert.query_ball_point(node_coord, r=self.query_radius)
+        chunk_node_ixs = self.kdtree_node.query_ball_point(node_coord, r=self.query_radius)
+        chunk_vert_ixs = self.kdtree_vert.query_ball_point(node_coord, r=self.query_radius)
         chunk_vertices = self.curr_hybrid.vertices[chunk_vert_ixs]
         chunk_vert_labels = self.curr_hybrid.labels[chunk_vert_ixs]
 
@@ -173,26 +176,23 @@ class MergerCloudSet():
         if self.verbose:
             print("Calculating traverser...")
 
-        self.curr_hybrid.traverser(method=self.iterator_method,
-                                   min_dist=self.radius_nm_global,
-                                   source=self.global_source)
+        # self.curr_hybrid.traverser(method=self.iterator_method,
+        #                            min_dist=self.radius_nm_global,
+        #                            source=self.global_source)
 
         # Fill in node_idx_list with equal number of merger/non-merger node idx.
         node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
         node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
 
-        num_samples = self.num_posneg_samples
-        if len(node_idx_merger) < self.num_posneg_samples or len(node_idx_no_merger) < self.num_posneg_samples:
-            num_samples = min(len(node_idx_merger), len(node_idx_no_merger))
-
         # Iterate through every merger_node, and query all the nodes within the radius that centered around the
         # current merger_node. These nodes combined are considered to be the query-center that will generate chunk of
         # vertices that contains the merger.
-        kdtree_node = cKDTree(self.curr_hybrid.nodes)
+        self.kdtree_vert = cKDTree(self.curr_hybrid.vertices)  # this takes up 100s for large cells
+        self.kdtree_node = cKDTree(self.curr_hybrid.nodes)
         nodes_to_filter = set()
         for index in node_idx_merger:
             node_coord = self.curr_hybrid.nodes[index]
-            chunk_node_ixs = kdtree_node.query_ball_point(node_coord, r=self.query_radius).tolist()
+            chunk_node_ixs = self.kdtree_node.query_ball_point(node_coord, r=self.query_radius).tolist()
             chunk_node_ixs_set = set(chunk_node_ixs[0])
             nodes_to_filter.update(chunk_node_ixs_set)
 
@@ -204,24 +204,27 @@ class MergerCloudSet():
 
         # Also expand the node_idx_merger so that the merger is not always in the center of the chunk
         merger_radius = self.query_radius - 3.5e3
-        kdtree_node = cKDTree(self.curr_hybrid.nodes)
         nodes_idx_merger_expanded = set()
         for index in node_idx_merger:
             node_coord = self.curr_hybrid.nodes[index]
-            chunk_node_ixs = kdtree_node.query_ball_point(node_coord, r=merger_radius).tolist()
+            chunk_node_ixs = self.kdtree_node.query_ball_point(node_coord, r=merger_radius).tolist()
             chunk_node_ixs_set = set(chunk_node_ixs[0])
             nodes_idx_merger_expanded.update(chunk_node_ixs_set)
         nodes_idx_merger_expanded = np.array(list(nodes_idx_merger_expanded))
 
         # Randomly choose the subset
+        num_samples = self.num_posneg_samples
+        if len(nodes_idx_merger_expanded) < self.num_posneg_samples or \
+                len(filtered_nodes_idx_no_merger) < self.num_posneg_samples:
+            num_samples = min(len(node_idx_merger), len(node_idx_no_merger))
         merger_subset = np.random.choice(np.squeeze(nodes_idx_merger_expanded), num_samples)
         no_merger_subset = np.random.choice(np.squeeze(filtered_nodes_idx_no_merger), num_samples)
 
         self.sampled_node_idx = np.concatenate((merger_subset, no_merger_subset))
         np.random.shuffle(self.sampled_node_idx)
 
-        if self.label_filter is not None:
-            self.curr_hybrid.filter_traverser()
+        # if self.label_filter is not None:
+        #     self.curr_hybrid.filter_traverser()
 
         self.curr_hybrid_idx += 1
         # start over if all files have been processed
@@ -230,9 +233,10 @@ class MergerCloudSet():
 
         self.curr_node_idx = 0
 
-        # load next if current cloud doesn't contain the requested labels
-        if len(self.curr_hybrid.traverser()) == 0:
-            self.load_new()
+        # # load next if current cloud doesn't contain the requested labels
+        # if len(self.curr_hybrid.traverser()) == 0:
+        #     self.load_new()
+        
 
     def analyse_data(self):
         """ Count number of chunks which can be generated with current settings and calculate class
