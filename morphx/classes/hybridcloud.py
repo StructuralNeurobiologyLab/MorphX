@@ -103,10 +103,12 @@ class HybridCloud(PointCloud):
                 # extract vertices corresponding to each node and take the majority label as the label for that node
                 for ix in range(len(self.nodes)):
                     verts_idcs = self.verts2node[ix]
-                    labels = self.labels[verts_idcs]
-                    u_labels, counts = np.unique(labels, return_counts=True)
-                    # take first label if there are multiple majorities
-                    self._node_labels[ix] = u_labels[np.argmax(counts)]
+                    # nodes with no corresponding vertices have label -1
+                    if len(verts_idcs) != 0:
+                        labels = self.labels[verts_idcs]
+                        u_labels, counts = np.unique(labels, return_counts=True)
+                        # take first label if there are multiple majorities
+                        self._node_labels[ix] = u_labels[np.argmax(counts)]
                 # TODO: nodes where no corresponding vertices exist have label -1 => E.g. take label from neighbor
         return self._node_labels
 
@@ -126,7 +128,7 @@ class HybridCloud(PointCloud):
         # for each node extract neighbor_num neighbors with a bfs and take the most frequent label as new node label
         for ix in range(len(self.nodes)):
             local_bfs = graphs.local_bfs_num(graph, ix, neighbor_num)
-            labels = self.node_labels[local_bfs]
+            labels = self.node_labels[local_bfs.astype(int)]
             u_labels, counts = np.unique(labels, return_counts=True)
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._node_labels = new_labels

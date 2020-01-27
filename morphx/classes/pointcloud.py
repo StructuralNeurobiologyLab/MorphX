@@ -38,11 +38,7 @@ class PointCloud(object):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
-        if encoding is not None:
-            if len(encoding) != len(np.unique(labels)):
-                raise ValueError("Encoding must have as many entries as there are unique labels.")
         self._encoding = encoding
-
         self._obj_bounds = obj_bounds
         self._predictions = predictions
         self._class_num = len(np.unique(labels))
