@@ -9,7 +9,7 @@ import math
 import os
 import pickle
 import numpy as np
-from typing import Union
+from typing import Union, Tuple
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -18,7 +18,7 @@ from morphx.classes.hybridmesh import HybridMesh
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
 
 
-def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointCloud:
+def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
     """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
     vertices. If the requested number of points is larger than the given subset, the subset gets enriched with slightly
     augmented points before sampling.
@@ -29,13 +29,13 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         random_seed: Possibility for making the sampling deterministic.
 
     Returns:
-        PointCloud with sampled points (and labels).
+        PointCloud with sampled points (and labels) and indices of the original vertices where samples are from.
     """
     cloud = pc.vertices
     labels = pc.labels
 
     if len(cloud) == 0:
-        return pc
+        return pc, np.array([])
 
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -44,22 +44,30 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
     sample = np.zeros((vertex_number, dim))
     sample_l = np.zeros((vertex_number, 1))
 
+    # How much additional augmented points must be generated in order to reach the requested number of samples
     deficit = vertex_number - len(cloud)
 
     vert_ixs = np.arange(len(cloud))
     np.random.shuffle(vert_ixs)
     sample[:min(len(cloud), vertex_number)] = cloud[vert_ixs[:vertex_number]]
+
+    # Save vertex index of each sample point for later mapping
+    sample_ixs = np.ones(vertex_number)
+    sample_ixs[:min(len(cloud), vertex_number)] = vert_ixs[:vertex_number]
+
     if labels is not None:
         sample_l[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
 
-    # add augmented points to reach requested number of samples
     if deficit > 0:
         # deficit could be bigger than cloudsize
         offset = len(cloud)
         for it in range(math.ceil(deficit/len(cloud))):
+            # add augmented points to reach requested number of samples
             compensation = min(len(cloud), len(sample)-offset)
             np.random.shuffle(vert_ixs)
             sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
+            # Save vertex indices of additional points
+            sample_ixs[offset:offset+compensation] = vert_ixs[:compensation]
             if labels is not None:
                 sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
             offset += compensation
@@ -67,12 +75,33 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> PointC
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
     if labels is not None:
-        return PointCloud(sample, labels=sample_l)
+        return PointCloud(sample, labels=sample_l), sample_ixs
     else:
-        return PointCloud(sample)
+        return PointCloud(sample), sample_ixs
 
 
 # -------------------------------------- CLOUD FILTERING / LABEL MAPPING ------------------------------------------- #
+
+def filter_preds(cloud: PointCloud) -> PointCloud:
+    """ Returns a PointCloud with only those vertices and labels for which predictions exist. The predictions of
+        these points get transfered to the returned PointCloud, all other attributes of the original cloud (encoding,
+        obj_bounds, ...) are lost.
+
+    Args:
+        cloud: The PointCloud from which vertices with existing predictions should be filtered.
+
+     Returns:
+        PointCloud containing only vertices and labels with existing predictions.
+    """
+    idcs = []
+    new_predictions = {}
+    counter = 0
+    for key in cloud.predictions:
+        if len(cloud.predictions[key]) != 0:
+            idcs.append(key)
+            new_predictions[counter] = cloud.predictions[key]
+            counter += 1
+    return PointCloud(cloud.vertices[idcs], cloud.labels[idcs], predictions=new_predictions)
 
 
 def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:

@@ -133,6 +133,7 @@ class HybridCloud(PointCloud):
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._node_labels = new_labels
 
+
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the
         skeleton of this point cloud. The node IDs represent the index in the ``skel_node`` array.

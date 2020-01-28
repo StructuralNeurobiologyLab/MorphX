@@ -131,7 +131,7 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_hc[item[1]]
                 subset = hybrids.extract_cloud_subset(self._curr_hc, local_bfs)
-                sample = clouds.sample_cloud(subset, self._sample_num)
+                sample, ixs = clouds.sample_cloud(subset, self._sample_num)
             else:
                 raise ValueError('In validation mode, items can only be requested with a tuple'
                                  'of HybridCloud name and chunk index within that cloud.')
@@ -149,19 +149,15 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_hc_chunks[self._chunk_idx]
             subset = hybrids.extract_cloud_subset(self._hcs[self._hc_idx], local_bfs)
-            sample = clouds.sample_cloud(subset, self._sample_num)
+            sample, ixs = clouds.sample_cloud(subset, self._sample_num)
             self._chunk_idx += 1
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:
             self._transform(sample)
 
-        centroid = np.array([0, 0, 0])
         if self._specific:
-            for transform in self._transform.transforms:
-                if isinstance(transform, clouds.Center):
-                    centroid = transform.centroid
-            return sample, centroid
+            return sample, ixs
         else:
             return sample
 

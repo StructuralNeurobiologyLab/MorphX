@@ -7,6 +7,7 @@
 
 import os
 import pickle
+import numpy as np
 from scipy.spatial import cKDTree
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
@@ -50,13 +51,14 @@ class PredictionMapper:
     def save_path(self):
         return self._save_path
 
-    def map_predictions(self, pred_cloud: PointCloud, hybrid_name: str, chunk_idx: int):
+    def map_predictions(self, pred_cloud: PointCloud, mapping_idcs: np.ndarray, hybrid_name: str, chunk_idx: int):
         """ A processed chunk extracted by a ChunkHandler with the predicted labels can
             then be mapped back to its original chunk and the predictions will be
             saved in :attr:`PointCloud.predictions`.
 
         Args:
             pred_cloud: Processed cloud with predictions as labels.
+            mapping_idcs: The indices of the vertices in the local BFS context from which samples were taken.
             hybrid_name: The Filename (without .pkl) of the HybridCloud from which the chunk was extracted.
             chunk_idx: The index of the chunk within the HybridCloud with name :attr:`hybrid_name`.
         """
@@ -67,7 +69,7 @@ class PredictionMapper:
         # If requested hybrid differs from hybrid in memory, save current hybrid and try loading new hybrid from save
         # path in case previous predictions were already saved before. If that fails, load new hybrid from data path
         if self._curr_name != hybrid_name:
-            clouds.save_cloud(self._curr_hc, self._save_path, name=self._curr_name)
+            self.save_prediction(self._curr_name)
             try:
                 self._curr_hc = clouds.load_cloud(self._save_path + hybrid_name + '.pkl')
             except FileNotFoundError:
@@ -81,12 +83,7 @@ class PredictionMapper:
         for i in local_bfs:
             idcs.extend(self._curr_hc.verts2node[i])
 
-        # Vertices of predicted cloud can differ from the original ones as sampling is altering the order and may add
-        # additional points
-        tree = cKDTree(self._curr_hc.vertices[idcs])
-        dist, ind = tree.query(pred_cloud.vertices, k=1)
-
-        for pred_idx, subset_idx in enumerate(ind):
+        for pred_idx, subset_idx in enumerate(mapping_idcs):
             # Get indices of vertices in full HybridCloud (not only in the subset)
             vertex_idx = idcs[subset_idx]
             self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
@@ -95,3 +92,8 @@ class PredictionMapper:
         if name is None:
             name = self._curr_name
         clouds.save_cloud(self._curr_hc, self._save_path, name=name)
+
+        # Save additional lightweight cloud for fast inspection
+        simple_cloud = clouds.filter_preds(self._curr_hc)
+        simple_cloud.preds2labels_mv()
+        clouds.save_cloud(simple_cloud, self._save_path, name=name + '_light')

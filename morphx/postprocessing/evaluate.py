@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import ipdb
 import os
 import glob
 import numpy as np
@@ -31,6 +30,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
                     'gt_d': np.array([]), 'pred_node_d': np.array([]), 'gt_node_d': np.array([]),
                     'pred_node_d_f': np.array([]), 'gt_node_d_f': np.array([])}
 
+    reports.append('\n\n### Single file evaluation ###\n')
     for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1] + 1:-4]
@@ -44,7 +44,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
             print("Ground truth for {} was not found. Skipping file.".format(name))
             continue
 
-        report = '\n\n### File: ' + name + ' ###\n\n'
+        report = '\n\n### File: ' + name + ' ###\n'
         report += eval_single(file, gt_file, metrics, total_labels, direct=direct, filters=filters,
                               drop_unpreds=drop_unpreds)
         reports.append(report)
@@ -52,7 +52,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
     # Perform evaluation on total label arrays (labels from all files sticked together)
     report = '\n\n### Evaluation of files at: ' + input_path + ' ###\n\n'
     if total:
-        report += '\n\n### Total evaluation ###\n\n'
+        report += '\n\n### Total evaluation ###\n'
         for idx, metric in enumerate(metrics):
             report += '\n\n### Metric ' + str(idx) + ' ###\n\n'
             report += '\nVertex evaluation:\n\n'
@@ -202,5 +202,5 @@ if __name__ == '__main__':
     #                   '~/thesis/gt/gt_poisson/ads/sso_24414208_c.pkl', [sm.classification_report], filters=True,
     #                   direct=True))
 
-    eval_dataset('~/thesis/gt/gt_poisson/ads/predictions/25000_5000/', '~/thesis/gt/gt_poisson/ads/',
-                 '~/thesis/gt/gt_poisson/ads/predictions/25000_5000/', [sm.classification_report], total=True)
+    eval_dataset('~/thesis/gt/gt_poisson/ads/predictions/15000_10000/', '~/thesis/gt/gt_poisson/ads/',
+                 '~/thesis/gt/gt_poisson/ads/predictions/15000_10000/', [sm.classification_report], total=True)
