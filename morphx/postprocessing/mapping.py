@@ -63,18 +63,13 @@ class PredictionMapper:
             chunk_idx: The index of the chunk within the HybridCloud with name :attr:`hybrid_name`.
         """
         if self._curr_name is None:
-            self._curr_hc = clouds.load_cloud(self._data_path + hybrid_name + '.pkl')
-            self._curr_name = hybrid_name
+            self.load_prediction(hybrid_name)
 
         # If requested hybrid differs from hybrid in memory, save current hybrid and try loading new hybrid from save
         # path in case previous predictions were already saved before. If that fails, load new hybrid from data path
         if self._curr_name != hybrid_name:
             self.save_prediction(self._curr_name)
-            try:
-                self._curr_hc = clouds.load_cloud(self._save_path + hybrid_name + '.pkl')
-            except FileNotFoundError:
-                self._curr_hc = clouds.load_cloud(self._data_path + hybrid_name + '.pkl')
-            self._curr_name = hybrid_name
+            self.load_prediction(hybrid_name)
 
         local_bfs = self._splitted_hcs[hybrid_name][chunk_idx]
 
@@ -83,10 +78,18 @@ class PredictionMapper:
         for i in local_bfs:
             idcs.extend(self._curr_hc.verts2node[i])
 
+        mapping_idcs = mapping_idcs.astype(int)
         for pred_idx, subset_idx in enumerate(mapping_idcs):
             # Get indices of vertices in full HybridCloud (not only in the subset)
             vertex_idx = idcs[subset_idx]
             self._curr_hc.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
+
+    def load_prediction(self, name: str):
+        try:
+            self._curr_hc = clouds.load_cloud(self._save_path + name + '.pkl')
+        except FileNotFoundError:
+            self._curr_hc = clouds.load_cloud(self._data_path + name + '.pkl')
+        self._curr_name = name
 
     def save_prediction(self, name: str = None):
         if name is None:
@@ -96,4 +99,4 @@ class PredictionMapper:
         # Save additional lightweight cloud for fast inspection
         simple_cloud = clouds.filter_preds(self._curr_hc)
         simple_cloud.preds2labels_mv()
-        clouds.save_cloud(simple_cloud, self._save_path, name=name + '_light')
+        clouds.save_cloud(simple_cloud, self._save_path + 'info/', name=name + '_light')

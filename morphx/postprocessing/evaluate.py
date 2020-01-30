@@ -10,11 +10,31 @@ import glob
 import numpy as np
 import sklearn.metrics as sm
 from tqdm import tqdm
+from typing import Tuple
 from morphx.processing import clouds
 
 
 def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list, report_name: str = 'Evaluation',
                  total: bool = False, direct: bool = False, filters: bool = False, drop_unpreds: bool = True):
+    """ Apply different metrics to HybridClouds with predictions and compare these predictions with corresponding
+        ground truth files with different filters or under different conditions.
+
+    Args:
+        input_path: Location of HybridClouds with predictions, saved as pickle files by a MorphX prediction mapper.
+        gt_path: Location of ground truth files, one for each file at input_path. Must have the same names as their
+            counterparts.
+        output_path: Location where results of evaluation should be saved.
+        metrics: List of metrics which should be applied to the predicted clouds.
+        report_name: Name of the current evaluation. Is used as the filename in which the evaluation report gets saved.
+        total: Combine the predictions of all files to apply the metrics to the total prediction array.
+        direct: Flag for swichting off the majority vote which is normally applied if there are multiple predictions
+            for one vertex. If this flag is set, only the first prediction is taken into account.
+        filters: After mapping the vertex labels to the skeleton, this flag can be used to apply filters to the skeleton
+            and append the evaluation of these filtered skeletons.
+        drop_unpreds: Flag for dropping all vertices or nodes which don't have predictions and whose labels are thus set
+            to -1. If this flag is not set, the number of vertices or nodes without predictions might be much higher
+            than the one of the predicted vertices or nodes, which results in bad evaluation results.
+    """
     input_path = os.path.expanduser(input_path)
     gt_path = os.path.expanduser(gt_path)
     output_path = os.path.expanduser(output_path)
@@ -25,11 +45,10 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
         os.makedirs(output_path)
 
     reports = []
-    total_labels = {'pred': np.array([]), 'pred_node': np.array([]), 'gt': np.array([]), 'gt_node': np.array([]),
-                    'pred_node_f': np.array([]), 'gt_node_f': np.array([]), 'pred_d': np.array([]),
-                    'gt_d': np.array([]), 'pred_node_d': np.array([]), 'gt_node_d': np.array([]),
-                    'pred_node_d_f': np.array([]), 'gt_node_d_f': np.array([])}
+    # Arrays for concatenating the labels of all files for later total evaluation
+    total_labels = {'pred': np.array([]), 'pred_node': np.array([]), 'gt': np.array([]), 'gt_node': np.array([])}
 
+    # Build single file evaluation reports
     reports.append('\n\n### Single file evaluation ###\n')
     for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
@@ -49,30 +68,23 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
                               drop_unpreds=drop_unpreds)
         reports.append(report)
 
-    # Perform evaluation on total label arrays (labels from all files sticked together)
+    # Perform evaluation on total label arrays (labels from all files sticked together), prediction
+    # mappings or filters are already included
     report = '\n\n### Evaluation of files at: ' + input_path + ' ###\n\n'
     if total:
         report += '\n\n### Total evaluation ###\n'
         for idx, metric in enumerate(metrics):
             report += '\n\n### Metric ' + str(idx) + ' ###\n\n'
-            report += '\nVertex evaluation:\n\n'
-            report += metric(total_labels['gt'], total_labels['pred'])
-            report += '\n\nSkeleton evaluation:\n\n'
-            report += metric(total_labels['gt_node'], total_labels['pred_node'])
-
-            if filters:
-                report += '\n\nSkeleton evaluation with filters:\n\n'
-                report += metric(total_labels['gt_node_f'], total_labels['pred_node_f'])
-
             if direct:
-                report += '\n\nVertex evaluation without majority vote:\n\n'
-                report += metric(total_labels['gt_d'], total_labels['pred_d'])
-                report += '\n\nSkeleton evaluation without majority vote:\n\n'
-                report += metric(total_labels['gt_node_d'], total_labels['pred_node_d'])
-
-                if filters:
-                    report += '\n\nSkeleton evaluation without majority vote:\n\n'
-                    report += metric(total_labels['gt_node_d_f'], total_labels['pred_node_d_f'])
+                mode = 'direct'
+            else:
+                mode = 'majority vote'
+            report += '\nVertex evaluation ' + mode + ':\n\n'
+            report += metric(total_labels['gt'], total_labels['pred'])
+            if filters:
+                mode += ' with filters'
+            report += '\n\nSkeleton evaluation ' + mode + ':\n\n'
+            report += metric(total_labels['gt_node'], total_labels['pred_node'])
 
     # Write reports to file
     file = output_path + report_name + '.txt'
@@ -87,6 +99,25 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
 
 def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, direct: bool = False,
                 filters: bool = False, drop_unpreds: bool = True) -> str:
+    """ Apply different metrics to HybridClouds with predictions and compare these predictions with corresponding
+        ground truth files with different filters or under different conditions.
+
+    Args:
+        file: HybridCloud with predictions, saved as pickle file by a MorphX prediction mapper.
+        gt_file: Ground truth file corresponding to the HybridCloud given in file.
+        metrics: List of metrics which should be applied to the predicted clouds.
+        total: Use given dict to save processed predictions for later use (see eval_dataset).
+        direct: Flag for swichting off the majority vote which is normally applied if there are multiple predictions
+            for one vertex. If this flag is set, only the first prediction is taken into account.
+        filters: After mapping the vertex labels to the skeleton, this flag can be used to apply filters to the skeleton
+            and append the evaluation of these filtered skeletons.
+        drop_unpreds: Flag for dropping all vertices or nodes which don't have predictions and whose labels are thus set
+            to -1. If this flag is not set, the number of vertices or nodes without predictions might be much higher
+            than the one of the predicted vertices or nodes, which results in bad evaluation results.
+
+    Returns:
+        Evaluation report as string.
+    """
     file = os.path.expanduser(file)
     gt_file = os.path.expanduser(gt_file)
 
@@ -102,99 +133,42 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
         report += '\n\n### Metric ' + str(idx) + ' ###\n\n'
 
         # Perform majority vote on existing predictions and set these as new labels
-        hc.preds2labels_mv()
-
-        hc_labels = hc.labels
-        gt_labels = gt_hc.labels
-        if drop_unpreds:
-            mask = np.logical_and(hc.labels != -1, gt_hc.labels != -1)
-            hc_labels = hc_labels[mask]
-            gt_labels = gt_labels[mask]
+        if direct:
+            hc.preds2labels_direct()
+            mode = 'direct'
+        else:
+            hc.preds2labels_mv()
+            mode = 'majority vote'
 
         # Get evaluation for vertices
-        report += '\nVertex evaluation:\n\n'
-        report += metric(gt_labels, hc_labels)
-
-        hc_node_labels = hc.node_labels
-        gt_node_labels = gt_hc.node_labels
-        if drop_unpreds:
-            mask = np.logical_and(hc.node_labels != -1, gt_hc.node_labels != -1)
-            hc_node_labels = hc_node_labels[mask]
-            gt_node_labels = gt_node_labels[mask]
+        gtl, hcl = handle_unpreds(gt_hc.labels, hc.labels, drop_unpreds)
+        report += '\nVertex evaluation ' + mode + ':\n\n'
+        report += metric(gtl, hcl)
 
         # Get evaluation for skeletons
-        report += '\n\nSkeleton evaluation:\n\n'
-        report += metric(gt_node_labels, hc_node_labels)
+        if filters:
+            hc.clean_node_labels()
+            mode += ' with filters'
+        gtnl, hcnl = handle_unpreds(gt_hc.node_labels, hc.node_labels, drop_unpreds)
+
+        report += '\n\nSkeleton evaluation ' + mode + ':\n\n'
+        report += metric(gtnl, hcnl)
 
         if total is not None:
-            total['pred'] = np.append(total['pred'], hc_labels)
-            total['gt'] = np.append(total['gt'], gt_labels)
-            total['pred_node'] = np.append(total['pred_node'], hc_node_labels)
-            total['gt_node'] = np.append(total['gt_node'], gt_node_labels)
-
-        if filters:
-            # Apply filters to nodes
-            hc.clean_node_labels()
-
-            hc_node_labels = hc.node_labels
-            gt_node_labels = gt_hc.node_labels
-            if drop_unpreds:
-                mask = np.logical_and(hc.node_labels != -1, gt_hc.node_labels != -1)
-                hc_node_labels = hc_node_labels[mask]
-                gt_node_labels = gt_node_labels[mask]
-
-            report += '\n\nSkeleton evaluation with filters:\n\n'
-            report += metric(gt_node_labels, hc_node_labels)
-            if total is not None:
-                total['pred_node_f'] = np.append(total['pred_node_f'], hc_node_labels)
-                total['gt_node_f'] = np.append(total['gt_node_f'], gt_node_labels)
-
-        if direct:
-            # Map predictions without majority vote and produce same reports as above
-            hc.preds2labels_direct()
-
-            hc_labels = hc.labels
-            gt_labels = gt_hc.labels
-            if drop_unpreds:
-                mask = np.logical_and(hc.labels != -1, gt_hc.labels != -1)
-                hc_labels = hc_labels[mask]
-                gt_labels = gt_labels[mask]
-
-            report += '\n\nVertex evaluation without majority vote:\n\n'
-            report += metric(gt_labels, hc_labels)
-
-            hc_node_labels = hc.node_labels
-            gt_node_labels = gt_hc.node_labels
-            if drop_unpreds:
-                mask = np.logical_and(hc.node_labels != -1, gt_hc.node_labels != -1)
-                hc_node_labels = hc_node_labels[mask]
-                gt_node_labels = gt_node_labels[mask]
-
-            report += '\n\nSkeleton evaluation without majority vote:\n\n'
-            report += metric(gt_node_labels, hc_node_labels)
-            if total is not None:
-                total['pred_d'] = np.append(total['pred_d'], hc_labels)
-                total['pred_node_d'] = np.append(total['pred_node_d'], hc_node_labels)
-                total['gt_d'] = np.append(total['gt_d'], gt_labels)
-                total['gt_node_d'] = np.append(total['gt_node_d'], gt_node_labels)
-
-            if filters:
-                hc.clean_node_labels()
-
-                hc_node_labels = hc.node_labels
-                gt_node_labels = gt_hc.node_labels
-                if drop_unpreds:
-                    mask = np.logical_and(hc.node_labels != -1, gt_hc.node_labels != -1)
-                    hc_node_labels = hc_node_labels[mask]
-                    gt_node_labels = gt_node_labels[mask]
-
-                report += '\n\nSkeleton evaluation without majority vote with filters:\n\n'
-                report += metric(gt_node_labels, hc_node_labels)
-                if total is not None:
-                    total['pred_node_d_f'] = np.append(total['pred_node_d_f'], hc_node_labels)
-                    total['gt_node_d_f'] = np.append(total['gt_node_d_f'], gt_node_labels)
+            total['pred'] = np.append(total['pred'], hcl)
+            total['pred_node'] = np.append(total['pred_node'], hcnl)
+            total['gt'] = np.append(total['gt'], gtl)
+            total['gt_node'] = np.append(total['gt_node'], gtnl)
 
     return report
+
+
+def handle_unpreds(gt: np.ndarray, hc: np.ndarray, drop: bool) -> Tuple[np.ndarray, np.ndarray]:
+    if drop:
+        mask = np.logical_and(hc != -1, gt != -1)
+        return gt[mask], hc[mask]
+    else:
+        return gt, hc
 
 
 if __name__ == '__main__':
@@ -202,5 +176,9 @@ if __name__ == '__main__':
     #                   '~/thesis/gt/gt_poisson/ads/sso_24414208_c.pkl', [sm.classification_report], filters=True,
     #                   direct=True))
 
-    eval_dataset('~/thesis/gt/gt_poisson/ads/predictions/15000_10000/', '~/thesis/gt/gt_poisson/ads/',
-                 '~/thesis/gt/gt_poisson/ads/predictions/15000_10000/', [sm.classification_report], total=True)
+    for radius in [25000]:
+        for npoints in [5000]:
+            eval_dataset(f'~/thesis/trainings/past/2020/01_14/2020_01_14_{radius}_{npoints}/predictions/',
+                         '~/thesis/gt/gt_poisson/ads/',
+                         f'~/thesis/trainings/past/2020/01_14/2020_01_14_{radius}_{npoints}/predictions/',
+                         [sm.classification_report], total=True, report_name='Evaluation_new')

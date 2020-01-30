@@ -133,6 +133,9 @@ class HybridCloud(PointCloud):
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._node_labels = new_labels
 
+    def nodes2verts_labels(self):
+        if self._node_labels is None:
+            return None
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the

@@ -21,11 +21,9 @@ class TorchHandler(data.Dataset):
                  data_path: str,
                  chunk_size: int,
                  sample_num: int,
-                 transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
-                 specific: bool = False):
+                 transform: clouds.Compose = clouds.Compose([clouds.Identity()])):
         """ Initializes Dataset. """
-        self.ch = ChunkHandler(data_path, chunk_size, sample_num, transform, specific=specific)
-        self.specific = specific
+        self.ch = ChunkHandler(data_path, chunk_size, sample_num, transform)
 
     def __len__(self):
         return len(self.ch)
@@ -33,12 +31,9 @@ class TorchHandler(data.Dataset):
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
         """ Index gets ignored. """
         # Get new sample from base dataloader, skip samples without any points
-        sample = PointCloud(np.array([]))
-        while len(sample.vertices) == 0:
-            if self.specific:
-                sample, centroid = self.ch[item]
-            else:
-                sample = self.ch[item]
+        sample = PointCloud(np.array([[0, 0, 0]]))
+        while np.all(sample.vertices == 0):
+            sample = self.ch[item]
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))
@@ -50,18 +45,10 @@ class TorchHandler(data.Dataset):
         lbs = torch.from_numpy(labels).long()
         features = torch.ones(len(sample.vertices), 1).float()
 
-        centroid = np.array([0, 0, 0])
-        if self.specific:
-            centroid = torch.from_numpy(centroid)
-            return {'pts': pts, 'features': features, 'target': lbs, 'centroid': centroid}
-        else:
-            return {'pts': pts, 'features': features, 'target': lbs}
+        return {'pts': pts, 'features': features, 'target': lbs}
 
     def hc_names(self):
         return self.ch.hc_names
-
-    def switch_mode(self):
-        self.ch.switch_mode()
 
     def get_hybrid_length(self, name: str):
         return self.ch.get_hybrid_length(name)
