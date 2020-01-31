@@ -88,7 +88,9 @@ class MergerCloudSet():
         # load first file
         self.curr_hybrid = None
         if len(self.files) > 0:
-            self.load_new()
+            load_new_success = self.load_new()
+            while not load_new_success:
+                load_new_success = self.load_new()
 
         self.analyse_data()
 
@@ -108,10 +110,7 @@ class MergerCloudSet():
                 return None
             else:
                 self.load_new()
-                print("Loaded new cell as point cloud.")
-
-        import time
-        start_time = time.time()
+                # print("Loaded new cell as point cloud.")
 
         # node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
         # node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
@@ -163,11 +162,11 @@ class MergerCloudSet():
         self.process_single = True
         self.curr_node_idx = 0
 
-    def load_new(self):
+    def load_new(self) -> bool:
         """ Load next hybrid from dataset and apply possible filters """
 
-        if self.verbose:
-            print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
+        # if self.verbose:
+        print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
 
         self.curr_hybrid = clouds.load_cloud(self.files[self.curr_hybrid_idx])
         if self.label_filter is not None:
@@ -201,6 +200,8 @@ class MergerCloudSet():
         # Nodes left are considered not containing the merger.
         filtered_nodes_idx_no_merger = [index for index in node_idx_no_merger if index not in nodes_to_filter]
         filtered_nodes_idx_no_merger = np.array(filtered_nodes_idx_no_merger)
+        if len(filtered_nodes_idx_no_merger) == 0:
+            return False
 
         # Also expand the node_idx_merger so that the merger is not always in the center of the chunk
         merger_radius = self.query_radius - 3.5e3
@@ -211,6 +212,8 @@ class MergerCloudSet():
             chunk_node_ixs_set = set(chunk_node_ixs[0])
             nodes_idx_merger_expanded.update(chunk_node_ixs_set)
         nodes_idx_merger_expanded = np.array(list(nodes_idx_merger_expanded))
+        if len(nodes_idx_merger_expanded) == 0:
+            return False
 
         # Randomly choose the subset
         num_samples = self.num_posneg_samples
@@ -236,6 +239,7 @@ class MergerCloudSet():
         # # load next if current cloud doesn't contain the requested labels
         # if len(self.curr_hybrid.traverser()) == 0:
         #     self.load_new()
+        return True
         
 
     def analyse_data(self):
