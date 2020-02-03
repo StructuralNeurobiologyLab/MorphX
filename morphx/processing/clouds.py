@@ -369,12 +369,16 @@ class RandomVariation:
 
 
 # TODO: Generalize to hybrids
-def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
+def merge_clouds(pc1: PointCloud, pc2: PointCloud, name1: Union[str, int] = 1, name2: Union[str, int] = 2) -> PointCloud:
     """ Merges 2 PointCloud Objects if dimensions match and if either both clouds have labels or none has.
 
     Args:
         pc1: First PointCloud object
         pc2: Second PointCloud object
+        name1: Name of first PointCloud which can be used as a key for the object_bounds dict of the returned cloud.
+            Is only used if the PointCloud doesn't already have an object_bounds dict.
+        name2: Name of second PointCloud which can be used as a key for the object_bounds dict of the returned cloud.
+            Is only used if the PointCloud doesn't already have an object_bounds dict.
 
     Returns:
         PointCloud object which was build by merging the given two clouds.
@@ -385,16 +389,27 @@ def merge_clouds(pc1: PointCloud, pc2: PointCloud) -> PointCloud:
         raise Exception("PointCloud dimensions do not match")
 
     merged_vertices = np.zeros((len(pc1.vertices)+len(pc2.vertices), dim1))
-    merged_labels = np.zeros((len(merged_vertices),1))
+    merged_labels = np.zeros((len(merged_vertices), 1))
     merged_vertices[:len(pc1.vertices)] = pc1.vertices
     merged_vertices[len(pc1.vertices):] = pc2.vertices
 
-    if pc1.labels is None and pc2.labels is None:
-        return PointCloud(merged_vertices)
-    elif pc1.labels is None or pc2.labels is None:
+    new_obj_bounds = {}
+    if pc1.obj_bounds is not None:
+        new_obj_bounds = pc1.obj_bounds
+    else:
+        new_obj_bounds = {name1: np.array([0, len(pc1.vertices)])}
+    if pc2.obj_bounds is not None:
+        for key in pc2.obj_bounds.keys():
+            new_obj_bounds[key] = pc2.obj_bounds[key] + len(pc1.vertices)
+    else:
+        new_obj_bounds[name2] = np.array([len(pc1.vertices), len(merged_vertices)])
+
+    if len(pc1.labels) == 0 and len(pc2.labels) == 0:
+        return PointCloud(merged_vertices, obj_bounds=new_obj_bounds)
+    elif len(pc1.labels) == 0 or len(pc2.labels) == 0:
         raise Exception("PointCloud label is None at one PointCloud but exists at the other. "
                         "PointClouds are not compatible")
     else:
         merged_labels[:len(pc1.vertices)] = pc1.labels.reshape((len(pc1.labels), 1))
         merged_labels[len(pc1.vertices):] = pc2.labels.reshape((len(pc2.labels), 1))
-        return PointCloud(merged_vertices, labels=merged_labels)
+        return PointCloud(merged_vertices, labels=merged_labels, obj_bounds=new_obj_bounds)

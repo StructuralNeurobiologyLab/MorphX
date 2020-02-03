@@ -101,7 +101,7 @@ class HybridCloud(PointCloud):
                 self._node_labels[:] = -1
 
                 # extract vertices corresponding to each node and take the majority label as the label for that node
-                for ix in range(len(self.nodes)):
+                for ix in range(len(self._nodes)):
                     verts_idcs = self.verts2node[ix]
                     # nodes with no corresponding vertices have label -1
                     if len(verts_idcs) != 0:
@@ -133,9 +133,14 @@ class HybridCloud(PointCloud):
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._node_labels = new_labels
 
-    def nodes2verts_labels(self):
+    def nodel2vertl(self):
+        """ Uses the verts2node dict to map labels from nodes onto vertices. """
         if self._node_labels is None:
-            return None
+            return
+        else:
+            for ix in range(len(self._nodes)):
+                verts_idcs = self.verts2node[ix]
+                self._labels[verts_idcs] = self._node_labels[ix]
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the

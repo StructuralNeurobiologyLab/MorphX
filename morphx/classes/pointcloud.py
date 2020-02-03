@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
+from typing import Dict, Union, Optional
 from scipy.spatial.transform import Rotation as Rot
 
 
@@ -14,8 +15,8 @@ class PointCloud(object):
     Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None, obj_bounds: dict = None,
-                 predictions: dict = None):
+    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None,
+                 obj_bounds: Optional[Dict[Union[str, int], np.ndarray]] = None, predictions: dict = None):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).
@@ -32,7 +33,7 @@ class PointCloud(object):
         self._vertices = vertices
 
         if labels is None:
-            self._labels = np.ndarray([])
+            self._labels = np.empty(0)
         if labels is not None:
             if len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
