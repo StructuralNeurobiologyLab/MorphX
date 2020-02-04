@@ -92,7 +92,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
         if total_pc is None:
             total_pc = pc
         else:
-            total_pc = clouds.merge_clouds(total_pc, pc)
+            total_pc = clouds.merge_clouds([total_pc, pc])
 
     hc = HybridCloud(hm.nodes, hm.edges, total_pc.vertices, labels=total_pc.labels, encoding=hm.encoding)
     return hc

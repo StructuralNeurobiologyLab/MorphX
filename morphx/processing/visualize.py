@@ -163,7 +163,7 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
         if merged is None:
             merged = cloud
         else:
-            merged = clouds.merge_clouds(merged, cloud)
+            merged = clouds.merge_clouds([merged, cloud])
 
     labels = merged.labels
     vertices = merged.vertices

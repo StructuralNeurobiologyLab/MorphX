@@ -200,7 +200,7 @@ class CloudSet:
         # iterate remaining files
         for i in tqdm(range(len(self.files)-1)):
             self.load_new()
-            total_pc = clouds.merge_clouds(total_pc, self.curr_hybrid)
+            total_pc = clouds.merge_clouds([total_pc, self.curr_hybrid])
             datasize += len(self.curr_hybrid.traverser())
         self.size = datasize
         print("Chunking data into {} pieces.".format(datasize))

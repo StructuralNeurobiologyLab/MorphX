@@ -9,7 +9,7 @@ import math
 import os
 import pickle
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, List, Optional
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -368,48 +368,67 @@ class RandomVariation:
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
 
 
-# TODO: Generalize to hybrids
-def merge_clouds(pc1: PointCloud, pc2: PointCloud, name1: Union[str, int] = 1, name2: Union[str, int] = 2) -> PointCloud:
-    """ Merges 2 PointCloud Objects if dimensions match and if either both clouds have labels or none has.
+def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]] = None) -> Optional[PointCloud]:
+    """ Merges the PointCloud objects in the given list. If names list is given, the object boundary information
+        is saved in the obj_bounds dict. The clouds list can contain up to one HybridCloud from which the nodes
+        and the edges get transferred to the new PointCloud.
 
     Args:
-        pc1: First PointCloud object
-        pc2: Second PointCloud object
-        name1: Name of first PointCloud which can be used as a key for the object_bounds dict of the returned cloud.
-            Is only used if the PointCloud doesn't already have an object_bounds dict.
-        name2: Name of second PointCloud which can be used as a key for the object_bounds dict of the returned cloud.
-            Is only used if the PointCloud doesn't already have an object_bounds dict.
+        clouds: List of clouds which should get merged.
+        names: Names for each cloud in order to save object boundaries. This is only used if the clouds themselve have
+            no obj_bounds dicts.
 
     Returns:
-        PointCloud object which was build by merging the given two clouds.
+        PointCloud which consists of the merged clouds.
     """
-    dim1 = pc1.vertices.shape[1]
-    dim2 = pc2.vertices.shape[1]
-    if dim1 != dim2:
-        raise Exception("PointCloud dimensions do not match")
 
-    merged_vertices = np.zeros((len(pc1.vertices)+len(pc2.vertices), dim1))
-    merged_labels = np.zeros((len(merged_vertices), 1))
-    merged_vertices[:len(pc1.vertices)] = pc1.vertices
-    merged_vertices[len(pc1.vertices):] = pc2.vertices
+    if names is not None:
+        if len(names) != len(clouds):
+            raise ValueError("Not enough names given.")
 
-    new_obj_bounds = {}
-    if pc1.obj_bounds is not None:
-        new_obj_bounds = pc1.obj_bounds
+    total = 0
+    for cloud in clouds:
+        total += len(cloud.vertices)
+    if total == 0:
+        return None
+    t_verts = np.zeros((total, 3))
+    t_labels = np.zeros((total, 1))
+    nodes = None
+    edges = None
+    offset = 0
+    obj_bounds = {}
+    encoding = {}
+    for ix, cloud in enumerate(clouds):
+        if isinstance(cloud, HybridCloud):
+            if nodes is None:
+                nodes = cloud.nodes
+                edges = cloud.edges
+            else:
+                # TODO: Generalize graph methods to handle disjunct graphs
+                raise ValueError("Cannot merge multiple HybridClouds.")
+        t_verts[offset:offset+len(cloud.vertices)] = cloud.vertices
+        if len(cloud.labels) != 0:
+            t_labels[offset:offset+len(cloud.vertices)] = cloud.labels
+        else:
+            t_labels[offset:offset+len(cloud.vertices)] = -1
+        # Save object boundaries
+        if cloud.obj_bounds is not None:
+            for key in cloud.obj_bounds.keys():
+                obj_bounds[key] = cloud.obj_bounds[key] + offset
+        else:
+            if names is not None:
+                obj_bounds[names[ix]] = np.array([offset, offset+len(cloud.vertices)])
+        offset += len(cloud.vertices)
+        # Merge encodings
+        if cloud.encoding is not None:
+            for item in cloud.encoding:
+                encoding[item] = cloud.encoding[item]
+    # Reset label array if there are none
+    if np.all(t_labels == -1):
+        t_labels = np.empty(0)
+    if len(obj_bounds) == 0:
+        obj_bounds = None
+    if nodes is None:
+        return PointCloud(t_verts, t_labels, obj_bounds=obj_bounds, encoding=encoding)
     else:
-        new_obj_bounds = {name1: np.array([0, len(pc1.vertices)])}
-    if pc2.obj_bounds is not None:
-        for key in pc2.obj_bounds.keys():
-            new_obj_bounds[key] = pc2.obj_bounds[key] + len(pc1.vertices)
-    else:
-        new_obj_bounds[name2] = np.array([len(pc1.vertices), len(merged_vertices)])
-
-    if len(pc1.labels) == 0 and len(pc2.labels) == 0:
-        return PointCloud(merged_vertices, obj_bounds=new_obj_bounds)
-    elif len(pc1.labels) == 0 or len(pc2.labels) == 0:
-        raise Exception("PointCloud label is None at one PointCloud but exists at the other. "
-                        "PointClouds are not compatible")
-    else:
-        merged_labels[:len(pc1.vertices)] = pc1.labels.reshape((len(pc1.labels), 1))
-        merged_labels[len(pc1.vertices):] = pc2.labels.reshape((len(pc2.labels), 1))
-        return PointCloud(merged_vertices, labels=merged_labels, obj_bounds=new_obj_bounds)
+        return HybridCloud(nodes, edges, t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding)

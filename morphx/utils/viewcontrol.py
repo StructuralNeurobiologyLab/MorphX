@@ -114,7 +114,7 @@ class ViewControl(object):
             sample = content[2]
             bfs_cloud = visualize.prepare_bfs(hybrid, local_bfs)
 
-            hybrid_bfs = clouds.merge_clouds(hybrid, bfs_cloud)
+            hybrid_bfs = clouds.merge_clouds([hybrid, bfs_cloud])
             res = self.core_next(hybrid_bfs, sample, 'sample_h{}_i{}'.format(hybrid_idx, idx))
 
             if res is None:

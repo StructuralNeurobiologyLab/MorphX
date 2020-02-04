@@ -139,7 +139,7 @@ class Analyser:
                 if chunk_build is None:
                     chunk_build = chunk
                 else:
-                    chunk_build = clouds.merge_clouds(chunk_build, chunk)
+                    chunk_build = clouds.merge_clouds([chunk_build, chunk])
                 idx += 1
 
             if to_png:

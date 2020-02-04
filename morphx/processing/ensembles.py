@@ -11,11 +11,12 @@ import pickle as pkl
 from math import ceil
 from typing import Optional, Tuple
 from morphx.processing import clouds
+from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 
 
-# -------------------------------------- ENSEMBLE SAMPLING ----------------------------------------- #
+# -------------------------------------- ENSEMBLE SAMPLING -------------------------------------- #
 
 
 def sample_ensemble(ensemble: CloudEnsemble, vertex_number: int, random_seed: Optional[int] = None) \
@@ -33,7 +34,7 @@ def sample_ensemble(ensemble: CloudEnsemble, vertex_number: int, random_seed: Op
 
     Returns:
         PointCloud object with ensemble cloud information in obj_bounds. Dict with ensemble object names
-        as keys and indices of the samples drawn from this object as np.arrays. 
+        as keys and indices of the samples drawn from this object as np.arrays.
     """
     total = 0
     for key in ensemble.clouds.keys():
@@ -41,19 +42,35 @@ def sample_ensemble(ensemble: CloudEnsemble, vertex_number: int, random_seed: Op
     if total == 0:
         return None, {}
     current = 0
-    result = None
     result_ixs = {}
+    samples = []
+    names = []
     for key in ensemble.clouds.keys():
         verts = len(ensemble.clouds[key].vertices)/total*vertex_number
         if current + ceil(verts) <= vertex_number:
             verts = ceil(verts)
         sample, ixs = clouds.sample_cloud(ensemble.clouds[key], verts, random_seed=random_seed)
         result_ixs[key] = ixs
-        if result is None:
-            result = sample
-        else:
-            result = clouds.merge_clouds(result, sample, name2=key)
+        samples.append(sample)
+        names.append(key)
+    result = clouds.merge_clouds(samples, names)
     return result, result_ixs
+
+
+# -------------------------------------- ENSEMBLE CONVERSION -------------------------------------- #
+
+
+def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[PointCloud]:
+    """ Merges vertices and labels from all clouds in the ensemble into a single PointCloud with the respective
+        object boundary information saved in obj_bounds. There can only be one HybridCloud per CloudEnsemble, if
+        there is one, the nodes and edges get transferred as well.
+
+    Args:
+        ensemble: The CloudEnsemble whose clouds should be merged.
+    """
+    parts = [ensemble.clouds[key] for key in ensemble.clouds.keys()]
+    names = [key for key in ensemble.clouds.keys()]
+    return clouds.merge_clouds(parts, names)
 
 
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
