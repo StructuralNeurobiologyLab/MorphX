@@ -411,6 +411,8 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
             t_labels[offset:offset+len(cloud.vertices)] = cloud.labels
         else:
             t_labels[offset:offset+len(cloud.vertices)] = -1
+        # TODO: Handle similar keys from different clouds and handle obj_bounds
+        #  which don't span the entire vertex array
         # Save object boundaries
         if cloud.obj_bounds is not None:
             for key in cloud.obj_bounds.keys():

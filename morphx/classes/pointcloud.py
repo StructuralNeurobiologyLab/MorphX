@@ -16,7 +16,7 @@ class PointCloud(object):
     """
 
     def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None,
-                 obj_bounds: Optional[Dict[Union[str, int], np.ndarray]] = None, predictions: dict = None):
+                 obj_bounds: Optional[Dict[str, np.ndarray]] = None, predictions: dict = None):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).

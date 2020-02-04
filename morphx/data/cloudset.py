@@ -12,7 +12,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import Callable
 from collections import deque
-from morphx.processing import graphs, hybrids, clouds, ensembles
+from morphx.processing import graphs, hybrids, clouds, ensembles, dispatcher
 from morphx.classes.hybridcloud import HybridCloud, PointCloud
 
 
@@ -109,7 +109,7 @@ class CloudSet:
         # perform local BFS, extract mesh at the respective nodes, sample this set and return it as a point cloud
         spoint = self.curr_hybrid.traverser()[self.curr_node_idx]
         local_bfs = graphs.local_bfs_dist(self.curr_hybrid.graph(), spoint, self.radius_nm)
-        subset = hybrids.extract_cloud_subset(self.curr_hybrid, local_bfs)
+        subset = dispatcher.extract_cloud_subset(self.curr_hybrid, local_bfs)
         sample_cloud, ixs = clouds.sample_cloud(subset, self.sample_num)
 
         # apply transformations

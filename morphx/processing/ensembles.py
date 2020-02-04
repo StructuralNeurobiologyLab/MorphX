@@ -73,7 +73,13 @@ def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[PointCloud]:
     return clouds.merge_clouds(parts, names)
 
 
-# -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
+# -------------------------------------- HYBRID EXTRACTION ---------------------------------------- #
+
+def extract_subset(ensemble: CloudEnsemble, local_bfs: np.ndarray):
+    return
+
+
+# -------------------------------------- ENSEMBLE I/O --------------------------------------------- #
 
 # TODO: add saving in simple mode
 def load_ensemble(path: str) -> Optional[CloudEnsemble]:
