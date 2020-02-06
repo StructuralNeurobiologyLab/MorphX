@@ -95,7 +95,7 @@ class CloudSet:
     def __getitem__(self, index):
         """ Index gets ignored. """
         # prepare new cell if current one is exhausted
-        if self.curr_node_idx >= len(self.curr_hybrid.traverser()):
+        if self.curr_node_idx >= len(self.curr_hybrid.base_points()):
 
             # process_single finished => switch back to normal when done
             if self.process_single is True:
@@ -107,10 +107,10 @@ class CloudSet:
                 self.load_new()
 
         # perform local BFS, extract mesh at the respective nodes, sample this set and return it as a point cloud
-        spoint = self.curr_hybrid.traverser()[self.curr_node_idx]
+        spoint = self.curr_hybrid.base_points()[self.curr_node_idx]
         local_bfs = graphs.local_bfs_dist(self.curr_hybrid.graph(), spoint, self.radius_nm)
         subset = dispatcher.extract_cloud_subset(self.curr_hybrid, local_bfs)
-        sample_cloud, ixs = clouds.sample_cloud(subset, self.sample_num)
+        sample_cloud, ixs = clouds.sample_objectwise(subset, self.sample_num)
 
         # apply transformations
         if len(sample_cloud.vertices) > 0:
@@ -139,11 +139,11 @@ class CloudSet:
         """
 
         self.curr_hybrid = hybrid
-        self.curr_hybrid.traverser(method=self.iterator_method,
-                                   min_dist=self.radius_nm_global,
-                                   source=self.global_source)
+        self.curr_hybrid.base_points(method=self.iterator_method,
+                                     min_dist=self.radius_nm_global,
+                                     source=self.global_source)
         self.size_cache = self.size
-        self.size = len(self.curr_hybrid.traverser())
+        self.size = len(self.curr_hybrid.base_points())
         self.process_single = True
         self.curr_node_idx = 0
 
@@ -168,9 +168,9 @@ class CloudSet:
         if self.verbose:
             print("Calculating traverser...")
 
-        self.curr_hybrid.traverser(method=self.iterator_method,
-                                   min_dist=self.radius_nm_global,
-                                   source=self.global_source)
+        self.curr_hybrid.base_points(method=self.iterator_method,
+                                     min_dist=self.radius_nm_global,
+                                     source=self.global_source)
         if self.label_filter is not None:
             self.curr_hybrid.filter_traverser()
 
@@ -182,7 +182,7 @@ class CloudSet:
         self.curr_node_idx = 0
 
         # load next if current cloud doesn't contain the requested labels
-        if len(self.curr_hybrid.traverser()) == 0:
+        if len(self.curr_hybrid.base_points()) == 0:
             self.load_new()
 
     def analyse_data(self):
@@ -195,13 +195,13 @@ class CloudSet:
         print("Analysing data...")
         # put all clouds together for weight calculation
         total_pc = self.curr_hybrid
-        datasize = len(self.curr_hybrid.traverser())
+        datasize = len(self.curr_hybrid.base_points())
 
         # iterate remaining files
         for i in tqdm(range(len(self.files)-1)):
             self.load_new()
             total_pc = clouds.merge_clouds([total_pc, self.curr_hybrid])
-            datasize += len(self.curr_hybrid.traverser())
+            datasize += len(self.curr_hybrid.base_points())
         self.size = datasize
         print("Chunking data into {} pieces.".format(datasize))
 

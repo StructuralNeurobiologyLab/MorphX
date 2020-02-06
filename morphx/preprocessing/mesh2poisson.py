@@ -41,7 +41,7 @@ def process_dataset(input_path: str, output_path: str):
         if ce is None:
             clouds.save_cloud(hc, output_path, name=name+'_poisson')
         else:
-            ce.set_cloud(hc, 'cell')
+            ce.add_cloud(hc, 'cell')
             ensembles.save_ensemble(ce, output_path, name=name+'_poisson')
 
 
@@ -78,7 +78,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
     total_pc = None
     distance = 1000
     skel2node_mapping = True
-    for base in tqdm(hm.traverser(min_dist=distance)):
+    for base in tqdm(hm.base_points(min_dist=distance)):
         # local BFS radius = global BFS radius, so that the total number of poisson sampled vertices will double.
         local_bfs = graphs.local_bfs_dist(hm.graph(), source=base, max_dist=distance)
         if skel2node_mapping:

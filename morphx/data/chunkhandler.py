@@ -134,7 +134,7 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_hc[item[1]]
                 subset = dispatcher.extract_cloud_subset(self._curr_hc, local_bfs)
-                sample, ixs = clouds.sample_cloud(subset, self._sample_num)
+                sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
             else:
                 raise ValueError('In validation mode, items can only be requested with a tuple'
                                  'of HybridCloud name and chunk index within that cloud.')
@@ -152,7 +152,7 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_hc_chunks[self._chunk_idx]
             subset = dispatcher.extract_cloud_subset(self._hcs[self._hc_idx], local_bfs)
-            sample, ixs = clouds.sample_cloud(subset, self._sample_num)
+            sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
             self._chunk_idx += 1
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)

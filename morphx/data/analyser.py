@@ -111,7 +111,7 @@ class Analyser:
 
             # prepare iteration
             hybrid = clouds.load_cloud(file)
-            traverser = hybrid.traverser(min_dist=cloudset.radius_nm * cloudset.radius_factor)
+            traverser = hybrid.base_points(min_dist=cloudset.radius_nm * cloudset.radius_factor)
             chunk_num = len(traverser)
 
             self.cloudset.activate_single(hybrid)
@@ -217,7 +217,7 @@ class Analyser:
 
             # prepare hybrid
             hybrid = clouds.load_cloud(file)
-            traverser = hybrid.traverser(min_dist=cloudset.radius_nm*cloudset.radius_factor)
+            traverser = hybrid.base_points(min_dist=cloudset.radius_nm * cloudset.radius_factor)
             total_chunks += len(traverser)
 
             if to_png:

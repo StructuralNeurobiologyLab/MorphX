@@ -66,7 +66,7 @@ class HybridCloud(PointCloud):
 
         self._weighted_graph = None
         self._simple_graph = None
-        self._traverser = None
+        self._base_points = None
 
     @property
     def nodes(self) -> np.ndarray:
@@ -180,7 +180,7 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def traverser(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
+    def base_points(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
         """ Creates or returns an array of node indices which can be used as the order in which the hybrid
         should be traversed. With ``method = 'global_bfs'``, this method calculates the global BFS for the weighted
         graph of this hybrid object.
@@ -194,10 +194,10 @@ class HybridCloud(PointCloud):
         Returns:
               Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
         """
-        if self._traverser is None:
+        if self._base_points is None:
             if method == 'global_bfs':
-                self._traverser = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
-        return self._traverser
+                self._base_points = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
+        return self._base_points
 
     def filter_traverser(self):
         """ Removes all nodes from `:py:func:~traverser` which have no vertices to which they are the nearest node.
@@ -210,12 +210,12 @@ class HybridCloud(PointCloud):
         # TODO: This could remove potentially useful nodes => Improve and include better criteria for removal
         f_traverser = []
         mapping = self.verts2node
-        for node in self.traverser():
+        for node in self.base_points():
             # get only those nodes which are the nearest neighbors to some vertices
             if len(mapping[node]) != 0:
                 f_traverser.append(node)
         f_traverser = np.array(f_traverser)
-        self._traverser = f_traverser
+        self._base_points = f_traverser
         return f_traverser
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #

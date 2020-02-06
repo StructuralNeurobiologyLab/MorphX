@@ -34,11 +34,11 @@ def split(data_path: str, chunk_size: int):
         name = file[slashs[-1] + 1:-4]
         hc = clouds.load_cloud(file)
 
-        hc.traverser(min_dist=chunk_size)
-        data_size += len(hc.traverser())
+        hc.base_points(min_dist=chunk_size)
+        data_size += len(hc.base_points())
 
         chunks = []
-        for node in hc.traverser():
+        for node in hc.base_points():
             local_bfs = graphs.local_bfs_dist(hc.graph(), node, chunk_size/1.5)
             chunks.append(local_bfs)
         splitted_hcs[name] = chunks

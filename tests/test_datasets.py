@@ -65,7 +65,7 @@ def test_cloud_traversion():
     graph = data.curr_hybrid.graph()
     chosen = graphs.global_bfs_dist(graph, min_dist*data.radius_factor, source=source)
 
-    traverser = data.curr_hybrid.traverser()
+    traverser = data.curr_hybrid.base_points()
     print(traverser)
 
     for item in traverser:

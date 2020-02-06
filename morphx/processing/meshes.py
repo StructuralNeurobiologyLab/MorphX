@@ -39,6 +39,6 @@ def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
 
     # sample again, as pcu.sample doesn't always return the requested number of samples
     # (only a few points must be added)
-    spc, ixs = clouds.sample_cloud(PointCloud(s_vertices, labels=labels), sample_num)
+    spc, ixs = clouds.sample_objectwise(PointCloud(s_vertices, labels=labels), sample_num)
 
     return spc

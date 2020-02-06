@@ -9,7 +9,9 @@ import math
 import os
 import pickle
 import numpy as np
+from math import ceil
 from typing import Union, Tuple, List, Optional
+from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -42,7 +44,10 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
 
     dim = cloud.shape[1]
     sample = np.zeros((vertex_number, dim))
-    sample_l = np.zeros((vertex_number, 1))
+    if len(labels) != 0:
+        sample_l = np.zeros((vertex_number, 1))
+    else:
+        sample_l = None
 
     # How much additional augmented points must be generated in order to reach the requested number of samples
     deficit = vertex_number - len(cloud)
@@ -55,7 +60,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
     sample_ixs = np.ones(vertex_number)
     sample_ixs[:min(len(cloud), vertex_number)] = vert_ixs[:vertex_number]
 
-    if labels is not None:
+    if len(labels) != 0:
         sample_l[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
 
     if deficit > 0:
@@ -68,16 +73,37 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
             sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
             # Save vertex indices of additional points
             sample_ixs[offset:offset+compensation] = vert_ixs[:compensation]
-            if labels is not None:
+            if len(labels) != 0:
                 sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
             offset += compensation
 
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    if labels is not None:
-        return PointCloud(sample, labels=sample_l), sample_ixs
-    else:
-        return PointCloud(sample), sample_ixs
+    return PointCloud(sample, labels=sample_l), sample_ixs
+
+
+def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
+    if pc.obj_bounds is None:
+        return sample_cloud(pc, vertex_number, random_seed)
+    curr_num = 0
+    samples = []
+    names = []
+    ixs = np.zeros((vertex_number, 1))
+    for key in pc.obj_bounds:
+        bounds = pc.obj_bounds[key]
+        sample_num = (bounds[1]-bounds[0])/len(pc.vertices)*vertex_number
+        if curr_num + ceil(sample_num) <= vertex_number:
+            sample_num = ceil(sample_num)
+        curr_cloud = PointCloud(pc.vertices[bounds[0]:bounds[1]], pc.labels[bounds[0]:bounds[1]])
+        sample, sample_ixs = sample_cloud(curr_cloud, sample_num, random_seed)
+        samples.append(sample)
+        names.append(key)
+        ixs[curr_num:curr_num+len(sample_ixs)] = sample_ixs
+        curr_num += sample_num
+
+    # use merge method for correct object boundary information
+    result_sample = clouds.merge_clouds(samples, names)
+    return result_sample, ixs
 
 
 # -------------------------------------- CLOUD FILTERING / LABEL MAPPING ------------------------------------------- #
@@ -368,15 +394,17 @@ class RandomVariation:
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
 
 
-def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]] = None) -> Optional[PointCloud]:
-    """ Merges the PointCloud objects in the given list. If names list is given, the object boundary information
-        is saved in the obj_bounds dict. The clouds list can contain up to one HybridCloud from which the nodes
-        and the edges get transferred to the new PointCloud.
+def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]] = None,
+                 ignore_hybrids: bool = False) -> Optional[PointCloud]:
+    """ Merges the PointCloud objects in the given list. If the names list is given, the object boundary information
+        is saved in the obj_bounds dict. Vertices of PointClouds without labels get the label -1. If no PointCloud has
+        labels, then the label array of the merged PointCloud is empty.
 
     Args:
         clouds: List of clouds which should get merged.
         names: Names for each cloud in order to save object boundaries. This is only used if the clouds themselve have
             no obj_bounds dicts.
+        ignore_hybrids: Flag for treating HybridClouds as sole PointClouds (ignoring nodes and edges).
 
     Returns:
         PointCloud which consists of the merged clouds.
@@ -386,31 +414,43 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         if len(names) != len(clouds):
             raise ValueError("Not enough names given.")
 
-    total = 0
+    # find required size of new arrays
+    total_verts = 0
+    total_nodes = 0
+    total_edges = 0
     for cloud in clouds:
-        total += len(cloud.vertices)
-    if total == 0:
+        total_verts += len(cloud.vertices)
+        if isinstance(cloud, HybridCloud):
+            total_nodes += len(cloud.nodes)
+            total_edges += len(cloud.edges)
+
+    # TODO: Generalize to support graph merging as well
+    if total_verts == 0:
         return None
-    t_verts = np.zeros((total, 3))
-    t_labels = np.zeros((total, 1))
-    nodes = None
-    edges = None
+
+    # reserve arrays of required size and initialize new attributes
+    t_verts = np.zeros((total_verts, 3))
+    t_labels = np.zeros((total_verts, 1))
+    nodes = np.zeros((total_nodes, 3))
+    edges = np.zeros((total_edges, 2))
     offset = 0
     obj_bounds = {}
     encoding = {}
+
     for ix, cloud in enumerate(clouds):
-        if isinstance(cloud, HybridCloud):
-            if nodes is None:
-                nodes = cloud.nodes
-                edges = cloud.edges
-            else:
-                # TODO: Generalize graph methods to handle disjunct graphs
-                raise ValueError("Cannot merge multiple HybridClouds.")
+        # handle hybrids
+        if not ignore_hybrids:
+            if isinstance(cloud, HybridCloud):
+                nodes[offset:offset+len(cloud.nodes)] = cloud.nodes
+                edges[offset:offset+len(cloud.edges)] = cloud.edges + offset
+
+        # handle pointclouds
         t_verts[offset:offset+len(cloud.vertices)] = cloud.vertices
         if len(cloud.labels) != 0:
             t_labels[offset:offset+len(cloud.vertices)] = cloud.labels
         else:
             t_labels[offset:offset+len(cloud.vertices)] = -1
+
         # TODO: Handle similar keys from different clouds and handle obj_bounds
         #  which don't span the entire vertex array
         # Save object boundaries
@@ -421,16 +461,20 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
             if names is not None:
                 obj_bounds[names[ix]] = np.array([offset, offset+len(cloud.vertices)])
         offset += len(cloud.vertices)
+
         # Merge encodings
         if cloud.encoding is not None:
             for item in cloud.encoding:
                 encoding[item] = cloud.encoding[item]
-    # Reset label array if there are none
-    if np.all(t_labels == -1):
-        t_labels = np.empty(0)
+
     if len(obj_bounds) == 0:
         obj_bounds = None
-    if nodes is None:
-        return PointCloud(t_verts, t_labels, obj_bounds=obj_bounds, encoding=encoding)
+    if len(encoding) == 0:
+        encoding = None
+    if np.all(t_labels == -1):
+        t_labels = None
+
+    if len(nodes) == 0:
+        return PointCloud(t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding)
     else:
         return HybridCloud(nodes, edges, t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding)

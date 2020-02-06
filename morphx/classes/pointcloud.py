@@ -33,7 +33,7 @@ class PointCloud(object):
         self._vertices = vertices
 
         if labels is None:
-            self._labels = np.empty(0)
+            self._labels = np.zeros(0)
         if labels is not None:
             if len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
