@@ -8,6 +8,7 @@
 import os
 import glob
 import pickle
+from tqdm import tqdm
 from morphx.processing import clouds, graphs, objects
 
 
@@ -29,7 +30,8 @@ def split(data_path: str, chunk_size: int):
 
     data_size = 0
     splitted_hcs = {}
-    for file in files:
+    print("Splitting of dataset is required.")
+    for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1] + 1:-4]
         hc = objects.load_pkl(file)

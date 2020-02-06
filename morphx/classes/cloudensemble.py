@@ -11,7 +11,6 @@ from scipy.spatial import cKDTree
 from typing import Dict, Optional
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
-from morphx.processing import ensembles
 
 
 class CloudEnsemble(object):
@@ -60,6 +59,8 @@ class CloudEnsemble(object):
         Returns:
             Dict with mapping information
         """
+        # avoids cyclic import
+        from morphx.processing import ensembles
         if self._verts2node is None:
             self._verts2node = {}
             merged = ensembles.ensemble2pointcloud(self)

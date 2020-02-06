@@ -5,11 +5,9 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import math
 import numpy as np
-from math import ceil
+from math import ceil, floor
 from typing import Union, Tuple, List, Optional
-from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -63,7 +61,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
     if deficit > 0:
         # deficit could be bigger than cloudsize
         offset = len(cloud)
-        for it in range(math.ceil(deficit/len(cloud))):
+        for it in range(ceil(deficit/len(cloud))):
             # add augmented points to reach requested number of samples
             compensation = min(len(cloud), len(sample)-offset)
             np.random.shuffle(vert_ixs)
@@ -80,26 +78,43 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
 
 
 def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
+    """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
+        vertices. If different objects are present within the PointCloud (indicated by the obj_bounds attribute),
+        the number of sample points for each object is calculated by (number of object vertices)/(total number of
+        vertices) * vertex_number. For each object, the method sample_cloud is used. If obj_bounds of the PointCloud
+        is None, this method is identical to sample_cloud.
+
+    Args:
+        pc: PointCloud which should be sampled.
+        vertex_number: The number of points which should be sampled.
+        random_seed: Random seed for making the sampling deterministic.
+
+    Returns:
+        PointCloud with sampled points (and labels) and indices of the original vertices where samples are from.
+    """
     if pc.obj_bounds is None:
         return sample_cloud(pc, vertex_number, random_seed)
     curr_num = 0
     samples = []
     names = []
-    ixs = np.zeros((vertex_number, 1))
+    ixs = np.zeros(vertex_number)
     for key in pc.obj_bounds:
         bounds = pc.obj_bounds[key]
-        sample_num = (bounds[1]-bounds[0])/len(pc.vertices)*vertex_number
-        if curr_num + ceil(sample_num) <= vertex_number:
-            sample_num = ceil(sample_num)
-        curr_cloud = PointCloud(pc.vertices[bounds[0]:bounds[1]], pc.labels[bounds[0]:bounds[1]])
-        sample, sample_ixs = sample_cloud(curr_cloud, sample_num, random_seed)
-        samples.append(sample)
-        names.append(key)
-        ixs[curr_num:curr_num+len(sample_ixs)] = sample_ixs
-        curr_num += sample_num
+        if bounds[1]-bounds[0] != 0:
+            sample_num = (bounds[1]-bounds[0])/len(pc.vertices)*vertex_number
+            if curr_num + ceil(sample_num) <= vertex_number:
+                sample_num = ceil(sample_num)
+            else:
+                sample_num = vertex_number - curr_num
+            curr_cloud = PointCloud(pc.vertices[bounds[0]:bounds[1]], pc.labels[bounds[0]:bounds[1]])
+            sample, sample_ixs = sample_cloud(curr_cloud, sample_num, random_seed)
+            samples.append(sample)
+            names.append(key)
+            ixs[curr_num:curr_num+len(sample_ixs)] = sample_ixs
+            curr_num += sample_num
 
     # use merge method for correct object boundary information
-    result_sample = clouds.merge_clouds(samples, names)
+    result_sample = merge_clouds(samples, names)
     return result_sample, ixs
 
 

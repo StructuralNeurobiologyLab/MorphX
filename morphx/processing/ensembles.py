@@ -94,9 +94,11 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
     merged = ensemble2pointcloud(ensemble)
     obj_bounds = {}
     offset = 0
+    idcs = np.array(idcs)
     for key in merged.obj_bounds:
         bounds = merged.obj_bounds[key]
         num = len(idcs[np.logical_and(idcs >= bounds[0], idcs < bounds[1])])
-        obj_bounds[key] = np.array([offset, offset+num])
-        offset += num
+        if num != 0:
+            obj_bounds[key] = np.array([offset, offset+num])
+            offset += num
     return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], obj_bounds=obj_bounds)

@@ -29,10 +29,10 @@ def save2pkl(obj: object, path: str, name='object') -> int:
     Returns:
         0 if saving process was successful, 1 otherwise.
     """
-    path = os.path.join(path, name + '.pkl')
     try:
         if not os.path.exists(path):
             os.makedirs(path)
+        path = os.path.join(path, name + '.pkl')
         with open(path, 'wb') as f:
             pickle.dump(obj, f)
         f.close()
