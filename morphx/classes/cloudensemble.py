@@ -52,8 +52,10 @@ class CloudEnsemble(object):
 
     @property
     def verts2node(self) -> dict:
-        """ Creates python dict with indices of skel_nodes as keys and lists of vertex
-        indices which have their key node as nearest skeleton node.
+        """ Creates python dict with indices of nodes as keys and lists of vertex indices
+            which have their key as nearest node. The indices refer to the flattened ensemble
+            (see `morphx.processing.ensembles.ensemble2pointcloud`). All vertices from all
+            clouds in the ensemble are included in the mapping.
 
         Returns:
             Dict with mapping information
@@ -92,6 +94,12 @@ class CloudEnsemble(object):
     def add_cloud(self, cloud: PointCloud, cloud_name: str):
         self._clouds[cloud_name] = cloud
         self._reset_ensemble()
+
+    def remove_cloud(self, cloud_name: str):
+        try:
+            del self._clouds[cloud_name]
+        except ValueError:
+            return
 
     def change_hybrid(self, hybrid: HybridCloud):
         self._hc = hybrid

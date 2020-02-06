@@ -11,6 +11,8 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+
+import morphx.processing.objects
 from morphx.processing import clouds, visualize
 from morphx.data.cloudset import CloudSet
 
@@ -39,13 +41,13 @@ def save_cloudset(cloudset: CloudSet, save_path: str):
     cloudset.set_verbose()
     idx = cloudset.curr_hybrid_idx
     print("Save new hybrid to file.")
-    clouds.save_cloud(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx), simple=False)
+    morphx.processing.objects.save2pkl(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx))
 
     for i in range(len(cloudset)):
         if idx != cloudset.curr_hybrid_idx:
             idx = cloudset.curr_hybrid_idx
             print("Save new hybrid to file.")
-            clouds.save_cloud(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx), simple=False)
+            morphx.processing.objects.save2pkl(cloudset.curr_hybrid, save_path, 'cloud_{}'.format(idx))
 
         sample, loc_bfs = cloudset[0]
         filename = save_path + 'h{}_s{}.pkl'.format(idx, i)
@@ -110,7 +112,7 @@ class Analyser:
             print("Processing: " + name)
 
             # prepare iteration
-            hybrid = clouds.load_cloud(file)
+            hybrid = morphx.processing.objects.load_pkl(file)
             traverser = hybrid.base_points(min_dist=cloudset.radius_nm * cloudset.radius_factor)
             chunk_num = len(traverser)
 
@@ -216,7 +218,7 @@ class Analyser:
             print("Processing: " + name)
 
             # prepare hybrid
-            hybrid = clouds.load_cloud(file)
+            hybrid = morphx.processing.objects.load_pkl(file)
             traverser = hybrid.base_points(min_dist=cloudset.radius_nm * cloudset.radius_factor)
             total_chunks += len(traverser)
 

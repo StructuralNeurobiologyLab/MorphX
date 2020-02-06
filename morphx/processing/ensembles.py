@@ -5,9 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import numpy as np
-import pickle as pkl
 from math import ceil
 from typing import Optional, Tuple
 from morphx.processing import clouds
@@ -102,35 +100,3 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
         obj_bounds[key] = np.array([offset, offset+num])
         offset += num
     return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], obj_bounds=obj_bounds)
-
-
-# -------------------------------------- ENSEMBLE I/O --------------------------------------------- #
-
-# TODO: add saving in simple mode
-def load_ensemble(path: str) -> Optional[CloudEnsemble]:
-    path = os.path.expanduser(path)
-    if not os.path.exists(path):
-        print("File with name: {} was not found at this location.".format(path))
-
-    with open(path, 'rb') as f:
-        obj = pkl.load(f)
-    f.close()
-
-    if isinstance(obj, CloudEnsemble):
-        return obj
-    else:
-        return None
-
-
-def save_ensemble(ensemble: CloudEnsemble, folder: str, name: str) -> int:
-    full_path = os.path.join(folder, name + '.pkl')
-    try:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        with open(full_path, 'wb') as f:
-            pkl.dump(ensemble, f)
-        f.close()
-    except FileNotFoundError:
-        print("Saving was not successful as given path is not valid.")
-        return 1
-    return 0

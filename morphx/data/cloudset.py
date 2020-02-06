@@ -12,6 +12,8 @@ import numpy as np
 from tqdm import tqdm
 from typing import Callable
 from collections import deque
+
+import morphx.processing.objects
 from morphx.processing import graphs, hybrids, clouds, ensembles, dispatcher
 from morphx.classes.hybridcloud import HybridCloud, PointCloud
 
@@ -109,7 +111,7 @@ class CloudSet:
         # perform local BFS, extract mesh at the respective nodes, sample this set and return it as a point cloud
         spoint = self.curr_hybrid.base_points()[self.curr_node_idx]
         local_bfs = graphs.local_bfs_dist(self.curr_hybrid.graph(), spoint, self.radius_nm)
-        subset = dispatcher.extract_cloud_subset(self.curr_hybrid, local_bfs)
+        subset = morphx.processing.objects.extract_cloud_subset(self.curr_hybrid, local_bfs)
         sample_cloud, ixs = clouds.sample_objectwise(subset, self.sample_num)
 
         # apply transformations
@@ -157,11 +159,11 @@ class CloudSet:
             print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
 
         if self.ensemble:
-            ce = ensembles.load_ensemble(self.files[self.curr_hybrid_idx])
+            ce = morphx.processing.objects.load_pkl(self.files[self.curr_hybrid_idx])
             hc = ce.get_cloud('cell')
             self.curr_hybrid = hc
         else:
-            self.curr_hybrid = clouds.load_cloud(self.files[self.curr_hybrid_idx])
+            self.curr_hybrid = morphx.processing.objects.load_pkl(self.files[self.curr_hybrid_idx])
         if self.label_filter is not None:
             self.curr_hybrid = clouds.filter_labels(self.curr_hybrid, self.label_filter)
 

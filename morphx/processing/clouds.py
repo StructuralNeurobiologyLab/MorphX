@@ -6,15 +6,12 @@
 # Authors: Jonathan Klimesch
 
 import math
-import os
-import pickle
 import numpy as np
 from math import ceil
 from typing import Union, Tuple, List, Optional
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
-from morphx.classes.hybridmesh import HybridMesh
 
 
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
@@ -230,87 +227,6 @@ def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
     else:
         new_cloud = PointCloud(cloud.vertices, labels=new_labels, encoding=new_encoding)
     return new_cloud
-
-
-# -------------------------------------- CLOUD I/O ------------------------------------------- #
-
-
-def save_cloud(cloud: PointCloud, path: str, name='cloud', simple=True) -> int:
-    """ Saves PointCloud object to given path.
-
-    Args:
-        cloud: PointCloud object which should be saved.
-        path: Location where the object should be saved to (only folder).
-        name: Name of file in which the object should be saved.
-        simple: If object is also HybridCloud, then this flag can be used to only save basic information instead of the
-            total object.
-
-    Returns:
-        0 if saving process was successful, 1 otherwise.
-    """
-    full_path = os.path.join(path, name + '.pkl')
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path)
-        with open(full_path, 'wb') as f:
-            pickle.dump(cloud, f)
-        f.close()
-    except FileNotFoundError:
-        print("Saving was not successful as given path is not valid.")
-        return 1
-    return 0
-
-
-# TODO: Improve
-def save_cloudlist(clouds: list, path: str, name='cloudlist') -> int:
-    full_path = os.path.join(path, name + '.pkl')
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path)
-        with open(full_path, 'wb') as f:
-            pickle.dump(clouds, f)
-        f.close()
-    except FileNotFoundError:
-        print("Saving was not successful as given path is not valid.")
-        return 1
-    return 0
-
-
-def load_cloud(path) -> Union[PointCloud, HybridCloud, HybridMesh]:
-    """ Loads an MorphX object or an attribute dict from a pickle file.
-
-    Args:
-        path: Location of pickle file.
-    """
-    path = os.path.expanduser(path)
-    if not os.path.exists(path):
-        print("File with name: {} was not found at this location.".format(path))
-
-    with open(path, 'rb') as f:
-        obj = pickle.load(f)
-    f.close()
-
-    # return if loaded object is MorphX class already
-    if isinstance(obj, PointCloud):
-        return obj
-
-    # TODO: Create standard notation
-    # check dict keys to find which object is saved and load the respective MorphX class
-    if isinstance(obj, dict):
-        keys = obj.keys()
-        if 'indices' in keys:
-            return HybridMesh(obj['nodes'], obj['edges'], obj['vertices'], obj['indices'], obj['normals'],
-                              labels=obj['labels'], encoding=obj['encoding'])
-        elif 'nodes' in keys:
-            try:
-                return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'],
-                                   encoding=obj['encoding'])
-            except KeyError:
-                return HybridCloud(obj['nodes'], obj['edges'], obj['vertices'], labels=obj['labels'])
-        elif 'skel_nodes' in keys:
-            return HybridCloud(obj['skel_nodes'], obj['skel_edges'], obj['mesh_verts'], labels=obj['vert_labels'])
-
-    raise ValueError("Datatype of given object was not understood.")
 
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #

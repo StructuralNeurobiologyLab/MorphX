@@ -3,6 +3,8 @@ import glob
 import pickle
 import numpy as np
 from getkey import keys
+
+import morphx.processing.objects
 from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
 
@@ -108,7 +110,7 @@ class ViewControl(object):
 
             hybrid_idx = content[0]
             hybrid_file = [file for file in self.files2 if 'cloud_{}'.format(hybrid_idx) in file]
-            hybrid = clouds.load_cloud(hybrid_file[0])
+            hybrid = morphx.processing.objects.load_pkl(hybrid_file[0])
 
             local_bfs = content[1]
             sample = content[2]
@@ -182,8 +184,8 @@ class ViewControl(object):
             slashs = [pos for pos, char in enumerate(gt_file) if char == '/']
             filename = gt_file[slashs[-1]+1:-4]
 
-            gt = clouds.load_cloud(gt_file)
-            pred = clouds.load_cloud(pred_file)
+            gt = morphx.processing.objects.load_pkl(gt_file)
+            pred = morphx.processing.objects.load_pkl(pred_file)
 
             res = self.core_next(gt, pred, filename)
             if res is None:

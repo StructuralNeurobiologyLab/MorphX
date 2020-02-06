@@ -8,6 +8,8 @@
 import os
 import glob
 from tqdm import tqdm
+
+import morphx.processing.objects
 from morphx.processing import meshes, clouds, graphs, hybrids, ensembles
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
@@ -32,17 +34,17 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = None
         try:
-            hm = clouds.load_cloud(file)
+            hm = morphx.processing.objects.load_pkl(file)
         except ValueError:
-            ce = ensembles.load_ensemble(file)
+            ce = morphx.processing.objects.load_pkl(file)
             hm = ce.get_cloud('cell')
         print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
         if ce is None:
-            clouds.save_cloud(hc, output_path, name=name+'_poisson')
+            morphx.processing.objects.save2pkl(hc, output_path, name=name + '_poisson')
         else:
             ce.add_cloud(hc, 'cell')
-            ensembles.save_ensemble(ce, output_path, name=name+'_poisson')
+            morphx.processing.objects.save2pkl(ce, output_path, name=name + '_poisson')
 
 
 def process_single_thread(args):
@@ -60,9 +62,9 @@ def process_single_thread(args):
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = clouds.load_cloud(file)
+    hm = morphx.processing.objects.load_pkl(file)
     hc = hybridmesh2poisson(hm)
-    clouds.save_cloud(hc, output_path, name=name+'_poisson')
+    morphx.processing.objects.save2pkl(hc, output_path, name=name + '_poisson')
 
 
 def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:

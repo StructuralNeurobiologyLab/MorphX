@@ -9,24 +9,24 @@ import os
 import glob
 import pickle
 import numpy as np
-from typing import Callable, Union, Tuple
-from morphx.processing import clouds, hybrids, ensembles, dispatcher
+from typing import Union, Tuple
+from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.pointcloud import PointCloud
 
 
 class ChunkHandler:
-    """ Helper class for loading, sampling and transforming chunks of different HybridClouds. Uses
-        :func:`morphx.preprocessing.splitting.split` to generate chunking information (or loads it
-        if it is already available for the given chunk_size.
+    """ Helper class for loading, sampling and transforming chunks of different objects. Objects
+        must be instances of a MorphX class. Uses :func:`morphx.preprocessing.splitting.split` to
+        generate chunking information (or loads it if it is already available for the given chunk_size.
 
         :attr:`specific` defines two different modes. If the flag is False, the chunks are accessed
-        rather randomly, not preserving their original position in the HybridCloud. This mode can be
+        rather randomly, not preserving their original position in the object. This mode can be
         used for training purposes. If :attr:`specific` is True, the chunks ca be requested from a
-        specific index within a specific HybridCloud. After processing the chunks, the results can
+        specific index within a specific object. After processing the chunks, the results can
         then be mapped back to that position using :func:`map_predictions`. This mode can be used
         during inference when predictions of chunk are generated and should be inserted into the
-        original HybridCloud.
+        original object.
     """
 
     def __init__(self,
@@ -37,7 +37,7 @@ class ChunkHandler:
                  specific: bool = False):
         """
         Args:
-            data_path: Path to HybridClouds saved as pickle files. Existing chunking information would
+            data_path: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
             chunk_size: Size of the generated chunks. If existing chunking information should be used,
                 this must comply with the chunk size used for generating that information.
@@ -54,7 +54,7 @@ class ChunkHandler:
         if not os.path.exists(self._data_path + 'splitted/' + str(chunk_size) + '.pkl'):
             splitting.split(data_path, chunk_size)
         with open(self._data_path + 'splitted/' + str(chunk_size) + '.pkl', 'rb') as f:
-            self._splitted_hcs = pickle.load(f)
+            self._splitted_objs = pickle.load(f)
         f.close()
 
         self._chunk_size = chunk_size
@@ -63,95 +63,95 @@ class ChunkHandler:
         self._specific = specific
 
         # In non-specific mode, the entire dataset gets loaded
-        self._hc_names = []
-        self._hcs = []
+        self._obj_names = []
+        self._objs = []
 
         files = glob.glob(data_path + '*.pkl')
         for file in files:
             slashs = [pos for pos, char in enumerate(file) if char == '/']
             name = file[slashs[-1] + 1:-4]
-            self._hc_names.append(name)
+            self._obj_names.append(name)
             if not self._specific:
-                hc = clouds.load_cloud(file)
-                self._hcs.append(hc)
+                obj = objects.load_pkl(file)
+                self._objs.append(obj)
 
         # In specific mode, the files should be loaded sequentially
-        self._curr_hc = None
+        self._curr_obj = None
         self._curr_name = None
 
         # Index of current hc in self.hcs
-        self._hc_idx = 0
+        self._obj_idx = 0
         # Index of current chunk in current hc
         self._chunk_idx = 0
 
     def __len__(self):
         """ Depending on the mode either the sum of the number of chunks from each
-            HybridClouds gets returned or the number of chunks of the last requested
-            HybridCloud in specific mode.
+            objects gets returned or the number of chunks of the last requested
+            object in specific mode.
         """
         if self._specific:
-            # Size of last requested hybrid
+            # Size of last requested object
             if self._curr_name is None:
                 size = 0
             else:
-                size = len(self._splitted_hcs[self._curr_name])
+                size = len(self._splitted_objs[self._curr_name])
         else:
             # Size of entire dataset
             size = 0
-            for name in self._hc_names:
-                size += len(self._splitted_hcs[name])
+            for name in self._obj_names:
+                size += len(self._splitted_objs[name])
         return size
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
-        """ Returns either a chunk from a specific location and HybridCloud or iterates
-            the HybridClouds sequentially and returns the chunks in the order of the
+        """ Returns either a chunk from a specific location and object or iterates
+            the objects sequentially and returns the chunks in the order of the
             chunking information. If the sampled PointCloud contains no vertices, a
             PointCloud with `self._sample_num` vertices and labels is returned, where
             all numbers are set to 0.
 
         Args:
             item: With :attr:`specific` as False, this parameter gets ignored. With true
-            it must be a tuple of the filename of the requested HybridCloud and the index
-            of the chunk within that HybridCloud. E.g. if chunk 5 from HybridCloud in pickle
-            file HybridCloud.pkl is requested, this would be ('HybridCloud', 5).
+            it must be a tuple of the filename of the requested object and the index
+            of the chunk within that object. E.g. if chunk 5 from object in pickle
+            file object.pkl is requested, this would be ('object', 5).
         """
         if self._specific:
-            # Get specific item (e.g. chunk 5 of HybridCloud 1)
+            # Get specific item (e.g. chunk 5 of object 1)
             if isinstance(item, tuple):
-                splitted_hc = self._splitted_hcs[item[0]]
+                splitted_obj = self._splitted_objs[item[0]]
 
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    self._curr_hc = clouds.load_cloud(self._data_path + item[0] + '.pkl')
+                    self._curr_obj = objects.load_pkl(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist
-                if item[1] >= len(splitted_hc) or abs(item[1]) > len(splitted_hc):
+                if item[1] >= len(splitted_obj) or abs(item[1]) > len(splitted_obj):
                     return PointCloud(np.zeros((self._sample_num, 3)), np.zeros(self._sample_num)), \
                            np.zeros(self._sample_num)
 
                 # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and
                 # draw random points of these vertices (sample)
-                local_bfs = splitted_hc[item[1]]
-                subset = dispatcher.extract_cloud_subset(self._curr_hc, local_bfs)
+                local_bfs = splitted_obj[item[1]]
+                subset = objects.extract_cloud_subset(self._curr_obj, local_bfs)
                 sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
             else:
-                raise ValueError('In validation mode, items can only be requested with a tuple'
-                                 'of HybridCloud name and chunk index within that cloud.')
+                raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
+                                 'chunk index within that cloud.')
         else:
             # Get the next item while iterating the entire dataset
-            curr_hc_chunks = self._splitted_hcs[self._hc_names[self._hc_idx]]
-            if self._chunk_idx >= len(curr_hc_chunks):
-                self._hc_idx += 1
-                if self._hc_idx >= len(self._hcs):
-                    self._hc_idx = 0
+            curr_obj_chunks = self._splitted_objs[self._obj_names[self._obj_idx]]
+            if self._chunk_idx >= len(curr_obj_chunks):
+                self._obj_idx += 1
+                if self._obj_idx >= len(self._objs):
+                    self._obj_idx = 0
                 self._chunk_idx = 0
-                curr_hc_chunks = self._splitted_hcs[self._hc_names[self._hc_idx]]
+                curr_obj_chunks = self._splitted_objs[self._obj_names[self._obj_idx]]
 
             # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and draw
             # random points of these vertices (sample)
-            local_bfs = curr_hc_chunks[self._chunk_idx]
-            subset = dispatcher.extract_cloud_subset(self._hcs[self._hc_idx], local_bfs)
+            local_bfs = curr_obj_chunks[self._chunk_idx]
+            subset = objects.extract_cloud_subset(self._objs[self._obj_idx], local_bfs)
             sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
             self._chunk_idx += 1
 
@@ -159,20 +159,22 @@ class ChunkHandler:
         if len(sample.vertices) > 0:
             self._transform(sample)
         else:
+            # Return PointCloud with zeros if sample is empty
             if self._specific:
                 return PointCloud(np.zeros((self._sample_num, 3)), np.zeros(self._sample_num)), \
                        np.zeros(self._sample_num)
             else:
                 return PointCloud(np.zeros((self._sample_num, 3)), np.zeros(self._sample_num))
 
+        # Return sample and indices from where sample points were taken
         if self._specific:
             return sample, ixs
         else:
             return sample
 
     @property
-    def hc_names(self):
-        return self._hc_names
+    def obj_names(self):
+        return self._obj_names
 
     @property
     def chunk_size(self):
@@ -190,11 +192,10 @@ class ChunkHandler:
         """ Switch specific mode on and off. """
         self._specific = not self._specific
 
-    def get_hybrid_length(self, name: str):
-        """ Returns the number of chunks for a specific HybridCloud.
+    def get_obj_length(self, name: str):
+        """ Returns the number of chunks for a specific object.
 
         Args:
-            name: Filename of the requested HybridCloud. If the file is HybridCloud.pkl
-            this would be 'HybridCloud'.
+            name: Filename of the requested object. If the file is object.pkl this would be 'object'.
         """
-        return len(self._splitted_hcs[name])
+        return len(self._splitted_objs[name])

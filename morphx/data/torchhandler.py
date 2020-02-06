@@ -48,7 +48,7 @@ class TorchHandler(data.Dataset):
         return {'pts': pts, 'features': features, 'target': lbs}
 
     def hc_names(self):
-        return self.ch.hc_names
+        return self.ch.obj_names
 
     def get_hybrid_length(self, name: str):
-        return self.ch.get_hybrid_length(name)
+        return self.ch.get_obj_length(name)

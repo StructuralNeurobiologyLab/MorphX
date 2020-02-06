@@ -10,13 +10,13 @@ import os
 import time
 import numpy as np
 from morphx.classes.hybridcloud import HybridCloud
-from morphx.processing.clouds import load_cloud
+from morphx.processing.objects import load_pkl
 from morphx.processing.hybrids import extract_mesh_subset
 
 
 def test_hybridmesh_load():
     p = os.path.abspath(os.path.dirname(__file__) + '/../example_data/example_cell.pkl')
-    hm = load_cloud(p)
+    hm = load_pkl(p)
     return hm
 
 

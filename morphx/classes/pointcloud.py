@@ -71,6 +71,9 @@ class PointCloud(object):
     def class_num(self) -> int:
         return self._class_num
 
+    def change_encoding(self, encoding: dict):
+        self._encoding = encoding
+
     # -------------------------------------- LABEL ANALYSIS ------------------------------------------- #
 
     @property
