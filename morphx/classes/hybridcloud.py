@@ -7,7 +7,7 @@
 
 import numpy as np
 import networkx as nx
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, List
 import morphx.processing.graphs as graphs
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
@@ -24,10 +24,12 @@ class HybridCloud(PointCloud):
                  vertices: np.ndarray,
                  verts2node: dict = None,
                  labels: np.ndarray = None,
+                 features: np.ndarray = None,
                  node_labels: np.ndarray = None,
                  encoding: dict = None,
                  obj_bounds: Optional[Dict[Union[str, int], np.ndarray]] = None,
-                 predictions: dict = None):
+                 predictions: dict = None,
+                 no_pred: List[str] = None):
         """
         Args:
             nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
@@ -44,7 +46,8 @@ class HybridCloud(PointCloud):
             predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
         """
-        super().__init__(vertices, labels=labels, encoding=encoding, obj_bounds=obj_bounds, predictions=predictions)
+        super().__init__(vertices, labels=labels, features=features, encoding=encoding, obj_bounds=obj_bounds,
+                         predictions=predictions, no_pred=no_pred)
 
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")

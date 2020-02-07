@@ -6,7 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
-from typing import Dict, Union, Optional
+from typing import List, Optional
 from scipy.spatial.transform import Rotation as Rot
 
 
@@ -15,18 +15,21 @@ class PointCloud(object):
     Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, encoding: dict = None,
-                 obj_bounds: Optional[dict] = None, predictions: dict = None):
+    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, features: np.ndarray = None,
+                 encoding: dict = None, obj_bounds: Optional[dict] = None, predictions: dict = None,
+                 no_pred: List[str] = None):
         """
         Args:
             vertices: Point coordinates with shape (n, 3).
             labels: Vertex label array with shape (n, 1).
+            features: Feature array with shape (n, m).
             encoding: Dict with description strings for respective label as keys and unique labels as values.
-            obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object.
-                E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to obj1, the
-                vertices from index 10 to 19 belong to obj2.
+            obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object
+                as values. E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to
+                obj1, the vertices from index 10 to 19 belong to obj2.
             predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
+            no_pred: List of names of objects which should not be processed in model prediction or mapping.
         """
         if len(vertices) > 0 and vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
@@ -39,9 +42,22 @@ class PointCloud(object):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
+        if features is None:
+            self._features = np.ones((len(vertices), 1))
+        else:
+            if len(features) != len(vertices):
+                raise ValueError("Feature array must have same length as vertices array.")
+            self._features = labels.reshape(len(features), 1).astype(int)
+
         self._encoding = encoding
         self._obj_bounds = obj_bounds
         self._predictions = predictions
+
+        if no_pred is None:
+            self._no_pred = []
+        else:
+            self._no_pred = no_pred
+
         self._class_num = len(np.unique(labels))
         self._scale_count = 0
 
@@ -52,6 +68,10 @@ class PointCloud(object):
     @property
     def labels(self) -> np.ndarray:
         return self._labels
+
+    @property
+    def features(self) -> np.ndarray:
+        return self._features
 
     @property
     def encoding(self) -> dict:
@@ -66,6 +86,10 @@ class PointCloud(object):
         if self._predictions is None:
             self._predictions = {ix: [] for ix in range(len(self._vertices))}
         return self._predictions
+
+    @property
+    def no_pred(self) -> List[str]:
+        return self._no_pred
 
     @property
     def class_num(self) -> int:
@@ -120,6 +144,19 @@ class PointCloud(object):
             return freq
         else:
             return np.array([])
+
+    # --------------------------------------------- SETTER ------------------------------------------------ #
+
+    def set_features(self, features: np.ndarray):
+        if len(features) != len(self.vertices):
+            raise ValueError("Feature array must have same length as vertex array.")
+        else:
+            self._features = features
+
+    def add_no_pred(self, obj_names: List[str]):
+        for name in obj_names:
+            if name not in self._no_pred:
+                self._no_pred.append(name)
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
