@@ -15,8 +15,13 @@ class PointCloud(object):
     Class which represents a collection of points in 3D space. The points could have labels.
     """
 
-    def __init__(self, vertices: np.ndarray, labels: np.ndarray = None, features: np.ndarray = None,
-                 encoding: dict = None, obj_bounds: Optional[dict] = None, predictions: dict = None,
+    def __init__(self,
+                 vertices: np.ndarray,
+                 labels: np.ndarray = None,
+                 features: np.ndarray = None,
+                 encoding: dict = None,
+                 obj_bounds: Optional[dict] = None,
+                 predictions: dict = None,
                  no_pred: List[str] = None):
         """
         Args:
@@ -47,7 +52,7 @@ class PointCloud(object):
         else:
             if len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
-            self._features = labels.reshape(len(features), 1).astype(int)
+            self._features = features.reshape(len(features), 1).astype(int)
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds
@@ -160,9 +165,12 @@ class PointCloud(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels_mv(self) -> np.ndarray:
-        """ For each vertex, a majority vote is applied to the existing predictions and the prediction with the highest
-            occurance is set as label for this vertex. If there are no predictions, the label is set to -1.
+    def preds2labels(self, mv: bool = True) -> np.ndarray:
+        """ Flag mv = True: For each vertex, a majority vote is applied to the existing predictions and the prediction
+            with the highest occurance is set as label for this vertex. If there are no predictions, the label is set
+            to -1.
+            Flag mc = False: For each vertex, the first predictions is taken as the new label. If there are no
+            predictions, the label is set to -1.
 
         Returns:
             The newly generated labels.
@@ -170,25 +178,11 @@ class PointCloud(object):
         for idx in range(len(self._labels)):
             preds = np.array(self._predictions[idx])
             if len(preds) > 0:
-                u_preds, counts = np.unique(preds, return_counts=True)
-                self._labels[idx] = u_preds[np.argmax(counts)]
-            else:
-                self._labels[idx] = -1
-        if self._encoding is not None and -1 in self._labels:
-            self._encoding['no_prediction'] = -1
-        return self._labels
-
-    def preds2labels_direct(self) -> np.ndarray:
-        """ For each vertex, the first predictions is taken as the new label. If there are no predictions, the label is
-            set to -1.
-
-        Returns:
-            The newly generated labels.
-        """
-        for idx in range(len(self._labels)):
-            preds = np.array(self._predictions[idx])
-            if len(preds) > 0:
-                self._labels[idx] = preds[0]
+                if mv:
+                    u_preds, counts = np.unique(preds, return_counts=True)
+                    self._labels[idx] = u_preds[np.argmax(counts)]
+                else:
+                    self._labels[idx] = preds[0]
             else:
                 self._labels[idx] = -1
         if self._encoding is not None and -1 in self._labels:

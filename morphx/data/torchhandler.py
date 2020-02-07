@@ -43,9 +43,15 @@ class TorchHandler(data.Dataset):
         # pack all numpy arrays into torch tensors
         pts = torch.from_numpy(sample.vertices).float()
         lbs = torch.from_numpy(labels).long()
-        features = torch.ones(len(sample.vertices), 1).float()
+        features = torch.from_numpy(sample.features)
 
-        return {'pts': pts, 'features': features, 'target': lbs}
+        mask = torch.ones(len(sample.vertices), 1, dtype=torch.bool)
+        for key in sample.obj_bounds:
+            if key in sample.no_pred:
+                bounds = sample.obj_bounds[key]
+                mask[bounds[0]:bounds[1]] = False
+
+        return {'pts': pts, 'features': features, 'target': lbs, 'mask': mask}
 
     def hc_names(self):
         return self.ch.obj_names

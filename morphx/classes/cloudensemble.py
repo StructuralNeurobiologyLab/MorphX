@@ -18,7 +18,7 @@ class CloudEnsemble(object):
     Class which represents a collection of PointCloud objects.
     """
 
-    def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None):
+    def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None):
         """
         Args:
             clouds: Dict with cloud names as keys and PointCloud objects as Values. Objects like HybridClouds in this
@@ -27,7 +27,14 @@ class CloudEnsemble(object):
         """
         self._clouds = clouds
         self._hc = hybrid
+        self._pc = None
         self._verts2node = None
+        self._predictions = None
+
+        if no_pred is None:
+            self._no_pred = []
+        else:
+            self._no_pred = no_pred
 
     @property
     def clouds(self):
@@ -47,7 +54,7 @@ class CloudEnsemble(object):
 
     @property
     def no_pred(self) -> List[str]:
-        return self._hc.no_pred
+        return self._no_pred
 
     @property
     def encoding(self) -> dict:
@@ -56,6 +63,20 @@ class CloudEnsemble(object):
     @property
     def hc(self):
         return self._hc
+
+    @property
+    def pc(self):
+        if self._pc is None:
+            from morphx.processing import ensembles
+            self._pc = ensembles.ensemble2pointcloud(self)
+            self._pc.add_no_pred(self._no_pred)
+        return self._pc
+
+    @property
+    def predictions(self) -> dict:
+        if self._predictions is None:
+            self._predictions = {ix: [] for ix in range(len(self.pc.vertices))}
+        return self._predictions
 
     @property
     def verts2node(self) -> dict:
@@ -67,17 +88,15 @@ class CloudEnsemble(object):
         Returns:
             Dict with mapping information
         """
-        # avoids cyclic import
-        from morphx.processing import ensembles
         if self._verts2node is None:
+            # avoids cyclic import
             self._verts2node = {}
-            merged = ensembles.ensemble2pointcloud(self)
-            if isinstance(merged, HybridCloud):
-                if len(merged.nodes) > 0:
-                    tree = cKDTree(merged.nodes)
-                    dist, ind = tree.query(merged.vertices, k=1)
+            if isinstance(self.pc, HybridCloud):
+                if len(self.pc.nodes) > 0:
+                    tree = cKDTree(self.pc.nodes)
+                    dist, ind = tree.query(self.pc.vertices, k=1)
 
-                    self._verts2node = {ix: [] for ix in range(len(merged.nodes))}
+                    self._verts2node = {ix: [] for ix in range(len(self.pc.nodes))}
                     for vertex_idx, skel_idx in enumerate(ind):
                         self._verts2node[skel_idx].append(vertex_idx)
         return self._verts2node
@@ -116,3 +135,8 @@ class CloudEnsemble(object):
 
     def _reset_ensemble(self):
         self._verts2node = None
+
+    def add_no_pred(self, obj_names: List[str]):
+        for name in obj_names:
+            if name not in self._no_pred:
+                self._no_pred.append(name)

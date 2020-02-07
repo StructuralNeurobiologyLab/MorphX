@@ -136,10 +136,10 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
 
         # Perform majority vote on existing predictions and set these as new labels
         if direct:
-            hc.preds2labels_direct()
+            hc.preds2labels(False)
             mode = 'direct'
         else:
-            hc.preds2labels_mv()
+            hc.preds2labels()
             mode = 'majority vote'
 
         # Get evaluation for vertices
