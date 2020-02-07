@@ -43,7 +43,7 @@ class PointCloud(object):
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
         if features is None:
-            self._features = np.ones((len(vertices), 1))
+            self._features = np.zeros(0)
         else:
             if len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
@@ -94,9 +94,6 @@ class PointCloud(object):
     @property
     def class_num(self) -> int:
         return self._class_num
-
-    def change_encoding(self, encoding: dict):
-        self._encoding = encoding
 
     # -------------------------------------- LABEL ANALYSIS ------------------------------------------- #
 
@@ -152,6 +149,9 @@ class PointCloud(object):
             raise ValueError("Feature array must have same length as vertex array.")
         else:
             self._features = features
+
+    def set_encoding(self, encoding: dict):
+        self._encoding = encoding
 
     def add_no_pred(self, obj_names: List[str]):
         for name in obj_names:

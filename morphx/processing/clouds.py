@@ -43,6 +43,10 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
         sample_l = np.zeros((vertex_number, 1))
     else:
         sample_l = None
+    if len(pc.features) != 0:
+        sample_f = np.zeros((vertex_number, 1))
+    else:
+        sample_f = None
 
     # How much additional augmented points must be generated in order to reach the requested number of samples
     deficit = vertex_number - len(cloud)
@@ -57,6 +61,8 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
 
     if len(labels) != 0:
         sample_l[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
+    if len(pc.features) != 0:
+        sample_f[:min(len(cloud), vertex_number)] = pc.features[vert_ixs[:vertex_number]]
 
     if deficit > 0:
         # deficit could be bigger than cloudsize
@@ -70,11 +76,13 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
             sample_ixs[offset:offset+compensation] = vert_ixs[:compensation]
             if len(labels) != 0:
                 sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
+            if len(pc.features) != 0:
+                sample_f[offset:offset+compensation] = pc.features[vert_ixs[:compensation]]
             offset += compensation
 
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    return PointCloud(sample, labels=sample_l), sample_ixs
+    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding), sample_ixs
 
 
 def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
@@ -115,6 +123,8 @@ def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> T
 
     # use merge method for correct object boundary information
     result_sample = merge_clouds(samples, names)
+    result_sample.add_no_pred(pc.no_pred)
+    result_sample.set_encoding(pc.encoding)
     return result_sample, ixs
 
 
@@ -328,8 +338,8 @@ class RandomVariation:
 def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]] = None,
                  ignore_hybrids: bool = False) -> Optional[PointCloud]:
     """ Merges the PointCloud objects in the given list. If the names list is given, the object boundary information
-        is saved in the obj_bounds dict. Vertices of PointClouds without labels get the label -1. If no PointCloud has
-        labels, then the label array of the merged PointCloud is empty.
+        is saved in the obj_bounds dict. Vertices of PointClouds without label / feature get the label /feature -1.
+        If no PointCloud has labels / features, then the label /feature array of the merged PointCloud is empty.
 
     Args:
         clouds: List of clouds which should get merged.
@@ -362,11 +372,13 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     # reserve arrays of required size and initialize new attributes
     t_verts = np.zeros((total_verts, 3))
     t_labels = np.zeros((total_verts, 1))
+    t_features = np.zeros((total_verts, 1))
     nodes = np.zeros((total_nodes, 3))
     edges = np.zeros((total_edges, 2))
     offset = 0
     obj_bounds = {}
     encoding = {}
+    no_pred = []
 
     for ix, cloud in enumerate(clouds):
         # handle hybrids
@@ -381,6 +393,10 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
             t_labels[offset:offset+len(cloud.vertices)] = cloud.labels
         else:
             t_labels[offset:offset+len(cloud.vertices)] = -1
+        if len(cloud.features) != 0:
+            t_features[offset:offset+len(cloud.features)] = cloud.features
+        else:
+            t_features[offset:offset+len(cloud.features)] = -1
 
         # TODO: Handle similar keys from different clouds and handle obj_bounds
         #  which don't span the entire vertex array
@@ -398,14 +414,22 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
             for item in cloud.encoding:
                 encoding[item] = cloud.encoding[item]
 
+        # Merge no_preds
+        if cloud.no_pred is not None:
+            for item in cloud.no_pred:
+                no_pred.append(item)
+
     if len(obj_bounds) == 0:
         obj_bounds = None
     if len(encoding) == 0:
         encoding = None
     if np.all(t_labels == -1):
         t_labels = None
+    if np.all(t_features == -1):
+        t_features = None
 
     if len(nodes) == 0:
-        return PointCloud(t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding)
+        return PointCloud(t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding, no_pred=no_pred)
     else:
-        return HybridCloud(nodes, edges, t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding)
+        return HybridCloud(nodes, edges, t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding,
+                           no_pred=no_pred)

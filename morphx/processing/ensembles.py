@@ -101,4 +101,5 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
         if num != 0:
             obj_bounds[key] = np.array([offset, offset+num])
             offset += num
-    return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], obj_bounds=obj_bounds)
+    return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], obj_bounds=obj_bounds,
+                      no_pred=merged.no_pred, encoding=ensemble.encoding)

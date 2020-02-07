@@ -8,7 +8,7 @@
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -44,6 +44,14 @@ class CloudEnsemble(object):
         if self._hc is None:
             return np.empty((0, 2))
         return self._hc.edges
+
+    @property
+    def no_pred(self) -> List[str]:
+        return self._hc.no_pred
+
+    @property
+    def encoding(self) -> dict:
+        return self._hc.encoding
 
     @property
     def hc(self):
