@@ -39,8 +39,12 @@ def split(data_path: str, chunk_size: int):
         data_size += len(hc.base_points())
         chunks = []
         for node in hc.base_points():
-            local_bfs = graphs.local_bfs_dist(hc.graph(), node, chunk_size/1.5)
-            chunks.append(local_bfs)
+            local_bfs_small = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 1)
+            chunks.append(local_bfs_small)
+            local_bfs_medium = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 1.5)
+            chunks.append(local_bfs_medium)
+            local_bfs_large = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 2)
+            chunks.append(local_bfs_large)
         splitted_hcs[name] = chunks
 
     output_path = data_path + 'splitted/'
