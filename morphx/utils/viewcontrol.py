@@ -3,10 +3,10 @@ import glob
 import pickle
 import numpy as np
 from getkey import keys
-
 import morphx.processing.objects
 from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
+
 
 class ViewControl(object):
     """ Viewer class for comparison of ground truth with processed files or for viewing validation and training
@@ -134,12 +134,12 @@ class ViewControl(object):
             epoch_num: number of epoch whose examples should be visualized.
         """
         reverse = False
-        req_files = [file for file in self.files1 if str(epoch_num) in file]
+        req_files = [file for file in self.files1 if 'epoch_' + str(epoch_num) + '_' in file]
         idx = 0
 
         # TODO: Make this pythonic and less ugly
         while idx < len(req_files):
-            file = self.req_files[idx]
+            file = req_files[idx]
             slashs = [pos for pos, char in enumerate(file) if char == '/']
             filename = file[slashs[-1]:-4]
             print("Viewing: " + filename)
