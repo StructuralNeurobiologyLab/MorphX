@@ -114,7 +114,8 @@ def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> T
                 sample_num = ceil(sample_num)
             else:
                 sample_num = vertex_number - curr_num
-            curr_cloud = PointCloud(pc.vertices[bounds[0]:bounds[1]], pc.labels[bounds[0]:bounds[1]])
+            curr_cloud = PointCloud(pc.vertices[bounds[0]:bounds[1]], labels=pc.labels[bounds[0]:bounds[1]],
+                                    features=pc.features[bounds[0]:bounds[1]])
             sample, sample_ixs = sample_cloud(curr_cloud, sample_num, random_seed)
             samples.append(sample)
             names.append(key)
@@ -125,6 +126,7 @@ def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> T
     result_sample = merge_clouds(samples, names)
     result_sample.add_no_pred(pc.no_pred)
     result_sample.set_encoding(pc.encoding)
+    result_sample.remove_obj_bounds()
     return result_sample, ixs
 
 
@@ -429,7 +431,8 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         t_features = None
 
     if len(nodes) == 0:
-        return PointCloud(t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding, no_pred=no_pred)
+        return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,
+                          no_pred=no_pred)
     else:
-        return HybridCloud(nodes, edges, t_verts, labels=t_labels, obj_bounds=obj_bounds, encoding=encoding,
-                           no_pred=no_pred)
+        return HybridCloud(nodes, edges, t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
+                           encoding=encoding, no_pred=no_pred)

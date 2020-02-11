@@ -163,6 +163,9 @@ class PointCloud(object):
             if name not in self._no_pred:
                 self._no_pred.append(name)
 
+    def remove_obj_bounds(self):
+        self._obj_bounds = None
+
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
     def preds2labels(self, mv: bool = True) -> np.ndarray:

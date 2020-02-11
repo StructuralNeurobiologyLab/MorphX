@@ -69,6 +69,7 @@ def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[PointCloud]:
     parts = [ensemble.clouds[key] for key in ensemble.clouds.keys()]
     names = [key for key in ensemble.clouds.keys()]
     merged_clouds = clouds.merge_clouds(parts, names, ignore_hybrids=True)
+    merged_clouds.add_no_pred(ensemble.no_pred)
     if ensemble.hc is None:
         return merged_clouds
     else:
@@ -101,5 +102,5 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
         if num != 0:
             obj_bounds[key] = np.array([offset, offset+num])
             offset += num
-    return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], obj_bounds=obj_bounds,
-                      no_pred=merged.no_pred, encoding=ensemble.encoding)
+    return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], features=merged.features[idcs],
+                      obj_bounds=obj_bounds, no_pred=merged.no_pred, encoding=merged.encoding)

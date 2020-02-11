@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import torch
+import ipdb
 import numpy as np
 from typing import Callable, Union, Tuple
 from torch.utils import data
@@ -43,15 +44,21 @@ class TorchHandler(data.Dataset):
         # pack all numpy arrays into torch tensors
         pts = torch.from_numpy(sample.vertices).float()
         lbs = torch.from_numpy(labels).long()
-        features = torch.from_numpy(sample.features)
+        features = torch.from_numpy(sample.features).float()
 
-        mask = torch.ones(len(sample.vertices), 1, dtype=torch.bool)
-        for key in sample.obj_bounds:
-            if key in sample.no_pred:
-                bounds = sample.obj_bounds[key]
-                mask[bounds[0]:bounds[1]] = False
+        p_mask = torch.ones(len(sample.vertices), 3, dtype=torch.bool)
+        l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
 
-        return {'pts': pts, 'features': features, 'target': lbs, 'mask': mask}
+        no_pred_labels = []
+        for name in sample.no_pred:
+            no_pred_labels.append(sample.encoding[name])
+
+        for ix, label in enumerate(sample.labels):
+            if label in no_pred_labels:
+                p_mask[ix] = False
+                l_mask[ix] = False
+
+        return {'pts': pts, 'features': features, 'target': lbs, 'p_mask': p_mask, 'l_mask': l_mask}
 
     def hc_names(self):
         return self.ch.obj_names
