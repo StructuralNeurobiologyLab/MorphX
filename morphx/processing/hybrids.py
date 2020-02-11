@@ -100,6 +100,7 @@ def hybrid_from_pkl(path):
 
 
 def hybrid_from_attr_dict(attr_dict: dict):
-    return HybridCloud(attr_dict['nodes'], attr_dict['edges'], attr_dict['vertices'], attr_dict['labels'],
-                       attr_dict['features'], attr_dict['encoding'], attr_dict['obj_bounds'],
-                       attr_dict['predictions'], attr_dict['no_pred'])
+    return HybridCloud(attr_dict['nodes'], attr_dict['edges'], attr_dict['vertices'], labels=attr_dict['labels'],
+                       features=attr_dict['features'], encoding=attr_dict['encoding'],
+                       obj_bounds=attr_dict['obj_bounds'], predictions=attr_dict['predictions'],
+                       no_pred=attr_dict['no_pred'])

@@ -272,9 +272,8 @@ class HybridCloud(PointCloud):
             if not os.path.exists(path):
                 os.makedirs(path)
             path = os.path.join(path, name + '.pkl')
-            attr_dict = super().get_attr_dict()
-            attr_dict['nodes'] = self._nodes
-            attr_dict['edges'] = self._edges
+
+            attr_dict = self.get_attr_dict()
 
             with open(path, 'wb') as f:
                 pickle.dump(attr_dict, f)
@@ -283,3 +282,9 @@ class HybridCloud(PointCloud):
             print("Saving was not successful as given path is not valid.")
             return 1
         return 0
+
+    def get_attr_dict(self):
+        attr_dict = super().get_attr_dict()
+        attr_dict['nodes'] = self._nodes
+        attr_dict['edges'] = self._edges
+        return attr_dict

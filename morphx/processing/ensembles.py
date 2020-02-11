@@ -110,7 +110,7 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 
 
-def cloud_from_pkl(path):
+def ensemble_from_pkl(path):
     """ Loads an ensemble from an existing pickle file.
 
     Args:
@@ -122,7 +122,6 @@ def cloud_from_pkl(path):
     with open(path, 'rb') as f:
         obj = pickle.load(f)
     f.close()
-
     hc = hybrids.hybrid_from_attr_dict(obj['hybrid'])
 
     cloudlist = {}
