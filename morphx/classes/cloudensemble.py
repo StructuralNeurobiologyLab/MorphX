@@ -11,6 +11,8 @@ from scipy.spatial import cKDTree
 from typing import Dict, Optional, List
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
+import pickle
+import os
 
 
 class CloudEnsemble(object):
@@ -67,6 +69,7 @@ class CloudEnsemble(object):
     @property
     def pc(self):
         if self._pc is None:
+            # avoids cyclic import
             from morphx.processing import ensembles
             self._pc = ensembles.ensemble2pointcloud(self)
             self._pc.add_no_pred(self._no_pred)
@@ -89,7 +92,6 @@ class CloudEnsemble(object):
             Dict with mapping information
         """
         if self._verts2node is None:
-            # avoids cyclic import
             self._verts2node = {}
             if isinstance(self.pc, HybridCloud):
                 if len(self.pc.nodes) > 0:
@@ -140,3 +142,34 @@ class CloudEnsemble(object):
         for name in obj_names:
             if name not in self._no_pred:
                 self._no_pred.append(name)
+
+# -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
+
+    def save2pkl(self, path: str, name='cloud') -> int:
+        """ Saves ensemble into pickle file at given path.
+
+        Args:
+            path: Folder where the object should be saved to.
+            name: Name of file in which the object should be saved.
+
+        Returns:
+            0 if saving process was successful, 1 otherwise.
+        """
+        try:
+            if not os.path.exists(path):
+                os.makedirs(path)
+            path = os.path.join(path, name + '.pkl')
+
+            attr_dicts = {'hybrid': self.hc.get_attr_dict(),
+                          'no_pred': self._no_pred,
+                          'clouds': {}}
+            for key in self._clouds:
+                attr_dicts['clouds'][key] = self._clouds[key].get_attr_dict()
+
+            with open(path, 'wb') as f:
+                pickle.dump(attr_dicts, f)
+            f.close()
+        except FileNotFoundError:
+            print("Saving was not successful as given path is not valid.")
+            return 1
+        return 0

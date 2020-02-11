@@ -7,6 +7,7 @@
 
 import torch
 import ipdb
+import time
 import numpy as np
 from typing import Callable, Union, Tuple
 from torch.utils import data
@@ -34,7 +35,9 @@ class TorchHandler(data.Dataset):
         # Get new sample from base dataloader, skip samples without any points
         sample = PointCloud(np.array([[0, 0, 0]]))
         while np.all(sample.vertices == 0):
+            start = time.time()
             sample = self.ch[item]
+            print(f'Full sample loading: {time.time()-start} s.')
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))
@@ -46,17 +49,15 @@ class TorchHandler(data.Dataset):
         lbs = torch.from_numpy(labels).long()
         features = torch.from_numpy(sample.features).float()
 
-        p_mask = torch.ones(len(sample.vertices), 3, dtype=torch.bool)
-        l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
-
         no_pred_labels = []
         for name in sample.no_pred:
             no_pred_labels.append(sample.encoding[name])
 
-        for ix, label in enumerate(sample.labels):
-            if label in no_pred_labels:
-                p_mask[ix] = False
-                l_mask[ix] = False
+        idcs = torch.from_numpy(np.isin(sample.labels, no_pred_labels).reshape(-1))
+        p_mask = torch.ones(len(sample.vertices), 3, dtype=torch.bool)
+        l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
+        p_mask[idcs] = False
+        l_mask[idcs] = False
 
         return {'pts': pts, 'features': features, 'target': lbs, 'p_mask': p_mask, 'l_mask': l_mask}
 

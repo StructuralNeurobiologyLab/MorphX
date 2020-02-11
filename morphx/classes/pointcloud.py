@@ -5,6 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
+import pickle
 import numpy as np
 from typing import List, Optional
 from scipy.spatial.transform import Rotation as Rot
@@ -234,3 +236,38 @@ class PointCloud(object):
 
         variation = np.random.random(self._vertices.shape) * (limits[1] - limits[0]) + limits[0]
         self._vertices = self._vertices + variation
+
+# -------------------------------------- CLOUD I/O ------------------------------------------- #
+
+    def save2pkl(self, path: str, name='cloud') -> int:
+        """ Saves point cloud into pickle file at given path.
+
+        Args:
+            path: Folder where the object should be saved to.
+            name: Name of file in which the object should be saved.
+
+        Returns:
+            0 if saving process was successful, 1 otherwise.
+        """
+        try:
+            if not os.path.exists(path):
+                os.makedirs(path)
+            path = os.path.join(path, name + '.pkl')
+            attr_dict = self.get_attr_dict()
+            with open(path, 'wb') as f:
+                pickle.dump(attr_dict, f)
+            f.close()
+        except FileNotFoundError:
+            print("Saving was not successful as given path is not valid.")
+            return 1
+        return 0
+
+    def get_attr_dict(self):
+        attr_dict = {'vertices': self._vertices,
+                     'labels': self._labels,
+                     'features': self._features,
+                     'encoding': self._labels,
+                     'no_pred': self._no_pred,
+                     'predictions': self._predictions,
+                     'obj_bounds': self._obj_bounds}
+        return attr_dict

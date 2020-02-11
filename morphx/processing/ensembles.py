@@ -5,12 +5,14 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
+import pickle
 import numpy as np
 from math import ceil
 from typing import Optional, Tuple
-from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.cloudensemble import CloudEnsemble
+from morphx.processing import clouds, hybrids
 
 
 # -------------------------------------- ENSEMBLE SAMPLING -------------------------------------- #
@@ -92,15 +94,39 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
     idcs = []
     for i in nodes:
         idcs.extend(ensemble.verts2node[i])
-    merged = ensemble2pointcloud(ensemble)
     obj_bounds = {}
     offset = 0
     idcs = np.array(idcs)
-    for key in merged.obj_bounds:
-        bounds = merged.obj_bounds[key]
+    for key in ensemble.pc.obj_bounds:
+        bounds = ensemble.pc.obj_bounds[key]
         num = len(idcs[np.logical_and(idcs >= bounds[0], idcs < bounds[1])])
         if num != 0:
             obj_bounds[key] = np.array([offset, offset+num])
             offset += num
-    return PointCloud(merged.vertices[idcs], labels=merged.labels[idcs], features=merged.features[idcs],
-                      obj_bounds=obj_bounds, no_pred=merged.no_pred, encoding=merged.encoding)
+    return PointCloud(ensemble.pc.vertices[idcs], labels=ensemble.pc.labels[idcs], features=ensemble.pc.features[idcs],
+                      obj_bounds=obj_bounds, no_pred=ensemble.pc.no_pred, encoding=ensemble.pc.encoding)
+
+
+# -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
+
+
+def cloud_from_pkl(path):
+    """ Loads an ensemble from an existing pickle file.
+
+    Args:
+        path: File path of pickle file.
+    """
+    path = os.path.expanduser(path)
+    if not os.path.exists(path):
+        print(f"File with name: {path} was not found at this location.")
+    with open(path, 'rb') as f:
+        obj = pickle.load(f)
+    f.close()
+
+    hc = hybrids.hybrid_from_attr_dict(obj['hybrid'])
+
+    cloudlist = {}
+    for key in obj['clouds']:
+        cloudlist[key] = clouds.cloud_from_attr_dict(obj['clouds'][key])
+
+    return CloudEnsemble(cloudlist, hc, obj['no_pred'])

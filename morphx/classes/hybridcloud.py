@@ -5,6 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
+import pickle
 import numpy as np
 import networkx as nx
 from typing import Optional, Union, Dict, List
@@ -253,3 +255,31 @@ class HybridCloud(PointCloud):
         """ Moves vertices and nodes by adding the given vector """
         self._vertices = self._vertices + vector
         self._nodes = self._nodes + vector
+
+    # -------------------------------------- HYBRID I/O ------------------------------------------- #
+
+    def save2pkl(self, path: str, name='cloud') -> int:
+        """ Saves hybrid cloud into pickle file at given path.
+
+        Args:
+            path: Folder where the object should be saved to.
+            name: Name of file in which the object should be saved.
+
+        Returns:
+            0 if saving process was successful, 1 otherwise.
+        """
+        try:
+            if not os.path.exists(path):
+                os.makedirs(path)
+            path = os.path.join(path, name + '.pkl')
+            attr_dict = super().get_attr_dict()
+            attr_dict['nodes'] = self._nodes
+            attr_dict['edges'] = self._edges
+
+            with open(path, 'wb') as f:
+                pickle.dump(attr_dict, f)
+            f.close()
+        except FileNotFoundError:
+            print("Saving was not successful as given path is not valid.")
+            return 1
+        return 0

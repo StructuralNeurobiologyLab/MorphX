@@ -5,8 +5,10 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import os
+import pickle
 import numpy as np
-from math import ceil, floor
+from math import ceil
 from typing import Union, Tuple, List, Optional
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
@@ -436,3 +438,27 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     else:
         return HybridCloud(nodes, edges, t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
                            encoding=encoding, no_pred=no_pred)
+
+
+# -------------------------------------- CLOUD I/O ------------------------------------------- #
+
+
+def cloud_from_pkl(path):
+    """ Loads a point cloud from an existing pickle file.
+
+    Args:
+        path: File path of pickle file.
+    """
+    path = os.path.expanduser(path)
+    if not os.path.exists(path):
+        print(f"File with name: {path} was not found at this location.")
+    with open(path, 'rb') as f:
+        obj = pickle.load(f)
+    f.close()
+
+    return cloud_from_attr_dict(obj)
+
+
+def cloud_from_attr_dict(attr_dict: dict):
+    return PointCloud(attr_dict['vertices'], attr_dict['labels'], attr_dict['features'], attr_dict['encoding'],
+                      attr_dict['obj_bounds'], attr_dict['predictions'], attr_dict['no_pred'])
