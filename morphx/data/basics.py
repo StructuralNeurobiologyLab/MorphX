@@ -42,7 +42,10 @@ def load_skeleton_nx_pkl(path: str) -> Tuple[np.ndarray, np.ndarray]:
         Node coordinates, edges (indices to the node array).
     """
     g = nx.read_gpickle(path)
-    nodes = np.array([g.node[n]['position'] for n in g.nodes()])
+    try:
+        nodes = np.array([g.node[n]['position'] for n in g.nodes()])
+    except AttributeError:  # networkx >= 2.4 compatibility
+        nodes = np.array([g.nodes[n]['position'] for n in g.nodes()])
     edges = np.array(g.edges(), dtype=np.int)
     assert np.max(edges) + 1 == len(nodes), "Node IDs are non-contiguous."
     return nodes, edges

@@ -19,7 +19,7 @@ dependencies:
   - matplotlib
   - tqdm
   - scipy
-  - networkx <= 2.3  # AttributeError: module 'networkx' has no attribute 'connected_component_subgraphs'
+  - networkx
   - numpy
   - coloredlogs
   - scikit-learn
