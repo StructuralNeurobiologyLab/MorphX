@@ -8,22 +8,19 @@
 import numpy as np
 import numba as nb
 import warnings
-from collections import defaultdict
+from typing import Optional
 from morphx.classes.hybridcloud import HybridCloud
 
 
 class HybridMesh(HybridCloud):
-    """ Class which represents a skeleton in form of a graph structure and a mesh which surrounds this skeleton. """
+    """ Class which represents a skeleton in form of a graph structure and a
+    mesh which surrounds this skeleton.
+    """
 
     def __init__(self,
-                 nodes: np.ndarray,
-                 edges: np.ndarray,
-                 vertices: np.ndarray,
-                 faces: np.ndarray,
-                 normals: np.ndarray,
-                 verts2node: defaultdict = None,
-                 labels: np.ndarray = None,
-                 encoding: dict = None):
+                 faces: np.ndarray = None,
+                 normals: Optional[np.ndarray] = None,
+                 *args, **kwargs):  # e.g. features are not passed here
         """
         Args:
             nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
@@ -31,16 +28,17 @@ class HybridMesh(HybridCloud):
             vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
             faces: The faces of the mesh as array of the respective vertices with shape (n, 3).
             normals: The normal vectors of the mesh.
-            verts2node: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
-                values are lists of mesh vertex indices.
-            labels: Vertex label array (integer number representing respective classe) with same dimensions as
-                vertices.
-            encoding: Dict with unique labels as keys and description string for respective label as value.
+            kwargs: See :py:class:`~morphx.classes.hybridcloud.HybridCloud`.
         """
-        super().__init__(nodes, edges, vertices, verts2node, labels=labels, encoding=encoding)
+        super().__init__(*args, **kwargs)
 
         self._faces = faces
-        self._normals = normals
+        if normals is None or len(normals) == 0:
+            self._normals = np.zeros(0)
+        else:
+            if len(normals) != len(self.vertices):
+                raise ValueError("Normals array must have same length as vertices array.")
+            self._normals = normals.reshape(len(normals), 1)
         self._faces2node = None
 
     @property
@@ -76,6 +74,12 @@ class HybridMesh(HybridCloud):
                 new_faces = np.nonzero(new_faces)[0].tolist()
                 self._faces2node[node_ix] = new_faces
         return self._faces2node
+
+    def get_attr_dict(self):
+        attr_dict = super().get_attr_dict()
+        attr_dict['faces'] = self._faces
+        attr_dict['normals'] = self._normals
+        return attr_dict
 
 
 @nb.njit(parallel=True)

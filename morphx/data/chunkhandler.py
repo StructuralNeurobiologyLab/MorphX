@@ -12,6 +12,8 @@ import random
 import numpy as np
 import time
 from typing import Union, Tuple
+
+import morphx.data.basics
 from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.pointcloud import PointCloud
@@ -74,7 +76,7 @@ class ChunkHandler:
             name = file[slashs[-1] + 1:-4]
             self._obj_names.append(name)
             if not self._specific:
-                obj = objects.load_pkl(file)
+                obj = morphx.data.basics.load_pkl(file)
                 self._objs.append(obj)
 
         self._chunk_list = []
@@ -134,7 +136,7 @@ class ChunkHandler:
 
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    self._curr_obj = objects.load_pkl(self._data_path + item[0] + '.pkl')
+                    self._curr_obj = morphx.data.basics.load_pkl(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist

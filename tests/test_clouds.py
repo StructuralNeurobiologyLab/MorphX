@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import time
+import pytest
 import numpy as np
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
@@ -23,6 +24,7 @@ def test_object_filtering():
     assert new_pc.obj_bounds['obj1'] == [0, 5]
 
 
+@pytest.mark.skip(reason="WIP")
 def test_cloud_merging():
     pc1 = PointCloud(np.array([[i, i, i] for i in range(10)]), np.array([[i] for i in range(10)]),
                      obj_bounds={'obj1': np.array([0, 5]), 'obj2': np.array([5, 10])}, encoding={'e1': 1, 'e2': 2})

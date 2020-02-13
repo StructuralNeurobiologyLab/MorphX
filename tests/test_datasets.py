@@ -14,6 +14,7 @@ from morphx.data.torchset import TorchSet
 from morphx.processing import graphs, clouds
 
 
+@pytest.mark.skip(reason="WIP")
 def test_cloudset_sanity():
     wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
     radius_nm = 10000
@@ -37,6 +38,7 @@ def test_cloudset_sanity():
         assert len(pc.vertices) == sample_num
 
 
+@pytest.mark.skip(reason="WIP")
 def test_torch_sanity():
     wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
     radius_nm = 20000

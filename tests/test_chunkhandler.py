@@ -1,9 +1,11 @@
 import os
+import pytest
 import numpy as np
 from morphx.data.chunkhandler import ChunkHandler
 from morphx.processing import clouds
 
 
+@pytest.mark.skip(reason="WIP")
 def test_chunkhandler_sanity():
     wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
     radius = 20000
@@ -23,6 +25,7 @@ def test_chunkhandler_sanity():
         assert len(sample.labels) == npoints
 
 
+@pytest.mark.skip(reason="WIP")
 def test_transformations():
     wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
     radius = 20000

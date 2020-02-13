@@ -5,17 +5,15 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import glob
-import pickle
 import numpy as np
 from tqdm import tqdm
 from typing import Callable
-from collections import deque
 
+import morphx.data.basics
 import morphx.processing.objects
-from morphx.processing import graphs, hybrids, clouds, ensembles, dispatcher
-from morphx.classes.hybridcloud import HybridCloud, PointCloud
+from morphx.processing import graphs, clouds
+from morphx.classes.hybridcloud import HybridCloud
 
 
 class CloudSet:
@@ -159,11 +157,11 @@ class CloudSet:
             print("Loading new cell from: {}.".format(self.files[self.curr_hybrid_idx]))
 
         if self.ensemble:
-            ce = morphx.processing.objects.load_pkl(self.files[self.curr_hybrid_idx])
+            ce = morphx.data.basics.load_pkl(self.files[self.curr_hybrid_idx])
             hc = ce.get_cloud('cell')
             self.curr_hybrid = hc
         else:
-            self.curr_hybrid = morphx.processing.objects.load_pkl(self.files[self.curr_hybrid_idx])
+            self.curr_hybrid = morphx.data.basics.load_pkl(self.files[self.curr_hybrid_idx])
         if self.label_filter is not None:
             self.curr_hybrid = clouds.filter_labels(self.curr_hybrid, self.label_filter)
 
