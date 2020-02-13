@@ -14,10 +14,11 @@ from morphx.classes.pointcloud import PointCloud
 from morphx.classes.meshcloud import MeshCloud
 
 
-# -------------------------------------- HYBRID EXTRACTION ------------------------------------------- #
+# -------------------------------------- HYBRID EXTRACTION --------------------------------------- #
 
 def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
-    """ Returns the mesh subset of given skeleton nodes based on a mapping dict between skeleton and mesh.
+    """ Returns the mesh subset of given skeleton nodes based on a mapping dict
+     between skeleton and mesh.
 
     Args:
         hybrid: MorphX HybridCloud object from which the subset should be extracted.
@@ -50,7 +51,7 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
     for node_ix in local_bfs:
         total_face.update(set(mapping_face[node_ix]))
 
-    total_face = list(total_face)
+    total_face = np.array(list(total_face), dtype=np.int)
 
     if len(total_face) == len(hm.faces):
         # all faces haven been selected
@@ -59,18 +60,14 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
         new_labels = hm.labels
     else:
         new_faces = hm.faces[total_face]
-        total_vertex = np.unique(new_faces.flatten()).astype(int)
+        total_vertex = np.unique(new_faces.flatten()).astype(int)  # also sorts the ids
         new_vertices = hm.vertices[total_vertex]
         new_labels = hm.labels[total_vertex]
         # normalize new faces to be contiguous
         face_shape = new_faces.shape
         new_faces = new_faces.flatten()
-        updated_face_ixs = dict()
-        cnt = 0
+        updated_face_ixs = {face_id: k for k, face_id in enumerate(np.unique(new_faces))}
         for ix, old_face_ix in enumerate(new_faces):
-            if old_face_ix not in updated_face_ixs:
-                updated_face_ixs[old_face_ix] = cnt
-                cnt += 1
             # update face indices
             new_faces[ix] = updated_face_ixs[old_face_ix]
         # switch to original shape
@@ -100,7 +97,9 @@ def hybrid_from_pkl(path):
 
 
 def hybrid_from_attr_dict(attr_dict: dict):
-    return HybridCloud(attr_dict['nodes'], attr_dict['edges'], attr_dict['vertices'], labels=attr_dict['labels'],
-                       features=attr_dict['features'], encoding=attr_dict['encoding'],
-                       obj_bounds=attr_dict['obj_bounds'], predictions=attr_dict['predictions'],
+    return HybridCloud(attr_dict['nodes'], attr_dict['edges'], attr_dict['vertices'],
+                       labels=attr_dict['labels'], features=attr_dict['features'],
+                       encoding=attr_dict['encoding'],
+                       obj_bounds=attr_dict['obj_bounds'],
+                       predictions=attr_dict['predictions'],
                        no_pred=attr_dict['no_pred'])

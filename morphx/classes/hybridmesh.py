@@ -68,7 +68,8 @@ class HybridMesh(HybridCloud):
                 if len(vert_ixs) == 0:
                     self._faces2node[node_ix] = []
                     continue
-                # TODO: Depreciated use of set with numba => change when numba has published typed_set
+                # TODO: Depreciated use of set with numba => change when numba
+                #  has published typed_set
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     new_faces = any_in_1d_nb(self.faces, set(vert_ixs))
