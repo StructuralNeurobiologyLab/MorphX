@@ -4,3 +4,5 @@ include =
 omit =
     tests/*
     */__init__.py
+    morphx/utils/viewcontrol.py
+    morphx/processing/visualize.py
