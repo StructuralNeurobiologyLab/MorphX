@@ -35,9 +35,7 @@ class TorchHandler(data.Dataset):
         # Get new sample from base dataloader, skip samples without any points
         sample = PointCloud(np.array([[0, 0, 0]]))
         while np.all(sample.vertices == 0):
-            start = time.time()
             sample = self.ch[item]
-            print(f'Full sample loading: {time.time()-start} s.')
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))

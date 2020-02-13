@@ -266,7 +266,7 @@ class PointCloud(object):
         attr_dict = {'vertices': self._vertices,
                      'labels': self._labels,
                      'features': self._features,
-                     'encoding': self._labels,
+                     'encoding': self._encoding,
                      'no_pred': self._no_pred,
                      'predictions': self._predictions,
                      'obj_bounds': self._obj_bounds}

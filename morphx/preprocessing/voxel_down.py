@@ -39,7 +39,7 @@ def process_single_thread(args):
 
     ce = ensembles.ensemble_from_pkl(file)
     ce = voxel_down(ce)
-    ce.save2pkl(output_path, name=name + '_voxel')
+    ce.save2pkl(output_path, name=name)
 
 
 def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
@@ -67,5 +67,5 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_ensembles/ads/single/',
-                    '/u/jklimesch/thesis/gt/gt_ensembles/ads/single/')
+    process_dataset('/u/jklimesch/thesis/gt/gt_ensembles/ads/old/',
+                    '/u/jklimesch/thesis/gt/gt_ensembles/ads/')
