@@ -9,7 +9,8 @@ import os
 import glob
 import pickle
 from tqdm import tqdm
-from morphx.processing import clouds, graphs, objects, ensembles
+from morphx.data import basics
+from morphx.processing import clouds, graphs, objects
 
 
 def split(data_path: str, chunk_size: int):
@@ -34,9 +35,10 @@ def split(data_path: str, chunk_size: int):
     for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1] + 1:-4]
-        obj = ensembles.ensemble_from_pkl(file)
+        obj = basics.load_pkl(file)
         obj.base_points(min_dist=chunk_size)
         data_size += len(obj.base_points())
+       
         chunks = []
         for node in obj.base_points():
             local_bfs_small = graphs.local_bfs_dist(obj.graph(), node, chunk_size / 1)

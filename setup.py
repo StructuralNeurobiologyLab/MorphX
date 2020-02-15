@@ -3,7 +3,8 @@ from setuptools import setup
 setup(
     name='MorphX',
     version='0.0.1',
-    description='Toolkit for exploration and segmentation of 3D morphologies in form of point clouds or meshes.',
+    description='Toolkit for exploration and segmentation of 3D morphologies '
+                'in form of point clouds or meshes.',
     url='https://github.com/StructuralNeurobiologyLab/MorphX',
     download_url='https://github.com/StructuralNeurobiologyLab/MorphX.git',
     author='Jonathan Klimesch, Philipp Schubert',

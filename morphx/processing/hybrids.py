@@ -58,11 +58,19 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
         new_faces = hm.faces
         new_vertices = hm.vertices
         new_labels = hm.labels
+        new_normals = hm.normals
     else:
         new_faces = hm.faces[total_face]
         total_vertex = np.unique(new_faces.flatten()).astype(int)  # also sorts the ids
         new_vertices = hm.vertices[total_vertex]
-        new_labels = hm.labels[total_vertex]
+        if len(hm.labels) > 0:
+            new_labels = hm.labels[total_vertex]
+        else:
+            new_labels = None
+        if len(hm.normals) > 0:
+            new_normals = hm.normals[total_vertex]
+        else:
+            new_normals = None
         # normalize new faces to be contiguous
         face_shape = new_faces.shape
         new_faces = new_faces.flatten()
@@ -72,7 +80,7 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
             new_faces[ix] = updated_face_ixs[old_face_ix]
         # switch to original shape
         new_faces = new_faces.reshape(face_shape)
-    mc = MeshCloud(new_vertices, new_faces, np.array([]), labels=new_labels,
+    mc = MeshCloud(new_vertices, new_faces, new_normals, labels=new_labels,
                    encoding=hm.encoding)
     return mc
 

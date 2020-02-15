@@ -21,9 +21,9 @@ class HybridCloud(PointCloud):
         which represent the actual shape of the object. """
 
     def __init__(self,
-                 nodes: np.ndarray,
-                 edges: np.ndarray,
-                 vertices: np.ndarray,
+                 nodes: np.ndarray = None,
+                 edges: np.ndarray = None,
+                 vertices: np.ndarray = None,
                  verts2node: dict = None,
                  labels: np.ndarray = None,
                  features: np.ndarray = None,
@@ -31,7 +31,8 @@ class HybridCloud(PointCloud):
                  encoding: dict = None,
                  obj_bounds: Optional[Dict[Union[str, int], np.ndarray]] = None,
                  predictions: dict = None,
-                 no_pred: List[str] = None):
+                 no_pred: List[str] = None,
+                 **kwargs):  # TODO: use kwargs and remove explicit kwarg forwards to super class.
         """
         Args:
             nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
@@ -48,9 +49,10 @@ class HybridCloud(PointCloud):
             predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
         """
-        super().__init__(vertices, labels=labels, features=features, encoding=encoding, obj_bounds=obj_bounds,
-                         predictions=predictions, no_pred=no_pred)
-
+        super().__init__(vertices, labels=labels, features=features, encoding=encoding,
+                         obj_bounds=obj_bounds, predictions=predictions, no_pred=no_pred, **kwargs)
+        if nodes is None and edges is None and vertices is None:
+            return
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
@@ -257,31 +259,6 @@ class HybridCloud(PointCloud):
         self._nodes = self._nodes + vector
 
     # -------------------------------------- HYBRID I/O ------------------------------------------- #
-
-    def save2pkl(self, path: str, name='cloud') -> int:
-        """ Saves hybrid cloud into pickle file at given path.
-
-        Args:
-            path: Folder where the object should be saved to.
-            name: Name of file in which the object should be saved.
-
-        Returns:
-            0 if saving process was successful, 1 otherwise.
-        """
-        try:
-            if not os.path.exists(path):
-                os.makedirs(path)
-            path = os.path.join(path, name + '.pkl')
-
-            attr_dict = self.get_attr_dict()
-
-            with open(path, 'wb') as f:
-                pickle.dump(attr_dict, f)
-            f.close()
-        except FileNotFoundError:
-            print("Saving was not successful as given path is not valid.")
-            return 1
-        return 0
 
     def get_attr_dict(self):
         attr_dict = super().get_attr_dict()

@@ -12,6 +12,7 @@ import sklearn.metrics as sm
 from tqdm import tqdm
 from typing import Tuple
 
+import morphx.data.basics
 import morphx.processing.objects
 from morphx.processing import clouds
 
@@ -124,8 +125,8 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
     gt_file = os.path.expanduser(gt_file)
 
     # load HybridCloud and corresponding ground truth
-    hc = morphx.processing.objects.load_pkl(file)
-    gt_hc = morphx.processing.objects.load_pkl(gt_file)
+    hc = morphx.data.basics.load_pkl(file)
+    gt_hc = morphx.data.basics.load_pkl(gt_file)
     if len(hc.labels) != len(gt_hc.labels):
         raise ValueError("Length of ground truth label array doesn't match with length of predicted label array.")
 

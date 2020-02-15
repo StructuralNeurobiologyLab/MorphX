@@ -19,7 +19,7 @@ dependencies:
   - matplotlib
   - tqdm
   - scipy
-  - networkx <= 2.3  # AttributeError: module 'networkx' has no attribute 'connected_component_subgraphs'
+  - networkx
   - numpy
   - coloredlogs
   - scikit-learn
@@ -45,4 +45,3 @@ dependencies:
 
     # Pre-release packages
     - git+https://github.com/ELEKTRONN/elektronn3.git@phil#egg=elektronn3
-    - git+https://github.com/knossos-project/knossos_utils@dev#egg=knossos_utils
