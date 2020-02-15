@@ -84,7 +84,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
 
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding), sample_ixs
+    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding, no_pred=pc.no_pred), sample_ixs
 
 
 def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:

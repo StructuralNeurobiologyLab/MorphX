@@ -6,7 +6,6 @@
 # Authors: Jonathan Klimesch
 
 import time
-import ipdb
 import numpy as np
 import networkx as nx
 from morphx.processing import graphs
@@ -110,7 +109,6 @@ if __name__ == '__main__':
     start = time.time()
     test_global_sanity()
     test_radius()
-    ipdb.set_trace()
     test_local_sanity()
     test_local_num_sanity()
     print('Finished after', time.time() - start)

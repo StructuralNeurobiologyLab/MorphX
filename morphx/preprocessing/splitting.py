@@ -9,7 +9,7 @@ import os
 import glob
 import pickle
 from tqdm import tqdm
-from morphx.processing import clouds, graphs, objects
+from morphx.processing import clouds, graphs, objects, ensembles
 
 
 def split(data_path: str, chunk_size: int):
@@ -30,20 +30,20 @@ def split(data_path: str, chunk_size: int):
 
     data_size = 0
     splitted_hcs = {}
-    print("Splitting of dataset is required.")
+    print("No splitting information exists for the given chunk size. Splitting of dataset is required.")
     for file in tqdm(files):
         slashs = [pos for pos, char in enumerate(file) if char == '/']
         name = file[slashs[-1] + 1:-4]
-        hc = objects.load_pkl(file)
-        hc.base_points(min_dist=chunk_size)
-        data_size += len(hc.base_points())
+        obj = ensembles.ensemble_from_pkl(file)
+        obj.base_points(min_dist=chunk_size)
+        data_size += len(obj.base_points())
         chunks = []
-        for node in hc.base_points():
-            local_bfs_small = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 1)
+        for node in obj.base_points():
+            local_bfs_small = graphs.local_bfs_dist(obj.graph(), node, chunk_size / 1)
             chunks.append(local_bfs_small)
-            local_bfs_medium = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 1.5)
+            local_bfs_medium = graphs.local_bfs_dist(obj.graph(), node, chunk_size * 1.5)
             chunks.append(local_bfs_medium)
-            local_bfs_large = graphs.local_bfs_dist(hc.graph(), node, chunk_size / 2)
+            local_bfs_large = graphs.local_bfs_dist(obj.graph(), node, chunk_size * 1.2)
             chunks.append(local_bfs_large)
         splitted_hcs[name] = chunks
 

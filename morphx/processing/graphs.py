@@ -7,7 +7,7 @@
 
 import networkx as nx
 import numpy as np
-from collections import defaultdict, deque
+from collections import deque
 
 
 def global_bfs_dist(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
@@ -16,8 +16,8 @@ def global_bfs_dist(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarra
         x,y,z position.
 
     Args:
-        g: The weighted networkx graph on which the BFS should be performed. Weights must be accessible
-            by g[a][b]['weight'] for the edge from node a to node b.
+        g: The weighted networkx graph on which the BFS should be performed. Nodes must have a position attribute
+         with their xyz positions as a numpy array, e.g. g.nodes[0]['position'] = np.array([1,2,3])
         source: The source node from which the BFS should start. Default is -1 which stands for a random node
         min_dist: The minimum distance between nodes in the BFS result.
 
@@ -58,10 +58,10 @@ def local_bfs_dist(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
         graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
 
     Args:
-        g: The weighted networkx graph on which the BFS should be performed. Weights must be accessible
-            by g[a][b]['weight'] for the edge from node a to node b.
+        g: The weighted networkx graph on which the BFS should be performed. Nodes must have a position attribute
+         with their xyz positions as a numpy array, e.g. g.nodes[0]['position'] = np.array([1,2,3])
         source: The source node from which the BFS should start.
-        max_dist: The maximum distance (same unit as weights) which should limit the BFS.
+        max_dist: The maximum distance which should limit the BFS.
 
     Returns:
         np.ndarray with nodes sorted recording to the result of the limited BFS
