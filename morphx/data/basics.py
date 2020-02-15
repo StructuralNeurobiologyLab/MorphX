@@ -12,7 +12,6 @@ from typing import Tuple
 def read_mesh_from_ply(fname: str) -> Tuple[np.ndarray, np.ndarray]:
     """
     Read mesh from .ply file. Assumes triangular polygons -> reshape to (-1, 3).
-    TODO: decide where this method should be placed.
 
     Args:
         fname: File name.

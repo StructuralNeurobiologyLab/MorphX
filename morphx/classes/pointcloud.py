@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import pickle
 import numpy as np
 from typing import List, Optional
@@ -254,22 +253,16 @@ class PointCloud(object):
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
-    def save2pkl(self, path: str, name='cloud') -> int:
+    def save2pkl(self, path: str) -> int:
         """ Saves point cloud into pickle file at given path.
 
         Args:
-            path: Folder where the object should be saved to.
-            name: Name of file in which the object should be saved.
+            path: Pickle file in which cloud should be saved.
 
         Returns:
             0 if saving process was successful, 1 otherwise.
         """
-        # TODO: it is better to pass the file path instead of a folder path and name.
         try:
-            if not path.endswith('.pkl'):
-                if not os.path.exists(path):  # TODO: folders should not be created in this method
-                    os.makedirs(path)
-                path = os.path.join(path, name + '.pkl')
             attr_dict = self.get_attr_dict()
             with open(path, 'wb') as f:
                 pickle.dump(attr_dict, f)
@@ -282,8 +275,6 @@ class PointCloud(object):
     def load_from_pkl(self, path: str):
         """
         Load attribute dict from pickle file.
-        TODO: Remove redundant '*_from_pkl' methods in processing of all objects
-         which inherit from PointCloud.
 
         Args:
             path: Path to pickle file which contains the attribute dictionary.

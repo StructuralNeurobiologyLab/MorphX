@@ -20,12 +20,9 @@ class HybridMesh(HybridCloud):
     def __init__(self,
                  faces: np.ndarray = None,
                  normals: Optional[np.ndarray] = None,
-                 *args, **kwargs):  # e.g. features are not passed here
+                 *args, **kwargs):
         """
         Args:
-            nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
-            edges: Edge list with indices of nodes in skel_nodes with shape (n, 2).
-            vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
             faces: The faces of the mesh as array of the respective vertices with shape (n, 3).
             normals: The normal vectors of the mesh.
             kwargs: See :py:class:`~morphx.classes.hybridcloud.HybridCloud`.

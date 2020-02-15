@@ -56,7 +56,7 @@ def test_node_labels():
     labels[10:20] += 1
 
     hc = HybridCloud(np.array([[i, i, i] for i in range(10)]), np.array([[i, i+1] for i in range(9)]),
-                     np.array(vertices), labels=labels)
+                     vertices=np.array(vertices), labels=labels)
 
     node_labels = hc.node_labels
     expected = np.array([i for i in range(10)])
@@ -64,7 +64,7 @@ def test_node_labels():
 
     node_labels = np.array([1, 2, 1, 1, 2, 2, 2, 1])
     hc = HybridCloud(np.array([[i, i, i] for i in range(8)]), np.array([[i, i+1] for i in range(7)]),
-                     np.array([[1, 1, 1], [2, 2, 2]]), node_labels=node_labels)
+                     vertices=np.array([[1, 1, 1], [2, 2, 2]]), node_labels=node_labels)
     hc.clean_node_labels(2)
     expected = np.array([1, 1, 1, 1, 2, 2, 2, 2])
     assert np.all(hc.node_labels == expected.reshape((len(expected), 1)))

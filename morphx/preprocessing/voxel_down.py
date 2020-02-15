@@ -48,9 +48,9 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
     pcd, idcs = pcd.voxel_down_sample_and_trace(50, pcd.get_min_bound(), pcd.get_max_bound())
     idcs = np.max(idcs, axis=1)
-    new_hc = HybridCloud(hc.nodes, hc.edges, np.asarray(pcd.points), labels=hc.labels[idcs], features=hc.labels[idcs],
-                         encoding=hc.encoding, obj_bounds=hc.obj_bounds, predictions=hc.predictions,
-                         node_labels=hc.node_labels, no_pred=hc.no_pred)
+    new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=hc.labels[idcs],
+                         features=hc.labels[idcs], encoding=hc.encoding, obj_bounds=hc.obj_bounds,
+                         predictions=hc.predictions, node_labels=hc.node_labels, no_pred=hc.no_pred)
     new_clouds = {}
     for key in ce.clouds:
         pc = ce.clouds[key]

@@ -23,35 +23,19 @@ class HybridCloud(PointCloud):
     def __init__(self,
                  nodes: np.ndarray = None,
                  edges: np.ndarray = None,
-                 vertices: np.ndarray = None,
                  verts2node: dict = None,
-                 labels: np.ndarray = None,
-                 features: np.ndarray = None,
                  node_labels: np.ndarray = None,
-                 encoding: dict = None,
-                 obj_bounds: Optional[Dict[Union[str, int], np.ndarray]] = None,
-                 predictions: dict = None,
-                 no_pred: List[str] = None,
-                 **kwargs):  # TODO: use kwargs and remove explicit kwarg forwards to super class.
+                 *args, **kwargs):
         """
         Args:
             nodes: Coordinates of the nodes of the skeleton with shape (n, 3).
             edges: Edge list with indices of nodes in skel_nodes with shape (n, 2).
-            vertices: Coordinates of the mesh vertices which surround the skeleton with shape (n, 3).
-            labels: Vertex label array (ith label corresponds to ith vertex) with same dimensions as vertices.
             verts2node: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
             node_labels: Node label array (ith label corresponds to ith node) with same dimenstions as nodes.
-            encoding: Dict with unique labels as keys and description string for respective label as value.
-            obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object.
-                E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to obj1, the
-                vertices from index 10 to 19 belong to obj2.
-            predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
-                got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
         """
-        super().__init__(vertices, labels=labels, features=features, encoding=encoding,
-                         obj_bounds=obj_bounds, predictions=predictions, no_pred=no_pred, **kwargs)
-        if nodes is None and edges is None and vertices is None:
+        super().__init__(*args, **kwargs)
+        if nodes is None and edges is None:
             return
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")

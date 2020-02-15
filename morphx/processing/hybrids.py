@@ -83,31 +83,3 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
     mc = MeshCloud(new_vertices, new_faces, new_normals, labels=new_labels,
                    encoding=hm.encoding)
     return mc
-
-
-# -------------------------------------- Hybrid I/O ------------------------------------------- #
-
-
-def hybrid_from_pkl(path):
-    """ Loads a hybrid cloud from an existing pickle file.
-
-    Args:
-        path: File path of pickle file.
-    """
-    path = os.path.expanduser(path)
-    if not os.path.exists(path):
-        print(f"File with name: {path} was not found at this location.")
-    with open(path, 'rb') as f:
-        obj = pickle.load(f)
-    f.close()
-
-    return hybrid_from_attr_dict(obj)
-
-
-def hybrid_from_attr_dict(attr_dict: dict):
-    return HybridCloud(attr_dict['nodes'], attr_dict['edges'], attr_dict['vertices'],
-                       labels=attr_dict['labels'], features=attr_dict['features'],
-                       encoding=attr_dict['encoding'],
-                       obj_bounds=attr_dict['obj_bounds'],
-                       predictions=attr_dict['predictions'],
-                       no_pred=attr_dict['no_pred'])
