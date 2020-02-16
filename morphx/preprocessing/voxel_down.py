@@ -27,7 +27,7 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = ensembles.ensemble_from_pkl(file)
         ce = voxel_down(ce)
-        ce.save2pkl(output_path, name=name + '_voxel')
+        ce.save2pkl(output_path + name + '_voxel')
 
 
 def process_single_thread(args):
@@ -39,7 +39,7 @@ def process_single_thread(args):
 
     ce = ensembles.ensemble_from_pkl(file)
     ce = voxel_down(ce)
-    ce.save2pkl(output_path, name=name)
+    ce.save2pkl(output_path + name)
 
 
 def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:

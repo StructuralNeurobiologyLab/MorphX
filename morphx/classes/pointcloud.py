@@ -182,6 +182,12 @@ class PointCloud(object):
     def remove_obj_bounds(self):
         self._obj_bounds = None
 
+    def set_predictions(self, predictions: dict):
+        if len(predictions) != len(self.vertices):
+            raise ValueError("Prediction dict must have as many keys as there are values.")
+        else:
+            self._predictions = predictions
+
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
     def preds2labels(self, mv: bool = True) -> np.ndarray:

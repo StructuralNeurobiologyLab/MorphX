@@ -5,9 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Philipp Schubert
 
-import os
-import pickle
 import numpy as np
+from typing import Tuple
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.pointcloud import PointCloud
@@ -16,7 +15,7 @@ from morphx.classes.meshcloud import MeshCloud
 
 # -------------------------------------- HYBRID EXTRACTION --------------------------------------- #
 
-def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
+def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointCloud, np.ndarray]:
     """ Returns the mesh subset of given skeleton nodes based on a mapping dict
      between skeleton and mesh.
 
@@ -31,7 +30,7 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> PointCloud:
     for i in local_bfs:
         idcs.extend(hybrid.verts2node[i])
     return PointCloud(hybrid.vertices[idcs], labels=hybrid.labels[idcs], features=hybrid.features[idcs],
-                      no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds, encoding=hybrid.encoding)
+                      no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds, encoding=hybrid.encoding), np.array(idcs)
 
 
 def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
