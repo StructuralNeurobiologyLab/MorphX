@@ -20,12 +20,13 @@ class CloudEnsemble(object):
     Class which represents a collection of PointCloud objects.
     """
 
-    def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None):
+    def __init__(self, clouds: dict, hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None):
         """
         Args:
             clouds: Dict with cloud names as keys and PointCloud objects as Values. Objects like HybridClouds in this
                 dict get treated as sole PointClouds.
             hybrid: The HypridCloud on which all graph and extraction algorithms are performed for this ensemble.
+            no_pred: List of names of objects which should not be processed in model prediction or mapping.
         """
         self._clouds = clouds
         self._hc = hybrid

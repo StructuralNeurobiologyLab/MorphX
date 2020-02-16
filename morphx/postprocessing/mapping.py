@@ -8,9 +8,8 @@
 import os
 import pickle
 import numpy as np
-
-import morphx.data.basics
-from morphx.processing import clouds, objects
+from morphx.data import basics
+from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
 
 
@@ -83,17 +82,17 @@ class PredictionMapper:
 
     def load_prediction(self, name: str):
         try:
-            self._curr_obj = morphx.data.basics.load_pkl(self._save_path + name + '.pkl')
+            self._curr_obj = basics.load_pkl(self._save_path + name + '.pkl')
         except FileNotFoundError:
-            self._curr_obj = morphx.data.basics.load_pkl(self._data_path + name + '.pkl')
+            self._curr_obj = basics.load_pkl(self._data_path + name + '.pkl')
         self._curr_name = name
 
     def save_prediction(self, name: str = None):
         if name is None:
             name = self._curr_name
-        morphx.data.basics.save2pkl(self._curr_obj, self._save_path, name=name)
+        basics.save2pkl(self._curr_obj, self._save_path, name=name)
 
         # Save additional lightweight cloud for fast inspection
         simple_cloud = clouds.filter_preds(self._curr_obj)
         simple_cloud.preds2labels()
-        morphx.data.basics.save2pkl(simple_cloud, self._save_path + 'info/', name=name + '_light')
+        basics.save2pkl(simple_cloud, self._save_path + 'info/', name=name + '_light')

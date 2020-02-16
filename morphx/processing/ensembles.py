@@ -11,6 +11,7 @@ import numpy as np
 from math import ceil
 from typing import Optional, Tuple
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 from morphx.processing import clouds, hybrids
 
@@ -80,7 +81,7 @@ def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[PointCloud]:
 
 # -------------------------------------- HYBRID EXTRACTION ---------------------------------------- #
 
-def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray):
+def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray) -> PointCloud:
     """ Extracts all vertices which are associated with the given nodes by the mapping dict verts2node of
         the ensemble.
 
@@ -122,10 +123,11 @@ def ensemble_from_pkl(path):
     with open(path, 'rb') as f:
         obj = pickle.load(f)
     f.close()
-    hc = hybrids.hybrid_from_attr_dict(obj['hybrid'])
+
+    hc = HybridCloud(**obj['hybrid'])
 
     cloudlist = {}
     for key in obj['clouds']:
-        cloudlist[key] = clouds.cloud_from_attr_dict(obj['clouds'][key])
+        cloudlist[key] = PointCloud(**obj['clouds'][key])
 
     return CloudEnsemble(cloudlist, hc, obj['no_pred'])

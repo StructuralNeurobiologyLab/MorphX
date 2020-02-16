@@ -10,13 +10,10 @@ import glob
 import pickle
 import random
 import numpy as np
-import time
 from typing import Union, Tuple
-from morphx.data import basics
-from morphx.processing import clouds, objects
+from morphx.processing import clouds, objects, ensembles
 from morphx.preprocessing import splitting
 from morphx.classes.pointcloud import PointCloud
-from morphx.classes.cloudensemble import CloudEnsemble
 
 
 class ChunkHandler:
@@ -77,7 +74,7 @@ class ChunkHandler:
             self._obj_names.append(name)
             if not self._specific:
                 # TODO: Generalize and add loading to dispatcher
-                obj = basics.load_pkl(file)
+                obj = ensembles.ensemble_from_pkl(file)
                 self._objs.append(obj)
 
         self._chunk_list = []
@@ -132,8 +129,7 @@ class ChunkHandler:
 
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    # TODO: Generalize and add loading to dispatcher
-                    self._curr_obj = basics.load_pkl(self._data_path + item[0] + '.pkl')
+                    self._curr_obj = ensembles.ensemble_from_pkl(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist
@@ -145,8 +141,6 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_obj[item[1]]
                 subset = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-                if isinstance(subset, CloudEnsemble):
-                    subset = subset.pc
                 sample, ixs = clouds.sample_cloud(subset, self._sample_num)
             else:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '

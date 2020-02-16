@@ -286,7 +286,7 @@ class PointCloud(object):
                      'labels': self._labels,
                      'features': self._features,
                      'encoding': self._encoding,
-                     'no_pred': self._no_pred,
+                     'obj_bounds': self._obj_bounds,
                      'predictions': self._predictions,
-                     'obj_bounds': self._obj_bounds}
+                     'no_pred': self._no_pred}
         return attr_dict
