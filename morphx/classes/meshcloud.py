@@ -11,10 +11,11 @@ from morphx.classes.pointcloud import PointCloud
 
 class MeshCloud(PointCloud):
     """ Class which represents a mesh with possible labels """
+    # TODO: could probably be replaced by HybdridMesh or HybridMesh should inherit from MeshCloud.
     def __init__(self,
-                 vertices: np.ndarray,
-                 faces: np.ndarray,
-                 normals: np.ndarray,
+                 vertices: np.ndarray = None,
+                 faces: np.ndarray = None,
+                 normals: np.ndarray = None,
                  labels: np.ndarray = None,
                  encoding: dict = None):
         """

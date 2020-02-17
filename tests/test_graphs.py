@@ -18,72 +18,40 @@ def test_global_sanity():
     expected = [0, 2, 5, 10, 8, 9]
 
     g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 1), (1, 2, 1), (0, 3, 1), (0, 4, 1), (4, 5, 1),
-                               (5, 6, 1), (5, 7, 1), (7, 8, 1), (7, 9, 1), (6, 10, 1),
-                               (10, 11, 1)])
 
-    chosen = nodes[graphs.global_bfs_dist(g, 2, source=0)]
-    assert len(chosen) == len(expected)
-    for item in chosen:
-        assert item in expected
+    pos = [np.array([0, 0, 0]), np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([0.5, 0, 0]),
+           np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([1.5, 0, 0]), np.array([1.5, 0, 0]),
+           np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2.5, 0, 0])]
 
+    for i in range(12):
+        g.nodes[i]['position'] = pos[i]
 
-def test_global_different_weights():
-    g = nx.Graph()
-    nodes = np.arange(12)
-    expected = [0, 1, 2, 4, 6, 7, 9, 11]
+    g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
 
-    g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 2), (1, 2, 3), (0, 3, 1), (0, 4, 4), (4, 5, 1),
-                               (5, 6, 1), (5, 7, 1), (7, 8, 1), (7, 9, 2), (6, 10, 1),
-                               (10, 11, 6)])
-
-    chosen = nodes[graphs.global_bfs_dist(g, 2, source=0)]
+    chosen = nodes[graphs.global_bfs_dist(g, 1, source=0)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
 
 def test_radius():
+    """ Same as sanity check, only with 1.5 as min_dist. """
     g = nx.Graph()
     nodes = np.arange(12)
-    expected1 = [0, 2, 4, 9, 11]
-    expected2 = [0, 11]
+    expected = [0, 6, 7]
 
     g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 2), (1, 2, 3), (0, 3, 1), (0, 4, 4), (4, 5, 1),
-                               (5, 6, 1), (5, 7, 1), (7, 8, 1), (7, 9, 2), (6, 10, 1),
-                               (10, 11, 6)])
 
-    chosen = nodes[graphs.global_bfs_dist(g, 3.5, source=0)]
-    assert len(chosen) == len(expected1)
-    for item in chosen:
-        assert item in expected1
+    pos = [np.array([0, 0, 0]), np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([0.5, 0, 0]),
+           np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([1.5, 0, 0]), np.array([1.5, 0, 0]),
+           np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2.5, 0, 0])]
 
-    chosen = nodes[graphs.global_bfs_dist(g, 10.1, source=0)]
-    assert len(chosen) == len(expected2)
-    for item in chosen:
-        assert item in expected2
+    for i in range(12):
+        g.nodes[i]['position'] = pos[i]
 
+    g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
 
-def test_cycles():
-    g = nx.Graph()
-    nodes = np.arange(9)
-    expected = [0, 2, 4, 5]
-
-    g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 1), (1, 2, 1), (0, 3, 1), (0, 6, 1), (2, 8, 1),
-                               (3, 4, 1), (4, 7, 1), (8, 7, 1), (6, 5, 1)])
-
-    chosen = nodes[graphs.global_bfs_dist(g, 2, source=0)]
-    assert len(chosen) == len(expected)
-    for item in chosen:
-        assert item in expected
-
-    expected = [0]
-    g[8][7]['weight'] = 3
-
-    chosen = nodes[graphs.global_bfs_dist(g, 4, source=0)]
+    chosen = nodes[graphs.global_bfs_dist(g, 1.5, source=0)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
@@ -93,30 +61,20 @@ def test_cycles():
 def test_local_sanity():
     g = nx.Graph()
     nodes = np.arange(12)
-    expected = [0, 1, 2, 3, 4, 5]
+    expected = [5, 4, 0, 6, 10, 7, 9, 8]
 
     g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 1), (1, 2, 1), (0, 3, 1), (0, 4, 1), (4, 5, 1),
-                               (5, 6, 1), (5, 7, 1), (7, 8, 1), (7, 9, 1), (6, 10, 1),
-                               (10, 11, 1)])
 
-    chosen = nodes[graphs.local_bfs_dist(g, 0, 2)]
-    assert len(chosen) == len(expected)
-    for item in chosen:
-        assert item in expected
+    pos = [np.array([0, 0, 0]), np.array([-0.5, 0, 0]), np.array([-1, 0, 0]), np.array([-0.5, 0, 0]),
+           np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([1.5, 0, 0]), np.array([1.5, 0, 0]),
+           np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2.5, 0, 0])]
 
+    for i in range(12):
+        g.nodes[i]['position'] = pos[i]
 
-def test_local_different_weights():
-    g = nx.Graph()
-    nodes = np.arange(12)
-    expected = [0, 1, 3, 4]
+    g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
 
-    g.add_nodes_from(nodes)
-    g.add_weighted_edges_from([(0, 1, 2), (1, 2, 3), (0, 3, 1), (0, 4, 4), (4, 5, 1),
-                               (5, 6, 1), (5, 7, 1), (7, 8, 1), (7, 9, 2), (6, 10, 1),
-                               (10, 11, 6)])
-
-    chosen = nodes[graphs.local_bfs_dist(g, 0, 4)]
+    chosen = nodes[graphs.local_bfs_dist(g, 5, 1)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
@@ -150,10 +108,7 @@ def test_local_num_sanity():
 if __name__ == '__main__':
     start = time.time()
     test_global_sanity()
-    test_global_different_weights()
     test_radius()
-    test_cycles()
     test_local_sanity()
-    test_local_different_weights()
     test_local_num_sanity()
     print('Finished after', time.time() - start)

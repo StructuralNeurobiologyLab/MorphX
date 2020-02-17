@@ -84,7 +84,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
 
         sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
 
-    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding), sample_ixs
+    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding, no_pred=pc.no_pred), sample_ixs
 
 
 def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
@@ -174,7 +174,7 @@ def filter_labels(cloud: PointCloud, labels: list) -> PointCloud:
         mask = np.logical_or(mask, cloud.labels == label)
 
     if isinstance(cloud, HybridCloud):
-        f_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices[mask], labels=cloud.labels[mask])
+        f_cloud = HybridCloud(cloud.nodes, cloud.edges, vertices=cloud.vertices[mask], labels=cloud.labels[mask])
     else:
         f_cloud = PointCloud(cloud.vertices[mask], labels=cloud.labels[mask])
     return f_cloud
@@ -252,7 +252,8 @@ def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
         new_encoding = None
 
     if isinstance(cloud, HybridCloud):
-        new_cloud = HybridCloud(cloud.nodes, cloud.edges, cloud.vertices, labels=new_labels, encoding=new_encoding)
+        new_cloud = HybridCloud(cloud.nodes, cloud.edges, vertices=cloud.vertices, labels=new_labels,
+                                encoding=new_encoding)
     else:
         new_cloud = PointCloud(cloud.vertices, labels=new_labels, encoding=new_encoding)
     return new_cloud
@@ -436,29 +437,5 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,
                           no_pred=no_pred)
     else:
-        return HybridCloud(nodes, edges, t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
+        return HybridCloud(nodes, edges, vertices=t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
                            encoding=encoding, no_pred=no_pred)
-
-
-# -------------------------------------- CLOUD I/O ------------------------------------------- #
-
-
-def cloud_from_pkl(path):
-    """ Loads a point cloud from an existing pickle file.
-
-    Args:
-        path: File path of pickle file.
-    """
-    path = os.path.expanduser(path)
-    if not os.path.exists(path):
-        print(f"File with name: {path} was not found at this location.")
-    with open(path, 'rb') as f:
-        obj = pickle.load(f)
-    f.close()
-
-    return cloud_from_attr_dict(obj)
-
-
-def cloud_from_attr_dict(attr_dict: dict):
-    return PointCloud(attr_dict['vertices'], attr_dict['labels'], attr_dict['features'], attr_dict['encoding'],
-                      attr_dict['obj_bounds'], attr_dict['predictions'], attr_dict['no_pred'])

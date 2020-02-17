@@ -11,11 +11,12 @@ import pickle
 import random
 import numpy as np
 import time
-import ipdb
 from typing import Union, Tuple
+from morphx.data import basics
 from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 
 
 class ChunkHandler:
@@ -75,7 +76,8 @@ class ChunkHandler:
             name = file[slashs[-1] + 1:-4]
             self._obj_names.append(name)
             if not self._specific:
-                obj = objects.load_pkl(file)
+                # TODO: Generalize and add loading to dispatcher
+                obj = basics.load_pkl(file)
                 self._objs.append(obj)
 
         self._chunk_list = []
@@ -91,11 +93,6 @@ class ChunkHandler:
 
         # Index of current chunk
         self._ix = 0
-
-        # # Index of current hc in self.hcs
-        # self._obj_idx = 0
-        # # Index of current chunk in current hc
-        # self._chunk_idx = 0
 
     def __len__(self):
         """ Depending on the mode either the sum of the number of chunks from each
@@ -135,7 +132,8 @@ class ChunkHandler:
 
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    self._curr_obj = objects.load_pkl(self._data_path + item[0] + '.pkl')
+                    # TODO: Generalize and add loading to dispatcher
+                    self._curr_obj = basics.load_pkl(self._data_path + item[0] + '.pkl')
                     self._curr_name = item[0]
 
                 # Return PointCloud with zeros if requested chunk doesn't exist
@@ -147,12 +145,13 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_obj[item[1]]
                 subset = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-                sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
+                if isinstance(subset, CloudEnsemble):
+                    subset = subset.pc
+                sample, ixs = clouds.sample_cloud(subset, self._sample_num)
             else:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
                                  'chunk index within that cloud.')
         else:
-            start = time.time()
             # Get the next item while iterating the entire dataset
             if self._ix >= len(self._chunk_list):
                 random.shuffle(self._chunk_list)
@@ -171,9 +170,7 @@ class ChunkHandler:
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:
-            start = time.time()
             self._transform(sample)
-            print(f'Transform: {time.time() - start} s')
         else:
             # Return PointCloud with zeros if sample is empty
             if self._specific:

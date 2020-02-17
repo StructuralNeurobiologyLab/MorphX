@@ -17,7 +17,8 @@ def test_ensemble2pointcloud():
     pc1 = PointCloud(np.array([[i, i, i] for i in range(10)]), np.array([[i] for i in range(10)]),
                      obj_bounds={'obj1': np.array([0, 5]), 'obj2': np.array([5, 10])}, encoding={'e1': 1, 'e2': 2})
     pc2 = PointCloud(np.array([[i, i, i] for i in range(10)]), np.array([[i] for i in range(10)]))
-    hc = HybridCloud(np.array([[1, 1, 1], [2, 2, 2]]), np.array([[0, 1]]), np.array([[i, i, i] for i in range(10)]),
+    hc = HybridCloud(np.array([[1, 1, 1], [2, 2, 2]]), np.array([[0, 1]]),
+                     vertices=np.array([[i, i, i] for i in range(10)]),
                      encoding={'e1': 1, 'e3': 3}, obj_bounds={'obj3': np.array([0, 2]), 'obj4': np.array([2, 10])})
     ce = CloudEnsemble({'pc1': pc1, 'pc2': pc2}, hybrid=hc)
     result = ensembles.ensemble2pointcloud(ce)

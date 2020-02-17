@@ -15,7 +15,7 @@ from scipy.spatial.transform import Rotation as Rot
 def test_normalization():
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     pc.scale(-10)
     hc.scale(-10)
@@ -27,7 +27,7 @@ def test_normalization():
     # test transformation class from processing.clouds
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     transform = clouds.Normalization(10)
     transform(pc)
@@ -46,7 +46,7 @@ def test_rotate_randomly():
 
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     pc.rotate_randomly(angle_range)
     hc.rotate_randomly(angle_range)
@@ -57,7 +57,7 @@ def test_rotate_randomly():
 
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     # test transformation class from processing.clouds
     transform = clouds.RandomRotate(angle_range)
@@ -72,7 +72,7 @@ def test_rotate_randomly():
 def test_center():
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
     relation = hc.vertices[0] - hc.nodes[1]
 
     pc.move(np.array([1, 1, 1]))
@@ -85,7 +85,7 @@ def test_center():
 
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
     relation = hc.vertices[0] - hc.nodes[1]
 
     # test transformation class from processing.clouds
@@ -101,7 +101,7 @@ def test_center():
 def test_composition():
     pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
     hc = HybridCloud(np.array([[10, 10, 10], [20, 20, 20]]), np.array([[0, 1]]),
-                     np.array([[10, 10, 10], [20, 20, 20]]))
+                     vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     transform = clouds.Compose([clouds.Normalization(10), clouds.RandomRotate((60, 60)), clouds.Center()])
     transform(pc)

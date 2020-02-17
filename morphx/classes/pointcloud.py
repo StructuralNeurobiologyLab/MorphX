@@ -5,11 +5,11 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
 import pickle
 import numpy as np
 from typing import List, Optional
 from scipy.spatial.transform import Rotation as Rot
+from morphx.data.basics import load_pkl
 
 
 class PointCloud(object):
@@ -18,7 +18,7 @@ class PointCloud(object):
     """
 
     def __init__(self,
-                 vertices: np.ndarray,
+                 vertices: np.ndarray = None,
                  labels: np.ndarray = None,
                  features: np.ndarray = None,
                  encoding: dict = None,
@@ -38,18 +38,20 @@ class PointCloud(object):
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
             no_pred: List of names of objects which should not be processed in model prediction or mapping.
         """
+        if vertices is None:
+            return
         if len(vertices) > 0 and vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = vertices
 
-        if labels is None:
-            self._labels = np.zeros(0)
-        if labels is not None:
+        if labels is None or len(labels) == 0:
+            self._labels = np.zeros(0)  # TODO: why not None?
+        else:
             if len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
-        if features is None:
+        if features is None or len(features) == 0:
             self._features = np.zeros(0)
         else:
             if len(features) != len(vertices):
@@ -101,6 +103,18 @@ class PointCloud(object):
     @property
     def class_num(self) -> int:
         return self._class_num
+
+    def __eq__(self, other: 'PointCloud'):
+        if type(self) != type(other):
+            return False
+        attr_o = other.get_attr_dict()
+        attr = self.get_attr_dict()
+        if set(attr_o.keys()) != set(attr.keys()):
+            return False
+        for k, v in attr.items():
+            if not np.all(v == attr_o[k]):
+                return False
+        return True
 
     # -------------------------------------- LABEL ANALYSIS ------------------------------------------- #
 
@@ -239,20 +253,16 @@ class PointCloud(object):
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
-    def save2pkl(self, path: str, name='cloud') -> int:
+    def save2pkl(self, path: str) -> int:
         """ Saves point cloud into pickle file at given path.
 
         Args:
-            path: Folder where the object should be saved to.
-            name: Name of file in which the object should be saved.
+            path: Pickle file in which cloud should be saved.
 
         Returns:
             0 if saving process was successful, 1 otherwise.
         """
         try:
-            if not os.path.exists(path):
-                os.makedirs(path)
-            path = os.path.join(path, name + '.pkl')
             attr_dict = self.get_attr_dict()
             with open(path, 'wb') as f:
                 pickle.dump(attr_dict, f)
@@ -262,11 +272,20 @@ class PointCloud(object):
             return 1
         return 0
 
+    def load_from_pkl(self, path: str):
+        """
+        Load attribute dict from pickle file.
+
+        Args:
+            path: Path to pickle file which contains the attribute dictionary.
+        """
+        self.__init__(**load_pkl(path))
+
     def get_attr_dict(self):
         attr_dict = {'vertices': self._vertices,
                      'labels': self._labels,
                      'features': self._features,
-                     'encoding': self._labels,
+                     'encoding': self._encoding,
                      'no_pred': self._no_pred,
                      'predictions': self._predictions,
                      'obj_bounds': self._obj_bounds}
