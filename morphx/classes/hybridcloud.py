@@ -245,7 +245,6 @@ class HybridCloud(PointCloud):
     # -------------------------------------- HYBRID I/O ------------------------------------------- #
 
     def get_attr_dict(self):
-        attr_dict = super().get_attr_dict()
-        attr_dict['nodes'] = self._nodes
-        attr_dict['edges'] = self._edges
+        attr_dict = {'nodes': self._nodes, 'edges': self._edges}
+        attr_dict.update(super().get_attr_dict())
         return attr_dict

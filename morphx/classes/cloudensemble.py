@@ -8,11 +8,10 @@
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
-from typing import Dict, Optional, List
+from typing import Optional, List
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 import pickle
-import os
 
 
 class CloudEnsemble(object):
@@ -20,18 +19,22 @@ class CloudEnsemble(object):
     Class which represents a collection of PointCloud objects.
     """
 
-    def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None):
+    def __init__(self, clouds: dict, hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None,
+                 predictions: Optional[dict] = None):
         """
         Args:
             clouds: Dict with cloud names as keys and PointCloud objects as Values. Objects like HybridClouds in this
                 dict get treated as sole PointClouds.
             hybrid: The HypridCloud on which all graph and extraction algorithms are performed for this ensemble.
+            no_pred: List of names of objects which should not be processed in model prediction or mapping.
+            predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
+                got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}. Refers to the flattened ensemble.
         """
         self._clouds = clouds
         self._hc = hybrid
         self._pc = None
         self._verts2node = None
-        self._predictions = None
+        self._predictions = predictions
 
         if no_pred is None:
             self._no_pred = []
@@ -145,24 +148,20 @@ class CloudEnsemble(object):
 
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 
-    def save2pkl(self, path: str, name='cloud') -> int:
+    def save2pkl(self, path: str) -> int:
         """ Saves ensemble into pickle file at given path.
 
         Args:
-            path: Folder where the object should be saved to.
-            name: Name of file in which the object should be saved.
+            path: File in which object should be saved.
 
         Returns:
             0 if saving process was successful, 1 otherwise.
         """
         try:
-            if not os.path.exists(path):
-                os.makedirs(path)
-            path = os.path.join(path, name + '.pkl')
-
             attr_dicts = {'hybrid': self.hc.get_attr_dict(),
                           'no_pred': self._no_pred,
-                          'clouds': {}}
+                          'clouds': {},
+                          'predictions': self._predictions}
             for key in self._clouds:
                 attr_dicts['clouds'][key] = self._clouds[key].get_attr_dict()
 

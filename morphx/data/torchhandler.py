@@ -6,9 +6,8 @@
 # Authors: Jonathan Klimesch
 
 import torch
-import time
 import numpy as np
-from typing import Callable, Union, Tuple
+from typing import Union, Tuple
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.chunkhandler import ChunkHandler
@@ -22,19 +21,35 @@ class TorchHandler(data.Dataset):
                  data_path: str,
                  chunk_size: int,
                  sample_num: int,
-                 transform: clouds.Compose = clouds.Compose([clouds.Identity()])):
+                 nclasses: int,
+                 transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
+                 specific: bool = False):
         """ Initializes Dataset. """
-        self.ch = ChunkHandler(data_path, chunk_size, sample_num, transform)
+        self._ch = ChunkHandler(data_path, chunk_size, sample_num, transform, specific=specific)
+        self._specific = specific
+        self._nclasses = nclasses
+        self._sample_num = sample_num
 
     def __len__(self):
-        return len(self.ch)
+        return len(self._ch)
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
         """ Index gets ignored. """
+        # TODO: Improve handling of empty pointclouds
         # Get new sample from base dataloader, skip samples without any points
+        ixs = np.empty(0)
         sample = PointCloud(np.array([[0, 0, 0]]))
         while np.all(sample.vertices == 0):
-            sample = self.ch[item]
+            if self._specific:
+                sample, ixs = self._ch[item]
+                if sample is None:
+                    sample, ixs = PointCloud(vertices=np.zeros((self._sample_num, 3)),
+                                             labels=np.zeros(self._sample_num),
+                                             features=np.zeros(self._sample_num)), \
+                                  np.zeros(self._sample_num)
+                    break
+            else:
+                sample = self._ch[item]
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))
@@ -46,20 +61,31 @@ class TorchHandler(data.Dataset):
         lbs = torch.from_numpy(labels).long()
         features = torch.from_numpy(sample.features).float()
 
+        if self._specific:
+            ixs = torch.from_numpy(ixs)
+
         no_pred_labels = []
         for name in sample.no_pred:
             no_pred_labels.append(sample.encoding[name])
 
+        # build mask for all indices which should not be used for loss calculation
         idcs = torch.from_numpy(np.isin(sample.labels, no_pred_labels).reshape(-1))
-        p_mask = torch.ones(len(sample.vertices), 3, dtype=torch.bool)
+        o_mask = torch.ones(len(sample.vertices), self._nclasses, dtype=torch.bool)
         l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
-        p_mask[idcs] = False
+        o_mask[idcs] = False
         l_mask[idcs] = False
 
-        return {'pts': pts, 'features': features, 'target': lbs, 'p_mask': p_mask, 'l_mask': l_mask}
+        if self._specific:
+            return {'pts': pts, 'features': features, 'target': lbs, 'o_mask': o_mask, 'l_mask': l_mask, 'map': ixs}
+        else:
+            return {'pts': pts, 'features': features, 'target': lbs, 'o_mask': o_mask, 'l_mask': l_mask}
 
-    def hc_names(self):
-        return self.ch.obj_names
+    @property
+    def obj_names(self):
+        return self._ch.obj_names
 
     def get_hybrid_length(self, name: str):
-        return self.ch.get_obj_length(name)
+        return self._ch.get_obj_length(name)
+
+    def get_obj_length(self, name: str):
+        return self._ch.get_obj_length(name)

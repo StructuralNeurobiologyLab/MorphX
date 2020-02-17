@@ -73,9 +73,8 @@ class HybridMesh(HybridCloud):
         return self._faces2node
 
     def get_attr_dict(self):
-        attr_dict = super().get_attr_dict()
-        attr_dict['faces'] = self._faces
-        attr_dict['normals'] = self._normals
+        attr_dict = {'faces': self._faces, 'normals': self._normals}
+        attr_dict .update(super().get_attr_dict())
         return attr_dict
 
 
