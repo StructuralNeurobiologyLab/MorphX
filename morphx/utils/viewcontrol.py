@@ -1,6 +1,7 @@
 import os
 import glob
 import pickle
+import ipdb
 import numpy as np
 from getkey import keys
 import morphx.processing.objects
@@ -52,8 +53,8 @@ class ViewControl(object):
             else:
                 self.load = self.load_val
 
-    def start_view(self, idx: int):
-        self.load(idx)
+    def start_view(self, name: str):
+        self.load(name)
 
     def core_next(self, cloud1: PointCloud, cloud2: PointCloud, save_name):
         """ Visualizes given clouds and waits for user input:
@@ -124,17 +125,17 @@ class ViewControl(object):
             else:
                 idx += res
 
-    def load_val(self, epoch_num: int):
+    def load_val(self, name: str):
         """ Method for viewing validation or training examples. These examples must be saved as a list in the pickle
             file and should alternate between target and prediction. E.g. [targetcloud1, predictedcloud1, targetcloud2
             predictedcloud2, ...]
 
 
         Args:
-            epoch_num: number of epoch whose examples should be visualized.
+            name: Name of file
         """
         reverse = False
-        req_files = [file for file in self.files1 if 'epoch_' + str(epoch_num) + '_' in file]
+        req_files = [file for file in self.files1 if name in file]
         idx = 0
 
         # TODO: Make this pythonic and less ugly
