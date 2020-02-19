@@ -23,9 +23,13 @@ class TorchHandler(data.Dataset):
                  sample_num: int,
                  nclasses: int,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
-                 specific: bool = False):
+                 specific: bool = False,
+                 data_type: str = 'ce',
+                 obj_feats: dict = None
+                 ):
         """ Initializes Dataset. """
-        self._ch = ChunkHandler(data_path, chunk_size, sample_num, transform, specific=specific)
+        self._ch = ChunkHandler(data_path, chunk_size, sample_num, transform, specific=specific, data_type=data_type,
+                                obj_feats=obj_feats)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
@@ -38,11 +42,12 @@ class TorchHandler(data.Dataset):
         # TODO: Improve handling of empty pointclouds
         # Get new sample from base dataloader, skip samples without any points
         ixs = np.empty(0)
-        sample = PointCloud(np.array([[0, 0, 0]]))
-        while np.all(sample.vertices == 0):
+        sample = None
+        while sample is None:
             if self._specific:
                 sample, ixs = self._ch[item]
-                if sample is None:
+                # if ixs is None, the requested chunk doesn't exist
+                if ixs is None:
                     sample, ixs = PointCloud(vertices=np.zeros((self._sample_num, 3)),
                                              labels=np.zeros(self._sample_num),
                                              features=np.zeros(self._sample_num)), \

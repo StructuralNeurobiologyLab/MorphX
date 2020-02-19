@@ -119,6 +119,8 @@ class CloudEnsemble(object):
             return self._hc.graph(simple=simple)
 
     def get_cloud(self, cloud_name: str) -> Optional[PointCloud]:
+        if cloud_name == 'hc':
+            return self._hc
         try:
             return self._clouds[cloud_name]
         except ValueError:

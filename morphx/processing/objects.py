@@ -5,8 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-from typing import Union, Tuple
 import numpy as np
+from typing import Union, Tuple
 from morphx.classes.cloudensemble import CloudEnsemble
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
@@ -33,3 +33,10 @@ def filter_preds(obj: Union[HybridCloud, CloudEnsemble]) -> PointCloud:
         pc.set_predictions(obj.predictions)
         obj = pc
     return clouds.filter_preds(obj)
+
+
+def load_obj(data_type: str, file: str) -> Union[HybridCloud, CloudEnsemble]:
+    if data_type == 'ce':
+        return ensembles.ensemble_from_pkl(file)
+    else:
+        return HybridCloud().load_from_pkl(file)
