@@ -28,7 +28,8 @@ class MergerCloudSet():
                  radius_factor: float = 1.5,
                  class_num: int = 2,
                  label_filter: list = None,
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 include_skeleton: bool = True):
         """ Initializes Dataset.
 
         Args:
@@ -43,6 +44,7 @@ class MergerCloudSet():
                 adjusts the overlap between the cloud chunks.
             class_num: Number of classes.
             label_filter: List of labels after which the dataset should be filtered.
+            include_skeleton: return point cloud and skeleton nodes (x,y,z) coordinates.
         """
 
         self.data_path = data_path
@@ -55,6 +57,7 @@ class MergerCloudSet():
         self.class_num = class_num
         self.label_filter = label_filter
         self.verbose = verbose
+        self.include_skeleton = include_skeleton
         # This two kd-trees will be initialized every time a new pcl is loaded with self.load_new()
         self.kdtree_vert = None
         self.kdtree_node = None
@@ -69,7 +72,8 @@ class MergerCloudSet():
         self.process_single = False
 
         # options for iterating the dataset
-        self.curr_hybrid_idx = 0
+        # self.curr_hybrid_idx = 0
+        self.curr_hybrid_idx = np.random.randint(0, len(self.files))
         self.curr_node_idx = 0
         self.radius_nm_global = radius_nm*self.radius_factor
 
@@ -106,10 +110,16 @@ class MergerCloudSet():
             if self.process_single is True:
                 self.process_single = False
                 self.size = self.size_cache
-                self.load_new()
+                # self.load_new()
+                load_new_success = self.load_new()
+                while not load_new_success:
+                    load_new_success = self.load_new()
                 return None
             else:
-                self.load_new()
+                # self.load_new()
+                load_new_success = self.load_new()
+                while not load_new_success:
+                    load_new_success = self.load_new()
                 # print("Loaded new cell as point cloud.")
 
         # node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
@@ -121,23 +131,30 @@ class MergerCloudSet():
         chunk_vert_ixs = self.kdtree_vert.query_ball_point(node_coord, r=self.query_radius)
         chunk_vertices = self.curr_hybrid.vertices[chunk_vert_ixs]
         chunk_vert_labels = self.curr_hybrid.labels[chunk_vert_ixs]
+        chunk_nodes = self.curr_hybrid.nodes[chunk_node_ixs]
+        chunk_node_labels = self.curr_hybrid.node_labels[chunk_node_ixs]
+        # convert all -1 to 0 in chunk_node_labels
+        chunk_node_labels = np.where(chunk_node_labels==-1, 0, chunk_node_labels)
 
         subset = PointCloud(vertices=chunk_vertices, labels=chunk_vert_labels)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
         # apply transformations
-        aug_cloud = sample_cloud
         if len(sample_cloud.vertices) > 0:
             self.transform(sample_cloud)
+        if len(chunk_nodes) > 0:
+            self.transform(chunk_nodes)
 
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
 
         if self.verbose:
             # return aug_cloud, local_bfs
-            return aug_cloud, chunk_node_ixs
+            return sample_cloud, chunk_node_ixs
+        elif self.include_skeleton:
+            return sample_cloud, chunk_nodes, chunk_node_labels
         else:
-            return aug_cloud
+            return sample_cloud
 
     @property
     def weights(self):
@@ -201,6 +218,10 @@ class MergerCloudSet():
         filtered_nodes_idx_no_merger = [index for index in node_idx_no_merger if index not in nodes_to_filter]
         filtered_nodes_idx_no_merger = np.array(filtered_nodes_idx_no_merger)
         if len(filtered_nodes_idx_no_merger) == 0:
+            # self.curr_hybrid_idx += 1
+            # if self.curr_hybrid_idx >= len(self.files):
+            #     self.curr_hybrid_idx = 0
+            self.curr_hybrid_idx = np.random.randint(0, len(self.files))
             return False
 
         # Also expand the node_idx_merger so that the merger is not always in the center of the chunk
@@ -213,6 +234,10 @@ class MergerCloudSet():
             nodes_idx_merger_expanded.update(chunk_node_ixs_set)
         nodes_idx_merger_expanded = np.array(list(nodes_idx_merger_expanded))
         if len(nodes_idx_merger_expanded) == 0:
+            # self.curr_hybrid_idx += 1
+            # if self.curr_hybrid_idx >= len(self.files):
+            #     self.curr_hybrid_idx = 0
+            self.curr_hybrid_idx = np.random.randint(0, len(self.files))
             return False
 
         # Randomly choose the subset
@@ -229,10 +254,11 @@ class MergerCloudSet():
         # if self.label_filter is not None:
         #     self.curr_hybrid.filter_traverser()
 
-        self.curr_hybrid_idx += 1
-        # start over if all files have been processed
-        if self.curr_hybrid_idx >= len(self.files):
-            self.curr_hybrid_idx = 0
+        # self.curr_hybrid_idx += 1
+        # # start over if all files have been processed
+        # if self.curr_hybrid_idx >= len(self.files):
+        #     self.curr_hybrid_idx = 0
+        self.curr_hybrid_idx = np.random.randint(0, len(self.files))
 
         self.curr_node_idx = 0
 
