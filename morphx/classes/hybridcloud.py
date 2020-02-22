@@ -35,13 +35,11 @@ class HybridCloud(PointCloud):
             node_labels: Node label array (ith label corresponds to ith node) with same dimenstions as nodes.
         """
         super().__init__(*args, **kwargs)
-        if nodes is None and edges is None:
-            return
-        if nodes.shape[1] != 3:
+        if nodes is not None and nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
 
-        if edges.max() > len(nodes):
+        if edges is not None and edges.max() > len(nodes):
             raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
         self._edges = edges
 

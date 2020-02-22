@@ -5,13 +5,13 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import pickle
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
 from typing import Optional, List
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
-import pickle
 
 
 class CloudEnsemble(object):
@@ -119,6 +119,8 @@ class CloudEnsemble(object):
             return self._hc.graph(simple=simple)
 
     def get_cloud(self, cloud_name: str) -> Optional[PointCloud]:
+        if cloud_name == 'hc':
+            return self._hc
         try:
             return self._clouds[cloud_name]
         except ValueError:

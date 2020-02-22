@@ -11,9 +11,10 @@ import pickle
 import random
 import numpy as np
 from typing import Union, Tuple
-from morphx.processing import clouds, objects, ensembles
+from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
-from morphx.classes.pointcloud import PointCloud
+from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 
 
 class ChunkHandler:
@@ -35,7 +36,9 @@ class ChunkHandler:
                  chunk_size: int,
                  sample_num: int,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
-                 specific: bool = False):
+                 specific: bool = False,
+                 data_type: str = 'ce',
+                 obj_feats: dict = None):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -46,6 +49,10 @@ class ChunkHandler:
             transform: Transformations which should be applied to the chunks before returning them
                 (e.g. see :func:`morphx.processing.clouds.Compose`)
             specific: Flag for setting mode of requesting specific or rather randomly drawn chunks.
+            data_type: Type of dataset, 'ce': CloudEnsembles, 'hc': HybridClouds
+            obj_feats: Only used when inputs are CloudEnsembles. Dict with feature array (1, n) keyed by
+                the name of the corresponding object in the CloudEnsemble. The HybridCloud gets addressed
+                with 'hc'.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -62,6 +69,8 @@ class ChunkHandler:
         self._sample_num = sample_num
         self._transform = transform
         self._specific = specific
+        self._data_type = data_type
+        self._obj_feats = obj_feats
 
         # In non-specific mode, the entire dataset gets loaded
         self._obj_names = []
@@ -73,8 +82,7 @@ class ChunkHandler:
             name = file[slashs[-1] + 1:-4]
             self._obj_names.append(name)
             if not self._specific:
-                # TODO: Generalize and add loading to dispatcher
-                obj = ensembles.ensemble_from_pkl(file)
+                obj = self._adapt_obj(objects.load_obj(self._data_type, file))
                 self._objs.append(obj)
 
         self._chunk_list = []
@@ -130,10 +138,11 @@ class ChunkHandler:
 
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
-                    self._curr_obj = ensembles.ensemble_from_pkl(self._data_path + item[0] + '.pkl')
+                    self._curr_obj = self._adapt_obj(objects.load_obj(self._data_type,
+                                                                      self._data_path + item[0] + '.pkl'))
                     self._curr_name = item[0]
 
-                # Return PointCloud with zeros if requested chunk doesn't exist
+                # Return None if requested chunk doesn't exist
                 if item[1] >= len(splitted_obj) or abs(item[1]) > len(splitted_obj):
                     return None, None
 
@@ -160,18 +169,18 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_obj_chunks[next_item[1]]
             subset, _ = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-            sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
+            sample, ixs = clouds.sample_cloud(subset, self._sample_num)
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:
             self._transform(sample)
         else:
-            # Return PointCloud with zeros if sample is empty
+            # Return None if sample is empty, in specific mode return np.empty(0) for idcs to differ from non-existing
+            # chunk
             if self._specific:
-                return PointCloud(np.zeros((self._sample_num, 3)), np.zeros(self._sample_num)), \
-                       np.zeros(self._sample_num)
+                return None, np.empty(0)
             else:
-                return PointCloud(np.zeros((self._sample_num, 3)), np.zeros(self._sample_num))
+                return None
 
         # Return sample and indices from where sample points were taken
         if self._specific:
@@ -191,10 +200,6 @@ class ChunkHandler:
     def sample_num(self):
         return self._sample_num
 
-    @property
-    def transform(self):
-        return self._transform
-
     def switch_mode(self):
         """ Switch specific mode on and off. """
         self._specific = not self._specific
@@ -206,3 +211,16 @@ class ChunkHandler:
             name: Filename of the requested object. If the file is object.pkl this would be 'object'.
         """
         return len(self._splitted_objs[name])
+
+    def _adapt_obj(self, obj: Union[CloudEnsemble, HybridCloud]) -> Union[CloudEnsemble, HybridCloud]:
+        """ If the given object is a CloudEnsemble, the features get changed to the features given in
+            self._obj_feats. """
+        if self._obj_feats is not None:
+            if isinstance(obj, CloudEnsemble):
+                for name in self._obj_feats:
+                    feat_line = self._obj_feats[name]
+                    subcloud = obj.get_cloud(name)
+                    feats = np.ones((len(subcloud.vertices), len(feat_line)))
+                    feats[:] = feat_line
+                    subcloud.set_features(feats)
+        return obj

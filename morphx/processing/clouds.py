@@ -46,7 +46,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
     else:
         sample_l = None
     if len(pc.features) != 0:
-        sample_f = np.zeros((vertex_number, 1))
+        sample_f = np.zeros((vertex_number, pc.features.shape[1]))
     else:
         sample_f = None
 
@@ -360,6 +360,14 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         if len(names) != len(clouds):
             raise ValueError("Not enough names given.")
 
+    feats_dim = 1
+    if len(clouds[0].features) != 0:
+        feats_dim = clouds[0].features.shape[1]
+        for cloud in clouds:
+            if len(cloud.features) != 0:
+                if cloud.features.shape[1] != feats_dim:
+                    raise ValueError("Feature dimensions of PointCloud do not fit. Clouds cannot be merged.")
+
     # find required size of new arrays
     total_verts = 0
     total_nodes = 0
@@ -377,7 +385,7 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     # reserve arrays of required size and initialize new attributes
     t_verts = np.zeros((total_verts, 3))
     t_labels = np.zeros((total_verts, 1))
-    t_features = np.zeros((total_verts, 1))
+    t_features = np.zeros((total_verts, feats_dim))
     nodes = np.zeros((total_nodes, 3))
     edges = np.zeros((total_edges, 2))
     offset = 0

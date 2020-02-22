@@ -13,9 +13,7 @@ from morphx.classes.hybridcloud import HybridCloud
 
 
 class HybridMesh(HybridCloud):
-    """ Class which represents a skeleton in form of a graph structure and a
-    mesh which surrounds this skeleton.
-    """
+    """ Class which represents a skeleton in form of a graph structure and a mesh which surrounds this skeleton. """
 
     def __init__(self,
                  faces: np.ndarray = None,
@@ -74,7 +72,7 @@ class HybridMesh(HybridCloud):
 
     def get_attr_dict(self):
         attr_dict = {'faces': self._faces, 'normals': self._normals}
-        attr_dict .update(super().get_attr_dict())
+        attr_dict.update(super().get_attr_dict())
         return attr_dict
 
 
