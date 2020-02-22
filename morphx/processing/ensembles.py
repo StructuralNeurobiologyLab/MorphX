@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
+from morphx.classes.hybridmesh import HybridMesh
 from morphx.processing import clouds, hybrids
 
 
@@ -124,15 +125,24 @@ def ensemble_from_pkl(path):
         obj = pickle.load(f)
     f.close()
 
-    hc = HybridCloud(**obj['hybrid'])
+    try:
+        h = HybridCloud(**obj['hybrid'])
+    except TypeError:
+        h = HybridMesh(**obj['hybrid'])
 
     cloudlist = {}
     for key in obj['clouds']:
-        cloudlist[key] = PointCloud(**obj['clouds'][key])
+        try:
+            cloudlist[key] = PointCloud(**obj['clouds'][key])
+        except TypeError:
+            try:
+                cloudlist[key] = HybridCloud(**obj['clouds'][key])
+            except TypeError:
+                cloudlist[key] = HybridMesh(**obj['clouds'][key])
 
     try:
         predictions = obj['predictions']
     except KeyError:
         predictions = None
 
-    return CloudEnsemble(cloudlist, hc, obj['no_pred'], predictions=predictions)
+    return CloudEnsemble(cloudlist, h, obj['no_pred'], predictions=predictions)

@@ -5,13 +5,13 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import pickle
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
 from typing import Optional, List
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
-import pickle
 
 
 class CloudEnsemble(object):

@@ -169,7 +169,7 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_obj_chunks[next_item[1]]
             subset, _ = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-            sample, ixs = clouds.sample_objectwise(subset, self._sample_num)
+            sample, ixs = clouds.sample_cloud(subset, self._sample_num)
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:

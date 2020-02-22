@@ -14,6 +14,7 @@ from getkey import getkey
 from morphx.processing import clouds
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 
 
 def visualize_parallel(cloud1: list, cloud2: list, static: bool = False, random_seed: int = 4,
@@ -160,6 +161,8 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
     # merge all clouds in cloud_list
     merged = None
     for cloud in cloud_list:
+        if isinstance(cloud, CloudEnsemble):
+            cloud = cloud.pc
         if merged is None:
             merged = cloud
         else:

@@ -38,9 +38,7 @@ class PointCloud(object):
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
             no_pred: List of names of objects which should not be processed in model prediction or mapping.
         """
-        if vertices is None:
-            return
-        if len(vertices) > 0 and vertices.shape[1] != 3:
+        if vertices is not None and len(vertices) > 0 and vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = vertices
 
@@ -56,7 +54,7 @@ class PointCloud(object):
         else:
             if len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
-            self._features = features.reshape(len(features), 1).astype(int)
+            self._features = features
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds
