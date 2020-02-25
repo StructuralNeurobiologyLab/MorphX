@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Philipp Schubert
 
+from tqdm import tqdm
 import numpy as np
 import numba as nb
 import warnings
@@ -57,7 +58,7 @@ class HybridMesh(HybridCloud):
         """
         if self._faces2node is None:
             self._faces2node = dict()
-            for node_ix, vert_ixs in self.verts2node.items():
+            for node_ix, vert_ixs in tqdm(self.verts2node.items()):
                 if len(vert_ixs) == 0:
                     self._faces2node[node_ix] = []
                     continue

@@ -8,9 +8,6 @@
 import os
 import glob
 from tqdm import tqdm
-
-import morphx.data.basics
-import morphx.processing.objects
 from morphx.processing import meshes, clouds, graphs, hybrids, ensembles
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
@@ -35,17 +32,17 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = None
         try:
-            hm = morphx.data.basics.load_pkl(file)
-        except ValueError:
-            ce = morphx.data.basics.load_pkl(file)
-            hm = ce.get_cloud('cell')
+            hm = HybridCloud().load_from_pkl(file)
+        except TypeError:
+            ce = ensembles.ensemble_from_pkl(file)
+            hm = ce.hc
         print("Processing file: " + name)
         hc = hybridmesh2poisson(hm)
         if ce is None:
-            morphx.data.basics.save2pkl(hc, output_path, name=name + '_poisson')
+            hc.save2pkl(output_path + name + '.pkl')
         else:
-            ce.add_cloud(hc, 'cell')
-            morphx.data.basics.save2pkl(ce, output_path, name=name + '_poisson')
+            ce.change_hybrid(hc)
+            ce.save2pkl(output_path + name + '.pkl')
 
 
 def process_single_thread(args):
@@ -63,9 +60,18 @@ def process_single_thread(args):
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
 
-    hm = morphx.data.basics.load_pkl(file)
+    ce = None
+    try:
+        hm = HybridCloud().load_from_pkl(file)
+    except ValueError:
+        ce = ensembles.ensemble_from_pkl(file)
+        hm = ce.hc
     hc = hybridmesh2poisson(hm)
-    morphx.data.basics.save2pkl(hc, output_path, name=name + '_poisson')
+    if ce is None:
+        hc.save2pkl(output_path + name + '_poisson.pkl')
+    else:
+        ce.change_hybrid(hc)
+        ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
 def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
@@ -79,9 +85,12 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
     """
 
     total_pc = None
+    intermediate = None
     distance = 1000
     skel2node_mapping = True
+    counter = -1
     for base in tqdm(hm.base_points(min_dist=distance)):
+        counter += 1
         # local BFS radius = global BFS radius, so that the total number of poisson sampled vertices will double.
         local_bfs = graphs.local_bfs_dist(hm.graph(), source=base, max_dist=distance)
         if skel2node_mapping:
@@ -92,14 +101,25 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
             continue
 
         pc = meshes.sample_mesh_poisson_disk(mc, len(mc.vertices))
-        if total_pc is None:
-            total_pc = pc
+        if intermediate is None:
+            intermediate = pc
         else:
-            total_pc = clouds.merge_clouds([total_pc, pc])
+            intermediate = clouds.merge_clouds([intermediate, pc])
+
+        # merging causes processing to slow down => hold speed constant by avoiding merge with large cloud
+        if counter % 50 == 0:
+            if total_pc is None:
+                total_pc = pc
+            else:
+                total_pc = clouds.merge_clouds([total_pc, intermediate])
+            intermediate = None
+
+    total_pc = clouds.merge_clouds([total_pc, intermediate])
 
     hc = HybridCloud(hm.nodes, hm.edges, vertices=total_pc.vertices, labels=total_pc.labels, encoding=hm.encoding)
     return hc
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/gt/gt_ensembles/batch2/', '/u/jklimesch/gt/gt_ensembles/')
+    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/batch1/',
+                    '/u/jklimesch/thesis/gt/gt_meshsets/poisson/')

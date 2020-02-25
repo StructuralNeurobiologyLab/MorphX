@@ -50,7 +50,7 @@ class TorchHandler(data.Dataset):
                 if ixs is None:
                     sample, ixs = PointCloud(vertices=np.zeros((self._sample_num, 3)),
                                              labels=np.zeros(self._sample_num),
-                                             features=np.zeros(self._sample_num)), \
+                                             features=np.zeros((self._sample_num, 4))), \
                                   np.zeros(self._sample_num)
                     break
             else:

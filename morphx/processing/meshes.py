@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import numpy as np
 import point_cloud_utils as pcu
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
@@ -27,7 +28,7 @@ def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
     """
 
     vertices = mc.vertices.astype(float)
-    s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mc.faces, mc.normals, sample_num)
+    s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mc.faces, np.array([]), sample_num)
 
     # TODO: This can be improved
     labels = None
