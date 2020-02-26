@@ -117,13 +117,15 @@ class TorchSetSkeleton(TorchSet):
         while len(sample.vertices) == 0:
             sample = self.cloudset[0]
 
-        # labels = sample.labels.reshape(len(sample.labels))
-        labels = chunk_node_labels.reshape(len(chunk_node_labels))
+        vert_labels = sample.labels.reshape(len(sample.labels))
+        node_labels = chunk_node_labels.reshape(len(chunk_node_labels))
 
         # pack all numpy arrays into torch tensors
         pts = torch.from_numpy(sample.vertices).float()
         nodes = torch.from_numpy(chunk_nodes).float()
-        lbs = torch.from_numpy(labels).long()
+        lbs = torch.from_numpy(node_labels).long()
         features = torch.ones(len(sample.vertices), 1).float()
+        vert_labels = torch.from_numpy(vert_labels).long()
 
-        return {'pts': pts, 'nodes': nodes, 'features': features, 'target': lbs}
+        return {'pts': pts, 'nodes': nodes, 'features': features, 'target': lbs,
+                'vert_labels': vert_labels}
