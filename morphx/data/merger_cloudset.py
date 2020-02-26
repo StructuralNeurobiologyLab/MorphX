@@ -64,6 +64,7 @@ class MergerCloudSet():
 
         # find and prepare analysis parameters
         self.files = glob.glob(data_path + '*.pkl')
+        # self.files = glob.glob(data_path + 'sso_4924_info.pkl')  # TODO: delete this test
         self.size = 0
         self.size_cache = 0
         self._weights = np.ones(class_num)
@@ -89,12 +90,12 @@ class MergerCloudSet():
         # =============================
         # =============================
 
-        # load first file
-        self.curr_hybrid = None
-        if len(self.files) > 0:
-            load_new_success = self.load_new()
-            while not load_new_success:
-                load_new_success = self.load_new()
+        # # load first file
+        # self.curr_hybrid = None
+        # if len(self.files) > 0:
+        #     load_new_success = self.load_new()
+        #     while not load_new_success:
+        #         load_new_success = self.load_new()
 
         self.analyse_data()
 
@@ -139,11 +140,20 @@ class MergerCloudSet():
         subset = PointCloud(vertices=chunk_vertices, labels=chunk_vert_labels)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
+        test_cloud = type(sample_cloud)
+        test_node = type(chunk_nodes)
+
+        # Temporally add nodes in to _vertices in point cloud
+        num_nodes = len(chunk_nodes)
+        sample_cloud._vertices = np.concatenate((sample_cloud._vertices, chunk_nodes), axis=0)
+
         # apply transformations
         if len(sample_cloud.vertices) > 0:
             self.transform(sample_cloud)
-        if len(chunk_nodes) > 0:
-            self.transform(chunk_nodes)
+
+        # Remove nodes coordinates from _vertices
+        chunk_nodes = sample_cloud._vertices[self.sample_num:]
+        sample_cloud._vertices = sample_cloud._vertices[:-num_nodes]
 
         # Set pointer to next node of global BFS
         self.curr_node_idx += 1
@@ -152,6 +162,7 @@ class MergerCloudSet():
             # return aug_cloud, local_bfs
             return sample_cloud, chunk_node_ixs
         elif self.include_skeleton:
+            chunk_nodes, chunk_node_labels = self.skel_node_fixation(chunk_nodes, chunk_node_labels, num_nodes=500)
             return sample_cloud, chunk_nodes, chunk_node_labels
         else:
             return sample_cloud
@@ -242,9 +253,9 @@ class MergerCloudSet():
 
         # Randomly choose the subset
         num_samples = self.num_posneg_samples
-        if len(nodes_idx_merger_expanded) < self.num_posneg_samples or \
-                len(filtered_nodes_idx_no_merger) < self.num_posneg_samples:
-            num_samples = min(len(node_idx_merger), len(node_idx_no_merger))
+        # if len(nodes_idx_merger_expanded) < self.num_posneg_samples or \
+        #         len(filtered_nodes_idx_no_merger) < self.num_posneg_samples:
+        #     num_samples = min(len(node_idx_merger), len(node_idx_no_merger))
         merger_subset = np.random.choice(np.squeeze(nodes_idx_merger_expanded), num_samples)
         no_merger_subset = np.random.choice(np.squeeze(filtered_nodes_idx_no_merger), num_samples)
 
@@ -291,3 +302,51 @@ class MergerCloudSet():
         # self._weights = clouds.calculate_weights_mean(total_pc, self.class_num)
 
         self.size = len(self.files) * self.num_posneg_samples * 2
+
+
+    def skel_node_fixation(self, skel_nodes, node_labels, num_nodes=500):
+        """
+        Upsample or downsample the skeleton node to a given fix number (num_nodes).
+        This is necessary since PyTorch batch loader requires tensors to have the same size.
+        Args:
+            skel_nodes: shape (N,3), list of (x,y,z) coordinates.
+            node_labels: shape (N, 1), list of node labels, either 0(non-merger-node) or 1(merger_node)
+            num_nodes: number of nodes the output skeleton should have.
+
+        Returns:
+
+        """
+        assert len(skel_nodes) == len(node_labels), "inconsistent length of skel_nodes array and node_labels array"
+        if len(skel_nodes) > num_nodes:
+            # Downsample the skeleton nodes to num_nodes
+            diff = len(skel_nodes) - num_nodes
+            # Get the list of indexes of label 1 and label 0
+            idx_label_1 = np.argwhere(node_labels.squeeze() == 1).squeeze()
+            idx_label_0 = np.argwhere(node_labels.squeeze() == 0).squeeze()
+
+            # Calculate the ratio of label 1.
+            ratio = len(idx_label_1) / len(node_labels)
+            # Calculate the number of labels should be cut out for 1 and 0 respectively
+            num_draws_1 = int(diff * ratio)
+            num_draws_0 = diff - num_draws_1
+            num_remain_1 = len(idx_label_1) - num_draws_1
+            num_remain_0 = len(idx_label_0) - num_draws_0
+            assert 0 < num_remain_0 < len(idx_label_0)
+
+            # Randomly draw out indexes from label 1 and label 0 that should remain in the skeleton
+            idx_remain_1 = np.random.choice(idx_label_1, num_remain_1, replace=False)
+            idx_remain_0 = np.random.choice(idx_label_0, num_remain_0, replace=False)
+            idx_remain = np.sort(np.concatenate((idx_remain_1, idx_remain_0)))
+            skel_nodes = skel_nodes[idx_remain]
+            node_labels = node_labels[idx_remain]
+
+        if len(skel_nodes) < num_nodes:
+            # Upsample the skeleton nodes to num_nodes
+            diff = num_nodes - len(skel_nodes)
+            # Randomly pick some indexes nodes and repeat those nodes in the original array
+            random_idx = np.random.randint(len(skel_nodes), size=diff)
+            for idx in random_idx:
+                skel_nodes = np.append(skel_nodes, skel_nodes[idx].reshape(1, 3), axis=0)
+                node_labels = np.append(node_labels, node_labels[idx])
+
+        return skel_nodes, node_labels
