@@ -55,10 +55,10 @@ class ViewControl(object):
             else:
                 self.load = self.load_val
 
-    def start_view(self, name: str):
-        self.load(name)
+    def start_view(self, name: str, seed: int = 4):
+        self.load(name, seed)
 
-    def core_next(self, cloud1: PointCloud, cloud2: PointCloud, save_name):
+    def core_next(self, cloud1: PointCloud, cloud2: PointCloud, save_name, seed: int = 4):
         """ Visualizes given clouds and waits for user input:
             Right arrow: Next image
             Left arrow: Previous image
@@ -73,20 +73,19 @@ class ViewControl(object):
         Returns:
             Change for viewing indices.
         """
-
-        key = visualize.visualize_parallel([cloud1], [cloud2], static=True)
+        key = visualize.visualize_parallel([cloud1], [cloud2], static=True, random_seed=seed)
         if key == keys.RIGHT:
             return 1
         if key == keys.UP:
             print("Saving to png...")
             path = self.save_path + save_name
-            visualize.visualize_clouds([cloud1], capture=True, path=path + '_1.png')
-            visualize.visualize_clouds([cloud2], capture=True, path=path + '_2.png')
+            visualize.visualize_clouds([cloud1], capture=True, path=path + '_1.png', random_seed=seed)
+            visualize.visualize_clouds([cloud2], capture=True, path=path + '_2.png', random_seed=seed)
             return 0
         if key == keys.DOWN:
             print("Displaying interactive view...")
             # display images for interaction
-            visualize.visualize_parallel([cloud1], [cloud2])
+            visualize.visualize_parallel([cloud1], [cloud2], random_seed=seed)
             return 0
         if key == keys.LEFT:
             return -1
@@ -127,7 +126,7 @@ class ViewControl(object):
             else:
                 idx += res
 
-    def load_val(self, name: str):
+    def load_val(self, name: str, seed: int):
         """ Method for viewing validation or training examples. These examples must be saved as a list in the pickle
             file and should alternate between target and prediction. E.g. [targetcloud1, predictedcloud1, targetcloud2
             predictedcloud2, ...]
@@ -155,15 +154,15 @@ class ViewControl(object):
                 i = 0
             while i < int(len(results)):
                 orig = results[i]
-                pred = results[i+1]
+                pred = results[i + 1]
                 try:
                     pred = PointCloud(pred.vertices, pred.labels, encoding=pred.encoding)
                 except:
                     pred = PointCloud(pred.vertices, np.argmax(pred.labels, axis=1), encoding=pred.encoding)
-                res = self.core_next(orig, pred, filename + '_i{}'.format(i))
+                res = self.core_next(orig, pred, filename + '_i{}'.format(i), seed=seed)
                 if res is None:
                     return
-                i += 2*res
+                i += 2 * res
                 if res < 0:
                     reverse = True
                     if i < 0:
@@ -175,7 +174,7 @@ class ViewControl(object):
             else:
                 idx += 1
 
-    def load_cmp(self, idx: int):
+    def load_cmp(self, idx: int, seed: int):
         """ Method for comparing ground truth with processed data. Ground truth must be given in first file list,
             processed files in the second file list.
         """
@@ -185,12 +184,12 @@ class ViewControl(object):
             pred_file = self.files2[idx]
 
             slashs = [pos for pos, char in enumerate(gt_file) if char == '/']
-            filename = gt_file[slashs[-1]+1:-4]
+            filename = gt_file[slashs[-1] + 1:-4]
 
             gt = morphx.data.basics.load_pkl(gt_file)
             pred = morphx.data.basics.load_pkl(pred_file)
 
-            res = self.core_next(gt, pred, filename)
+            res = self.core_next(gt, pred, filename, seed=seed)
             if res is None:
                 return
             else:
