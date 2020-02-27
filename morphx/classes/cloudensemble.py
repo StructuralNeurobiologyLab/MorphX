@@ -148,7 +148,34 @@ class CloudEnsemble(object):
             if name not in self._no_pred:
                 self._no_pred.append(name)
 
-# -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
+    # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
+
+    def preds2labels(self, mv: bool = True) -> np.ndarray:
+        """ Flag mv = True: For each vertex, a majority vote is applied to the existing predictions and the prediction
+            with the highest occurance is set as label for this vertex. If there are no predictions, the label is set
+            to -1.
+            Flag mc = False: For each vertex, the first predictions is taken as the new label. If there are no
+            predictions, the label is set to -1.
+
+        Returns:
+            The newly generated labels.
+        """
+
+        for idx in range(len(self._labels)):
+            preds = np.array(self._predictions[idx])
+            if len(preds) > 0:
+                if mv:
+                    u_preds, counts = np.unique(preds, return_counts=True)
+                    self._labels[idx] = u_preds[np.argmax(counts)]
+                else:
+                    self._labels[idx] = preds[0]
+            else:
+                self._labels[idx] = -1
+        if self._encoding is not None and -1 in self._labels:
+            self._encoding['no_prediction'] = -1
+        return self._labels
+
+    # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 
     def save2pkl(self, path: str) -> int:
         """ Saves ensemble into pickle file at given path.

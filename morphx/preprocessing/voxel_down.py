@@ -27,7 +27,7 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = ensembles.ensemble_from_pkl(file)
         ce = voxel_down(ce)
-        ce.save2pkl(output_path + name + '_voxel')
+        ce.save2pkl(output_path + name + '.pkl')
 
 
 def process_single_thread(args):
@@ -58,14 +58,13 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
         pcd.points = o3d.utility.Vector3dVector(ce.clouds[key].vertices)
         pcd, idcs = pcd.voxel_down_sample_and_trace(50, pcd.get_min_bound(), pcd.get_max_bound())
         idcs = np.max(idcs, axis=1)
-        new_pc = PointCloud(np.asarray(pcd.points), labels=pc.labels[idcs], features=pc.features[idcs],
-                            encoding=pc.encoding, obj_bounds=pc.obj_bounds, predictions=pc.predictions,
-                            no_pred=pc.no_pred)
+        new_pc = PointCloud(np.asarray(pcd.points), labels=pc.labels[idcs], encoding=pc.encoding,
+                            obj_bounds=pc.obj_bounds, predictions=pc.predictions, no_pred=pc.no_pred)
         new_clouds[key] = new_pc
 
     return CloudEnsemble(new_clouds, new_hc, no_pred=ce.no_pred)
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_ensembles/ads/old/',
-                    '/u/jklimesch/thesis/gt/gt_ensembles/ads/')
+    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/poisson/',
+                    '/u/jklimesch/thesis/gt/gt_meshsets/voxeled/')

@@ -105,8 +105,11 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray) -> Tuple[PointClo
         if num != 0:
             obj_bounds[key] = np.array([offset, offset+num])
             offset += num
-    return PointCloud(ensemble.pc.vertices[idcs], labels=ensemble.pc.labels[idcs], features=ensemble.pc.features[idcs],
-                      obj_bounds=obj_bounds, no_pred=ensemble.pc.no_pred, encoding=ensemble.pc.encoding), idcs
+    if len(idcs) == 0:
+        return PointCloud(vertices=np.array([])), np.array([])
+    return PointCloud(vertices=ensemble.pc.vertices[idcs], labels=ensemble.pc.labels[idcs],
+                      features=ensemble.pc.features[idcs], obj_bounds=obj_bounds,
+                      no_pred=ensemble.pc.no_pred, encoding=ensemble.pc.encoding), idcs
 
 
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #

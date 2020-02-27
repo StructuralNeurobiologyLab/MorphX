@@ -50,11 +50,14 @@ class TorchHandler(data.Dataset):
                 if ixs is None:
                     sample, ixs = PointCloud(vertices=np.zeros((self._sample_num, 3)),
                                              labels=np.zeros(self._sample_num),
-                                             features=np.zeros(self._sample_num)), \
+                                             features=np.zeros((self._sample_num, 4))), \
                                   np.zeros(self._sample_num)
                     break
             else:
                 sample = self._ch[item]
+                if sample is not None:
+                    if len(sample.vertices) == 0:
+                        sample = None
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))

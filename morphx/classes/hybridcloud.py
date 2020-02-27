@@ -5,12 +5,10 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import os
-import pickle
 import numpy as np
 import networkx as nx
-from typing import Optional, Union, Dict, List
-import morphx.processing.graphs as graphs
+from typing import Optional
+from morphx.processing import graphs
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -83,13 +81,14 @@ class HybridCloud(PointCloud):
         return self._verts2node
 
     @property
-    def node_labels(self):
+    def node_labels(self) -> Optional[np.ndarray]:
         """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
-         the corresponding vertices is performed and the most frequent label transferred to the node.
+         the corresponding vertices is performed and the most frequent label is transferred to the node.
 
          Returns:
              None if there are no vertex labels or a np.ndarray with the node labels (ith label corresponds to ith node)
          """
+        from morphx.processing import hybrids
         if self._node_labels is None:
             if self.labels is None:
                 return None
@@ -106,8 +105,23 @@ class HybridCloud(PointCloud):
                         u_labels, counts = np.unique(labels, return_counts=True)
                         # take first label if there are multiple majorities
                         self._node_labels[ix] = u_labels[np.argmax(counts)]
-                # TODO: nodes where no corresponding vertices exist have label -1 => E.g. take label from neighbor
+
+                # nodes without label (still == -1) get label from nearest node with label
+                mapping = np.arange(len(self._nodes))
+                for ix in range(len(self._nodes)):
+                    if self._node_labels[ix] == -1:
+                        mapping[ix] = hybrids.label_search(self, ix)
+                self._node_labels = self.node_labels[mapping]
         return self._node_labels
+
+    # -------------------------------------- SETTERS ------------------------------------------- #
+
+    def set_node_labels(self, node_labels: np.ndarray):
+        if len(node_labels) != len(self._nodes):
+            raise ValueError('Length of node_labels must comply with length of nodes.')
+        self._node_labels = node_labels
+
+    # -------------------------------------- HYBRID BASICS ------------------------------------------- #
 
     def clean_node_labels(self, neighbor_num: int = 2):
         """ For each node, this method performs a majority vote on the labels of neighbor_num neighbors which were
