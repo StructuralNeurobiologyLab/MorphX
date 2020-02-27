@@ -27,7 +27,7 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = ensembles.ensemble_from_pkl(file)
         ce = voxel_down(ce)
-        ce.save2pkl(output_path + name + '_voxel')
+        ce.save2pkl(output_path + name + '.pkl')
 
 
 def process_single_thread(args):

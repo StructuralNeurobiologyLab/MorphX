@@ -7,6 +7,7 @@
 
 import numpy as np
 from typing import Tuple
+from collections import deque
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.pointcloud import PointCloud
@@ -82,3 +83,21 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:
     mc = MeshCloud(new_vertices, new_faces, new_normals, labels=new_labels,
                    encoding=hm.encoding)
     return mc
+
+
+def label_search(hc: HybridCloud, source: int) -> int:
+    if hc.node_labels is None:
+        return source
+    g = hc.graph()
+    visited = [source]
+    neighbors = g.neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        curr = de.pop()
+        if hc.node_labels[curr] != -1:
+            return curr
+        if curr not in visited:
+            visited.append(curr)
+            neighbors = g.neighbors(curr)
+            de.extendleft([i for i in neighbors if i not in visited])
+    return source

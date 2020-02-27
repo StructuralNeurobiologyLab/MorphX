@@ -8,12 +8,16 @@
 """ This is separated from the clouds.py file because of bug in open3d when used with pytorch.
     See https://github.com/pytorch/pytorch/issues/21018 """
 
+import os
+import glob
+from tqdm import tqdm
 import open3d as o3d
 import numpy as np
 from getkey import getkey
-from morphx.processing import clouds
+from morphx.processing import clouds, objects
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.cloudensemble import CloudEnsemble
 
 
@@ -146,6 +150,30 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
 
     pcd = build_pcd([pure_skel, bfs_skel], random_seed=random_seed)
     core_visualizer(pcd, capture=capture, path=path)
+
+
+def visualize_prediction_set(input_path: str, output_path: str, random_seed: int = 4, data_type: str = 'ce'):
+    files = glob.glob(input_path + '*.pkl')
+    if not os.path.isdir(output_path):
+        os.makedirs(output_path)
+
+    print("Starting to transform mesh dataset into poisson dataset...")
+    for file in tqdm(files):
+        slashs = [pos for pos, char in enumerate(file) if char == '/']
+        name = file[slashs[-1]+1:-4]
+        visualize_prediction(file, output_path + name + '.png', random_seed=random_seed, data_type=data_type)
+
+
+def visualize_prediction(file: str, out_path: str, random_seed: int = 4, data_type: str = 'ce'):
+    obj = objects.load_obj(data_type, file)
+    obj.preds2labels()
+    mask = obj.labels != -1
+    red_obj = HybridCloud(nodes=obj.nodes, edges=obj.edges, vertices=obj.vertices[mask], labels=obj.labels[mask])
+    if isinstance(red_obj, HybridCloud) or isinstance(red_obj, HybridMesh):
+        node_labels = red_obj.node_labels
+        obj.set_node_labels(node_labels)
+        obj.nodel2vertl()
+    visualize_clouds([obj], capture=True, path=out_path, random_seed=random_seed)
 
 
 def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:

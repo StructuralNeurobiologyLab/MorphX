@@ -55,6 +55,9 @@ class TorchHandler(data.Dataset):
                     break
             else:
                 sample = self._ch[item]
+                if sample is not None:
+                    if len(sample.vertices) == 0:
+                        sample = None
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))
