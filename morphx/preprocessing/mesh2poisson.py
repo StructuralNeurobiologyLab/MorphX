@@ -32,7 +32,8 @@ def process_dataset(input_path: str, output_path: str):
         name = file[slashs[-1]+1:-4]
         ce = None
         try:
-            hm = HybridCloud().load_from_pkl(file)
+            hm = HybridCloud()
+            hm.load_from_pkl(file)
         except TypeError:
             ce = ensembles.ensemble_from_pkl(file)
             hm = ce.hc
@@ -62,7 +63,8 @@ def process_single_thread(args):
 
     ce = None
     try:
-        hm = HybridCloud().load_from_pkl(file)
+        hm = HybridCloud()
+        hm.load_from_pkl(file)
     except ValueError:
         ce = ensembles.ensemble_from_pkl(file)
         hm = ce.hc

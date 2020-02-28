@@ -12,6 +12,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.processing import hybrids, ensembles, clouds
+from morphx.data import basics
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -37,11 +38,16 @@ def filter_preds(obj: Union[HybridCloud, CloudEnsemble]) -> PointCloud:
 
 
 def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointCloud, CloudEnsemble]:
+    if data_type == 'obj':
+        return basics.load_pkl(file)
     if data_type == 'ce':
         return ensembles.ensemble_from_pkl(file)
     if data_type == 'hc':
-        return HybridCloud().load_from_pkl(file)
+        hc = HybridCloud()
+        return hc.load_from_pkl(file)
     if data_type == 'hm':
-        return HybridMesh().load_from_pkl(file)
+        hm = HybridMesh()
+        return hm.load_from_pkl(file)
     else:
-        return PointCloud().load_from_pkl(file)
+        pc = PointCloud()
+        return pc.load_from_pkl(file)

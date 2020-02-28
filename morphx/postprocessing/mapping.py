@@ -8,8 +8,7 @@
 import os
 import pickle
 import numpy as np
-from morphx.data import basics
-from morphx.processing import clouds, ensembles, objects
+from morphx.processing import ensembles, objects
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -87,12 +86,14 @@ class PredictionMapper:
             if self._datatype == 'ce':
                 self._curr_obj = ensembles.ensemble_from_pkl(self._save_path + name + '.pkl')
             elif self._datatype == 'hc':
-                self._curr_obj = HybridCloud().load_from_pkl(self._save_path + name + '.pkl')
+                self._curr_obj = HybridCloud()
+                self._curr_obj.load_from_pkl(self._save_path + name + '.pkl')
         except FileNotFoundError:
             if self._datatype == 'ce':
                 self._curr_obj = ensembles.ensemble_from_pkl(self._data_path + name + '.pkl')
             elif self._datatype == 'hc':
-                self._curr_obj = HybridCloud().load_from_pkl(self._data_path + name + '.pkl')
+                self._curr_obj = HybridCloud()
+                self._curr_obj.load_from_pkl(self._data_path + name + '.pkl')
         self._curr_name = name
 
     def save_prediction(self, name: str = None):
@@ -103,4 +104,4 @@ class PredictionMapper:
         # Save additional lightweight cloud for fast inspection
         simple_cloud = objects.filter_preds(self._curr_obj)
         simple_cloud.preds2labels()
-        basics.save2pkl(simple_cloud, self._save_path + 'info/', name=name + '_light')
+        simple_cloud.save2pkl(self._save_path + 'info/' + name + '_light.pkl')

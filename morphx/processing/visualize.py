@@ -17,7 +17,6 @@ from getkey import getkey
 from morphx.processing import clouds, objects
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
-from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.cloudensemble import CloudEnsemble
 
 
@@ -153,27 +152,43 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
 
 
 def visualize_prediction_set(input_path: str, output_path: str, random_seed: int = 4, data_type: str = 'ce'):
+    """ Saves images of all predicted files at input_path using the visualize_prediction method for each file. """
     files = glob.glob(input_path + '*.pkl')
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
 
     print("Starting to transform mesh dataset into poisson dataset...")
     for file in tqdm(files):
-        slashs = [pos for pos, char in enumerate(file) if char == '/']
-        name = file[slashs[-1]+1:-4]
-        visualize_prediction(file, output_path + name + '.png', random_seed=random_seed, data_type=data_type)
+        visualize_prediction(file, output_path, random_seed=random_seed, data_type=data_type)
 
 
 def visualize_prediction(file: str, out_path: str, random_seed: int = 4, data_type: str = 'ce'):
+    """ Saves images of prediction of given file in out_path. First, the predictions get reduced onto the labels.
+        Labels without predictions get filtered. Second, the vertex labels are mapped onto the skeleton, where
+        nodes without vertices take on the label of the nearest neighbor with vertices. Third, the node labels get
+        mapped onto the mesh again. Then an image of the mesh is saved to file.
+
+    Args:
+          file: File for which prediction image should be generated
+          out_path: Folder where image should be saved
+          random_seed: Defines the color coding
+          data_type: Specifies the data type of the file. 'ce' for CloudEnsemble, 'hc'/'hm' for HybridCloud/Mesh, 'obj'
+            for pickled object, 'pc' for PointCloud.
+    """
+    slashs = [pos for pos, char in enumerate(file) if char == '/']
+    name = file[slashs[-1] + 1:-4]
     obj = objects.load_obj(data_type, file)
     obj.preds2labels()
+    if isinstance(obj, CloudEnsemble):
+        obj = obj.hc
+    # reduce object to vertices where predictions exist
     mask = obj.labels != -1
+    mask = mask.reshape(-1)
     red_obj = HybridCloud(nodes=obj.nodes, edges=obj.edges, vertices=obj.vertices[mask], labels=obj.labels[mask])
-    if isinstance(red_obj, HybridCloud) or isinstance(red_obj, HybridMesh):
-        node_labels = red_obj.node_labels
-        obj.set_node_labels(node_labels)
-        obj.nodel2vertl()
-    visualize_clouds([obj], capture=True, path=out_path, random_seed=random_seed)
+    obj.set_node_labels(red_obj.node_labels)
+    obj.nodel2vertl()
+    obj.save2pkl(out_path + name + '_pred.pkl')
+    visualize_clouds([obj], capture=True, path=out_path + name + '_pred.png', random_seed=random_seed)
 
 
 def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:

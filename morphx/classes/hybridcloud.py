@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import numpy as np
 import networkx as nx
 from typing import Optional
@@ -37,19 +38,23 @@ class HybridCloud(PointCloud):
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
 
-        if edges is not None and edges.max() > len(nodes):
-            raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
-        self._edges = edges
+        if nodes is None:
+            self._edges = None
+            self._node_labels = None
+        else:
+            if edges is not None and edges.max() > len(nodes):
+                raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
+            self._edges = edges
+
+            self._node_labels = None
+            if node_labels is not None:
+                if len(node_labels) != len(nodes):
+                    raise ValueError("Node label array must have same length as nodes array.")
+                self._node_labels = node_labels.reshape(len(node_labels), 1)
 
         self._verts2node = None
         if verts2node is not None:
             self._verts2node = verts2node
-
-        self._node_labels = None
-        if node_labels is not None:
-            if len(node_labels) != len(nodes):
-                raise ValueError("Node label array must have same length as nodes array.")
-            self._node_labels = node_labels.reshape(len(node_labels), 1)
 
         self._weighted_graph = None
         self._simple_graph = None

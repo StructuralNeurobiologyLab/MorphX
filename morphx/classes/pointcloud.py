@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import pickle
 import numpy as np
 from typing import List, Optional
@@ -45,14 +46,14 @@ class PointCloud(object):
         if labels is None or len(labels) == 0:
             self._labels = np.zeros(0)  # TODO: why not None?
         else:
-            if len(labels) != len(vertices):
+            if vertices is None or len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
         if features is None or len(features) == 0:
             self._features = np.zeros(0)
         else:
-            if len(features) != len(vertices):
+            if vertices is None or len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
             self._features = features
 
@@ -163,6 +164,12 @@ class PointCloud(object):
 
     # --------------------------------------------- SETTER ------------------------------------------------ #
 
+    def set_labels(self, labels: np.ndarray):
+        if len(labels) != len(self.vertices):
+            raise ValueError("Label array must have same length as vertex array.")
+        else:
+            self._labels = labels
+
     def set_features(self, features: np.ndarray):
         if len(features) != len(self.vertices):
             raise ValueError("Feature array must have same length as vertex array.")
@@ -188,7 +195,7 @@ class PointCloud(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self, mv: bool = True) -> np.ndarray:
+    def preds2labels(self, mv: bool = True):
         """ Flag mv = True: For each vertex, a majority vote is applied to the existing predictions and the prediction
             with the highest occurance is set as label for this vertex. If there are no predictions, the label is set
             to -1.
@@ -210,7 +217,6 @@ class PointCloud(object):
                 self._labels[idx] = -1
         if self._encoding is not None and -1 in self._labels:
             self._encoding['no_prediction'] = -1
-        return self._labels
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
@@ -284,6 +290,7 @@ class PointCloud(object):
             path: Path to pickle file which contains the attribute dictionary.
         """
         self.__init__(**load_pkl(path))
+        return self
 
     def get_attr_dict(self):
         attr_dict = {'vertices': self._vertices,

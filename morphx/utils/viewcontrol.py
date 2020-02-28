@@ -3,9 +3,8 @@ import glob
 import pickle
 import ipdb
 import numpy as np
-from getkey import keys
-
-import morphx.data.basics
+from getkey import keys, getkey
+from morphx.data import basics
 import morphx.processing.objects
 from morphx.processing import clouds, visualize
 from morphx.classes.pointcloud import PointCloud
@@ -16,7 +15,7 @@ class ViewControl(object):
         examples. """
 
     # TODO: Make this class more abstract and more uniform in terms of loading
-    def __init__(self, path1: str, save_path: str, path2: str = None, cloudset: bool = False):
+    def __init__(self, path1: str, save_path: str, path2: str = None, cloudset: bool = False, simple: bool = False):
         """
         Args:
             path1: path to pickle files (if path2 != None and comparison of ground truth is intended, this must be the
@@ -35,30 +34,49 @@ class ViewControl(object):
             self.files1 = glob.glob(path1 + '*.pkl')
         self.files1.sort()
 
-        if cloudset:
-            self.files2 = glob.glob(path1 + 'cloud*.pkl')
+        if simple:
+            self.load = self.simple_view
         else:
-            self.cmp = False
-            if path2 is not None:
-                self.path2 = os.path.expanduser(path2)
-                self.files2 = glob.glob(path2 + '*.pkl')
-                self.files2.sort()
-                self.cmp = True
+            if cloudset:
+                self.files2 = glob.glob(path1 + 'cloud*.pkl')
             else:
-                self.path2 = None
+                self.cmp = False
+                if path2 is not None:
+                    self.path2 = os.path.expanduser(path2)
+                    self.files2 = glob.glob(path2 + '*.pkl')
+                    self.files2.sort()
+                    self.cmp = True
+                else:
+                    self.path2 = None
 
-        if cloudset:
-            self.load = self.load_cloudset
-        else:
-            if self.cmp:
-                self.load = self.load_cmp
+            if cloudset:
+                self.load = self.load_cloudset
             else:
-                self.load = self.load_val
+                if self.cmp:
+                    self.load = self.load_cmp
+                else:
+                    self.load = self.load_val
 
     def start_view(self, name: str, seed: int = 4):
         self.load(name, seed)
 
-    def core_next(self, cloud1: PointCloud, cloud2: PointCloud, save_name, seed: int = 4):
+    def simple_view(self, name: str, seed: int = 4):
+        idx = 0
+        while idx < len(self.files1):
+            file = self.files1[idx]
+
+            slashs = [pos for pos, char in enumerate(file) if char == '/']
+            filename = file[slashs[-1] + 1:-4]
+
+            cloud = basics.load_pkl(file)
+
+            res = self.core_next(cloud, save_name=filename, seed=seed)
+            if res is None:
+                return
+            else:
+                idx += res
+
+    def core_next(self, cloud1: PointCloud, cloud2: PointCloud = None, save_name: str = 'clouds', seed: int = 4):
         """ Visualizes given clouds and waits for user input:
             Right arrow: Next image
             Left arrow: Previous image
@@ -73,19 +91,27 @@ class ViewControl(object):
         Returns:
             Change for viewing indices.
         """
-        key = visualize.visualize_parallel([cloud1], [cloud2], static=True, random_seed=seed)
+        if cloud2 is None:
+            visualize.visualize_clouds([cloud1], random_seed=seed)
+            key = getkey()
+        else:
+            key = visualize.visualize_parallel([cloud1], [cloud2], static=True, random_seed=seed)
         if key == keys.RIGHT:
             return 1
         if key == keys.UP:
             print("Saving to png...")
             path = self.save_path + save_name
-            visualize.visualize_clouds([cloud1], capture=True, path=path + '_1.png', random_seed=seed)
-            visualize.visualize_clouds([cloud2], capture=True, path=path + '_2.png', random_seed=seed)
+            if cloud2 is None:
+                visualize.visualize_clouds([cloud1], capture=True, path=path + '.png', random_seed=seed)
+            else:
+                visualize.visualize_clouds([cloud1], capture=True, path=path + '_1.png', random_seed=seed)
+                visualize.visualize_clouds([cloud2], capture=True, path=path + '_2.png', random_seed=seed)
             return 0
         if key == keys.DOWN:
-            print("Displaying interactive view...")
-            # display images for interaction
-            visualize.visualize_parallel([cloud1], [cloud2], random_seed=seed)
+            if cloud2 is not None:
+                print("Displaying interactive view...")
+                # display images for interaction
+                visualize.visualize_parallel([cloud1], [cloud2], random_seed=seed)
             return 0
         if key == keys.LEFT:
             return -1

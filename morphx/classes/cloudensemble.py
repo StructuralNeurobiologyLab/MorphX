@@ -5,11 +5,12 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import pickle
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
-from typing import Optional, List
+from typing import Optional, List, Dict
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -19,7 +20,7 @@ class CloudEnsemble(object):
     Class which represents a collection of PointCloud objects.
     """
 
-    def __init__(self, clouds: dict, hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None,
+    def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None,
                  predictions: Optional[dict] = None):
         """
         Args:
@@ -76,13 +77,13 @@ class CloudEnsemble(object):
             from morphx.processing import ensembles
             self._pc = ensembles.ensemble2pointcloud(self)
             self._pc.add_no_pred(self._no_pred)
+            if self._predictions is not None:
+                self._pc.set_predictions(self._predictions)
         return self._pc
 
     @property
     def predictions(self) -> dict:
-        if self._predictions is None:
-            self._predictions = {ix: [] for ix in range(len(self.pc.vertices))}
-        return self._predictions
+        return self.pc.predictions
 
     @property
     def verts2node(self) -> dict:
@@ -150,30 +151,15 @@ class CloudEnsemble(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self, mv: bool = True) -> np.ndarray:
-        """ Flag mv = True: For each vertex, a majority vote is applied to the existing predictions and the prediction
-            with the highest occurance is set as label for this vertex. If there are no predictions, the label is set
-            to -1.
-            Flag mc = False: For each vertex, the first predictions is taken as the new label. If there are no
-            predictions, the label is set to -1.
-
-        Returns:
-            The newly generated labels.
-        """
-
-        for idx in range(len(self._labels)):
-            preds = np.array(self._predictions[idx])
-            if len(preds) > 0:
-                if mv:
-                    u_preds, counts = np.unique(preds, return_counts=True)
-                    self._labels[idx] = u_preds[np.argmax(counts)]
-                else:
-                    self._labels[idx] = preds[0]
-            else:
-                self._labels[idx] = -1
-        if self._encoding is not None and -1 in self._labels:
-            self._encoding['no_prediction'] = -1
-        return self._labels
+    def preds2labels(self, mv: bool = True):
+        """ Transfers predictions (gathered for the flattened CloudEnsemble) to the labels of each object in the
+            CloudEnsemble. """
+        self.pc.preds2labels(mv)
+        hc_bounds = self.pc.obj_bounds['hybrid']
+        self.hc.set_labels(self.pc.labels[hc_bounds[0]:hc_bounds[1]])
+        for key in self.clouds:
+            cloud_bounds = self.pc.obj_bounds[key]
+            self._clouds[key].set_labels(self.pc.labels[cloud_bounds[0]:cloud_bounds[1]])
 
     # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 
