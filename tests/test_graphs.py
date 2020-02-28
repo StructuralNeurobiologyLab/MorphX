@@ -9,6 +9,7 @@ import time
 import numpy as np
 import networkx as nx
 from morphx.processing import graphs
+from morphx.classes.hybridcloud import HybridCloud
 
 
 # TEST GLOBAL BFS DIST #
@@ -105,10 +106,42 @@ def test_local_num_sanity():
         assert item in expected
 
 
+# TEST LOCAL BFS NUM #
+def test_local_bfs_vertices():
+    expected = [0, 1, 4, 5]
+
+    hc = HybridCloud(nodes=np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5]]),
+                     edges=np.array([[0, 1], [1, 2], [2, 3], [0, 4], [0, 5]]),
+                     vertices=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0], [1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1],
+                                        [2, 2, 2], [3, 3, 3], [3, 3, 3], [3, 3, 3], [4, 4, 4], [4, 4, 4], [4, 4, 4],
+                                        [4, 4, 4], [4, 4, 4], [4, 4, 4], [5, 5, 5]]))
+
+    chosen = graphs.local_bfs_vertices(hc, 0, 14)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+    expected = [0]
+    chosen = graphs.local_bfs_vertices(hc, 0, 3)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+    expected = [1, 2, 3]
+    chosen = graphs.local_bfs_vertices(hc, 2, 10)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+
 if __name__ == '__main__':
     start = time.time()
     test_global_sanity()
     test_radius()
     test_local_sanity()
     test_local_num_sanity()
+    test_local_bfs_vertices()
     print('Finished after', time.time() - start)

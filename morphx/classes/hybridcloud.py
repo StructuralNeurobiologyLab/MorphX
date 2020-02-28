@@ -8,7 +8,6 @@
 import numpy as np
 import networkx as nx
 from typing import Optional
-from morphx.processing import graphs
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -131,6 +130,7 @@ class HybridCloud(PointCloud):
         Args:
             neighbor_num: Number of neighbors which limits the radius of the bfs.
         """
+        from morphx.processing import graphs
         if self.node_labels is None:
             return
         new_labels = np.zeros((len(self.node_labels), 1))
@@ -197,6 +197,7 @@ class HybridCloud(PointCloud):
         Returns:
               Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
         """
+        from morphx.processing import graphs
         if self._base_points is None:
             if method == 'global_bfs':
                 self._base_points = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
