@@ -99,7 +99,7 @@ class PredictionMapper:
     def save_prediction(self, name: str = None):
         if name is None:
             name = self._curr_name
-        self._curr_obj.save2pkl(self._save_path + name)
+        self._curr_obj.save2pkl(self._save_path + name + '.pkl')
 
         # Save additional lightweight cloud for fast inspection
         simple_cloud = objects.filter_preds(self._curr_obj)

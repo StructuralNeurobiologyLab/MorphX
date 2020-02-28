@@ -8,6 +8,7 @@
 import numpy as np
 import networkx as nx
 from collections import deque
+from morphx.classes.hybridcloud import HybridCloud
 
 
 def global_bfs_dist(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
@@ -103,5 +104,35 @@ def local_bfs_num(g: nx.Graph, source: int, neighbor_num: int) -> np.ndarray:
             visited.append(curr)
             neighbors = g.neighbors(curr)
             de.extendleft([i for i in neighbors if i not in visited])
+
+    return np.array(visited)
+
+
+def local_bfs_vertices(hc: HybridCloud, source: int, vertex_max: int) -> np.ndarray:
+    """ Performs a BFS on a graph until the number of vertices which correspond to
+        the currently selected nodes reaches the maximum.
+
+    Args:
+        hc: The HybridCloud with the graph, nodes and vertices on which the BFS should be performed
+        source: The source node from which the BFS should start.
+        vertex_max: The maximum number of vertices after which the BFS should stop.
+
+    Returns:
+        np.ndarray with nodes sorted recording to the result of the limited BFS
+    """
+    visited = [source]
+    vertex_num = len(hc.verts2node[source])
+    neighbors = hc.graph().neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        curr = de.pop()
+        if curr not in visited:
+            if vertex_num + len(hc.verts2node[curr]) <= vertex_max:
+                visited.append(curr)
+                vertex_num += len(hc.verts2node[curr])
+                neighbors = hc.graph().neighbors(curr)
+                de.extendleft([i for i in neighbors if i not in visited])
+            else:
+                return np.array(visited)
 
     return np.array(visited)
