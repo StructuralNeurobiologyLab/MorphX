@@ -30,8 +30,14 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointClo
     idcs = []
     for i in local_bfs:
         idcs.extend(hybrid.verts2node[i])
-    return PointCloud(hybrid.vertices[idcs], labels=hybrid.labels[idcs], features=hybrid.features[idcs],
-                      no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds, encoding=hybrid.encoding), np.array(idcs)
+    verts = hybrid.vertices[idcs]
+    feats, labels = None, None
+    if hybrid.features is not None and len(hybrid.features) > 0:
+        feats = hybrid.features[idcs]
+    if hybrid.labels is not None and len(hybrid.labels) > 0:
+        labels = hybrid.labels[idcs]
+    return PointCloud(verts, labels=labels, features=feats, no_pred=hybrid.no_pred,
+                      obj_bounds=hybrid.obj_bounds, encoding=hybrid.encoding), np.array(idcs)
 
 
 def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> MeshCloud:

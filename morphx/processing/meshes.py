@@ -30,7 +30,7 @@ def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
     vertices = mc.vertices.astype(float)
     s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, mc.faces, np.array([]), sample_num)
 
-    # TODO: This can be improved
+    # TODO: This can be improved - how?
     labels = None
     # map labels from input cloud to sample
     if mc.labels is not None:
