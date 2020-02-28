@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import ipdb
 import pickle
 import numpy as np
 from typing import List, Optional

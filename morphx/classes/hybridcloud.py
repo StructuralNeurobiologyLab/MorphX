@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import ipdb
 import numpy as np
 import networkx as nx
 from typing import Optional
