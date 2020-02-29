@@ -94,7 +94,7 @@ def hybridmesh2poisson(hm: HybridMesh) -> HybridCloud:
     for base in tqdm(hm.base_points(min_dist=distance)):
         counter += 1
         # local BFS radius = global BFS radius, so that the total number of poisson sampled vertices will double.
-        local_bfs = graphs.local_bfs_dist(hm.graph(), source=base, max_dist=distance)
+        local_bfs = graphs.bfs_euclid_sphere(hm.graph(), source=base, max_dist=distance)
         if skel2node_mapping:
             print("Mapping skeleton to node for further processing. This might take a few minutes...")
             skel2node_mapping = False

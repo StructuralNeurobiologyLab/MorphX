@@ -41,11 +41,11 @@ def split(data_path: str, chunk_size: int):
        
         chunks = []
         for node in obj.base_points():
-            local_bfs_small = graphs.local_bfs_dist(obj.graph(), node, chunk_size / 1)
+            local_bfs_small = graphs.bfs_euclid_sphere(obj.graph(), node, chunk_size / 1)
             chunks.append(local_bfs_small)
-            local_bfs_medium = graphs.local_bfs_dist(obj.graph(), node, chunk_size * 1.5)
+            local_bfs_medium = graphs.bfs_euclid_sphere(obj.graph(), node, chunk_size * 1.5)
             chunks.append(local_bfs_medium)
-            local_bfs_large = graphs.local_bfs_dist(obj.graph(), node, chunk_size * 1.2)
+            local_bfs_large = graphs.bfs_euclid_sphere(obj.graph(), node, chunk_size * 1.2)
             chunks.append(local_bfs_large)
         splitted_hcs[name] = chunks
 

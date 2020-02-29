@@ -142,7 +142,7 @@ class HybridCloud(PointCloud):
 
         # for each node extract neighbor_num neighbors with a bfs and take the most frequent label as new node label
         for ix in range(len(self.nodes)):
-            local_bfs = graphs.local_bfs_num(graph, ix, neighbor_num)
+            local_bfs = graphs.bfs_num(graph, ix, neighbor_num)
             labels = self.node_labels[local_bfs.astype(int)]
             u_labels, counts = np.unique(labels, return_counts=True)
             new_labels[ix] = u_labels[np.argmax(counts)]
@@ -204,7 +204,7 @@ class HybridCloud(PointCloud):
         from morphx.processing import graphs
         if self._base_points is None:
             if method == 'global_bfs':
-                self._base_points = graphs.global_bfs_dist(self.graph(), min_dist, source=source)
+                self._base_points = graphs.bfs_base_points(self.graph(), min_dist, source=source)
         return self._base_points
 
     def filter_traverser(self):
