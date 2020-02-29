@@ -8,34 +8,34 @@
 import numpy as np
 import open3d as o3d
 from morphx.classes.pointcloud import PointCloud
-from morphx.classes.meshcloud import MeshCloud
+from morphx.classes.hybridmesh import HybridMesh
 from scipy.spatial import cKDTree
 
 
 # -------------------------------------- MESH SAMPLING ------------------------------------------- #
 
-def sample_mesh_poisson_disk(mc: MeshCloud, sample_num: int) -> PointCloud:
+def sample_mesh_poisson_disk(hm: HybridMesh, sample_num: int) -> PointCloud:
     """ Uses poisson disk sampling and maps existing labels using a KDTree.
 
     Args:
-        mc: The MeshCloud from which the samples should be generated
+        hm: The MeshCloud from which the samples should be generated
         sample_num: Requested number of sample points.
 
     Returns:
         PointCloud consisting of sampled points.
     """
     mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(mc.vertices)
-    mesh.triangles = o3d.utility.Vector3iVector(mc.faces)
-    sample = mesh.sample_points_poisson_disk(sample_num)
+    mesh.vertices = o3d.utility.Vector3dVector(hm.vertices)
+    mesh.triangles = o3d.utility.Vector3iVector(hm.faces)
+    sample = mesh.sample_points_poisson_disk(int(sample_num))
     s_vertices = np.asarray(sample.points)
 
     # map labels from input cloud to sample
     labels = None
-    if mc.labels is not None:
-        tree = cKDTree(mc.vertices)
+    if hm.labels is not None:
+        tree = cKDTree(hm.vertices)
         dist, ind = tree.query(s_vertices, k=1)
-        labels = mc.labels[ind]
+        labels = hm.labels[ind]
 
     result = PointCloud(vertices=s_vertices, labels=labels)
     return result

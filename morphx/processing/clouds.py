@@ -374,7 +374,7 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     total_edges = 0
     for cloud in clouds:
         total_verts += len(cloud.vertices)
-        if isinstance(cloud, HybridCloud):
+        if isinstance(cloud, HybridCloud) and cloud.nodes is not None and cloud.edges is not None:
             total_nodes += len(cloud.nodes)
             total_edges += len(cloud.edges)
 
@@ -396,7 +396,7 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     for ix, cloud in enumerate(clouds):
         # handle hybrids
         if not ignore_hybrids:
-            if isinstance(cloud, HybridCloud):
+            if isinstance(cloud, HybridCloud) and cloud.nodes is not None and cloud.edges is not None:
                 nodes[offset:offset+len(cloud.nodes)] = cloud.nodes
                 edges[offset:offset+len(cloud.edges)] = cloud.edges + offset
 
@@ -440,6 +440,10 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         t_labels = None
     if np.all(t_features == -1):
         t_features = None
+    if np.all(nodes == 0):
+        nodes = None
+    if np.all(edges == 0):
+        edges = None
 
     if len(nodes) == 0:
         return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,

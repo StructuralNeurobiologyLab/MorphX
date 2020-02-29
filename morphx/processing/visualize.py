@@ -236,6 +236,9 @@ def core_visualizer(pcd: o3d.geometry.PointCloud, capture: bool, path: str):
     vis = o3d.visualization.Visualizer()
     vis.create_window()
     vis.add_geometry(pcd)
+    frame = o3d.geometry.TriangleMesh().create_coordinate_frame(10000)
+    frame.paint_uniform_color(np.array([0, 0, 0]))
+    vis.add_geometry(frame)
 
     if capture:
         vis.capture_screen_image(path, True)

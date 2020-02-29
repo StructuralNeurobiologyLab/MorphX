@@ -8,6 +8,8 @@
 import time
 import numpy as np
 import networkx as nx
+
+import morphx.processing.hybrids
 from morphx.processing import graphs
 from morphx.classes.hybridcloud import HybridCloud
 
@@ -116,21 +118,21 @@ def test_local_bfs_vertices():
                                         [2, 2, 2], [3, 3, 3], [3, 3, 3], [3, 3, 3], [4, 4, 4], [4, 4, 4], [4, 4, 4],
                                         [4, 4, 4], [4, 4, 4], [4, 4, 4], [5, 5, 5]]))
 
-    chosen = graphs.bfs_vertices(hc, 0, 14)
+    chosen = morphx.processing.hybrids.bfs_vertices(hc, 0, 14)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0]
-    chosen = graphs.bfs_vertices(hc, 0, 3)
+    chosen = morphx.processing.hybrids.bfs_vertices(hc, 0, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [1, 2, 3]
-    chosen = graphs.bfs_vertices(hc, 2, 10)
+    chosen = morphx.processing.hybrids.bfs_vertices(hc, 2, 10)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
@@ -147,42 +149,42 @@ def test_bfs_vertices_euclid():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
 
     expected = [0, 1, 2, 4, 8]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 9, 3)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 9, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 8]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 4, 3)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 4, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 4, 5, 8, 9]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 20, 3)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 20, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [3, 7]
-    chosen = graphs.bfs_vertices_euclid(hc, 3, 5, 2)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 3, 5, 2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 4, 8]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 8, 20)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 8, 20)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 4, 5, 6, 8, 9, 10]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 20, 4)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 20, 4)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
@@ -197,14 +199,14 @@ def test_bfs_vertices_euclid():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0], [2, 1, 0]]))
 
     expected = [0, 1, 2, 4, 5, 8, 9]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 20, 3, context=2)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 20, 3, context=2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 8, 9, 10]
-    chosen = graphs.bfs_vertices_euclid(hc, 0, 20, 4, context=1)
+    chosen = morphx.processing.hybrids.bfs_vertices_euclid(hc, 0, 20, 4, context=1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
