@@ -105,3 +105,40 @@ def bfs_num(g: nx.Graph, source: int, neighbor_num: int) -> np.ndarray:
             de.extendleft([i for i in neighbors if i not in visited])
 
     return np.array(visited)
+
+
+def bfs_iterative(g: nx.Graph, source: int, context: int):
+    """ Splits the graph into chunks of nearly similar size 'context' and returns these
+        chunks as a list of node lists.
+
+    Args:
+        g: The networkx graph on which the BFS should be performed.
+        source: The source node from which the BFS should start.
+        context: The size of the chunks. If there are leave nodes it can happen that the
+            chunks are smaller than this.
+    """
+    chunks = []
+    visited = []
+    neighbors = g.neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        curr = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            local_visited = [curr]
+            neighbors = g.neighbors(curr)
+            local_de = deque([i for i in neighbors if i not in visited])
+            while local_de:
+                if len(local_visited) >= context:
+                    chunks.append(local_visited)
+                    break
+                local_curr = local_de.pop()
+                if local_curr not in visited:
+                    visited.append(local_curr)
+                    local_visited.append(local_curr)
+                    neighbors = g.neighbors(local_curr)
+                    local_de.extendleft([i for i in neighbors if i not in visited])
+            if local_visited not in chunks:
+                chunks.append(local_visited)
+            de += local_de
+    return chunks

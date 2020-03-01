@@ -6,7 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
-import open3d as o3d
+import point_cloud_utils as pcu
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
 from scipy.spatial import cKDTree
@@ -24,11 +24,8 @@ def sample_mesh_poisson_disk(hm: HybridMesh, sample_num: int) -> PointCloud:
     Returns:
         PointCloud consisting of sampled points.
     """
-    mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(hm.vertices)
-    mesh.triangles = o3d.utility.Vector3iVector(hm.faces)
-    sample = mesh.sample_points_poisson_disk(int(sample_num))
-    s_vertices = np.asarray(sample.points)
+    vertices = hm.vertices.astype(float)
+    s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, hm.faces, np.array([]), int(sample_num))
 
     # map labels from input cloud to sample
     labels = None

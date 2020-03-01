@@ -219,7 +219,7 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
     pcd.points = o3d.utility.Vector3dVector(vertices)
 
     # assign colors if labels exist
-    if labels is not None:
+    if labels is not None and len(labels) != 0:
         labels = labels.reshape(len(labels))
         label_num = int(max(np.unique(labels)) + 1)
 

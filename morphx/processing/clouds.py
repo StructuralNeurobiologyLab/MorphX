@@ -445,7 +445,7 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     if np.all(edges == 0):
         edges = None
 
-    if len(nodes) == 0:
+    if nodes is None:
         return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,
                           no_pred=no_pred)
     else:
