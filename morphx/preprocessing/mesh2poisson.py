@@ -6,12 +6,11 @@
 # Authors: Jonathan Klimesch
 
 import os
-import sys
 import glob
 import trimesh
 import numpy as np
 from tqdm import tqdm
-from contextlib import contextmanager
+from math import floor
 from morphx.processing import meshes, clouds, graphs, hybrids, ensembles
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
@@ -25,7 +24,7 @@ def process_dataset(input_path: str, output_path: str, tech_density: int):
     Args:
         input_path: Path to pickle files with HybridMeshs.
         output_path: Path to folder in which results should be stored.
-        tech_density: poisson sampling density in meters unit of the trimesh package
+        tech_density: poisson sampling density in point/um²
     """
     files = glob.glob(input_path + '*.pkl')
     if not os.path.isdir(output_path):
@@ -43,7 +42,7 @@ def process_single_thread(args):
         args:
             args[0] - file: The full path to a specific pickle file
             args[1] - output_path: The folder where the result should be stored.
-            args[2] - tech_density: poisson sampling density in meters unit of the trimesh package
+            args[2] - tech_density: poisson sampling density in point/um²
     """
     file = args[0]
     output_path = args[1]
@@ -66,42 +65,40 @@ def process_single_thread(args):
         ce.change_hybrid(result)
         for key in ce.clouds:
             cloud = ce.clouds[key]
+            print(f"Processing {key}")
             ce.clouds[key] = hybridmesh2poisson(cloud, tech_density)
         ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
 def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
-    """ Extracts base points on skeleton of hm with a global BFS, performs local BFS around each base point and samples
-        the vertices cloud around the local BFS result with poisson disk sampling. The uniform distances of the samples
-        are not guaranteed, as the total sample cloud will always be constructed from two different sample processes
-        which have their individual uniform distance.
+    """ If there is a skeleton, it gets split into chunks of approximately equal size. For each chunk
+        the corresponding mesh piece gets extracted and gets sampled according to its area. If there
+        is no skeleton, the mesh is split into multiple parts, depending on its area. Each part is
+        then again sampled based on its area.
 
     Args:
         hm: HybridMesh which should be transformed into a HybridCloud with poisson disk sampled points.
-        tech_density: poisson sampling density in meters unit of the trimesh package
+        tech_density: poisson sampling density in point/um²
     """
-
     if hm.nodes is None:
         offset = 0
-        with suppress_stderr():
-            mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces).convert_units('meters', guess=True)
-            assert mesh.units == 'meters'
-        if mesh.area == 0:
+        mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces)
+        area = mesh.area * 1e-06
+        if area == 0:
             return PointCloud()
-        chunk_number = round(mesh.area / 40)
+        # number of chunks should be relative to area
+        chunk_number = round(area / 5)
         total = None
-        for i in range(chunk_number):
+        for i in tqdm(range(int(chunk_number))):
+            # process all faces left with last chunk
             if i == chunk_number-1:
                 chunk_faces = hm.faces[offset:]
             else:
-                chunk_faces = hm.faces[offset:offset+len(hm.faces) // chunk_number]
-                offset += len(hm.faces) // chunk_number
-            chunk_hm = HybridMesh(vertices=hm.vertices, faces=chunk_faces)
-            with suppress_stderr():
-                mesh = trimesh.Trimesh(vertices=chunk_hm.vertices, faces=chunk_hm.faces)\
-                    .convert_units('meters', guess=True)
-                assert mesh.units == 'meters'
-                area = mesh.area
+                chunk_faces = hm.faces[offset:offset + floor(len(hm.faces) // chunk_number)]
+                offset += floor(len(hm.faces) // chunk_number)
+            chunk_hm = HybridMesh(vertices=hm.vertices, faces=chunk_faces, labels=hm.labels)
+            mesh = trimesh.Trimesh(vertices=chunk_hm.vertices, faces=chunk_hm.faces)
+            area = mesh.area * 1e-06
             pc = meshes.sample_mesh_poisson_disk(chunk_hm, tech_density * area)
             if total is None:
                 total = pc
@@ -125,11 +122,8 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
             if len(hm.faces) == 0:
                 continue
             # get the mesh area in trimesh units and use it to determine how many points should be sampled
-            with suppress_stderr():
-                mesh = trimesh.Trimesh(vertices=extract.vertices, faces=extract.faces)\
-                    .convert_units('meters', guess=True)
-                assert mesh.units == 'meters'
-            area = round(mesh.area)
+            mesh = trimesh.Trimesh(vertices=extract.vertices, faces=extract.faces)
+            area = mesh.area * 1e-06
             if area == 0:
                 continue
             else:
@@ -146,21 +140,11 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
                     total = clouds.merge_clouds(([total, intermediate]))
                 intermediate = None
         total = clouds.merge_clouds([total, intermediate])
-        result = HybridCloud(hm.nodes, hm.edges, vertices=total.vertices, labels=total.labels, encoding=hm.encoding)
+        result = HybridCloud(nodes=hm.nodes, edges=hm.edges, vertices=total.vertices, labels=total.labels,
+                             encoding=hm.encoding, no_pred=hm.no_pred)
     return result
-
-
-@contextmanager
-def suppress_stderr():
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stderr
-        sys.stderr = devnull
-        try:
-            yield
-        finally:
-            sys.stderr = old_stdout
 
 
 if __name__ == '__main__':
     process_single_thread(['/home/john/loc_Bachelorarbeit/gt/gt_meshes/examples/sso_34811392.pkl',
-                           '/home/john/loc_Bachelorarbeit/gt/gt_meshes/poisson/', 10])
+                           '/home/john/loc_Bachelorarbeit/gt/gt_meshes/poisson/', 1000])
