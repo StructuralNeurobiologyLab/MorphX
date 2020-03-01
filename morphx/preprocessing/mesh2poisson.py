@@ -82,15 +82,32 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
     """
 
     if hm.nodes is None:
+        offset = 0
         with suppress_stderr():
             mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces).convert_units('meters', guess=True)
             assert mesh.units == 'meters'
-        area = round(mesh.area)
-        if area == 0:
+        if mesh.area == 0:
             return PointCloud()
-        else:
-            pc = meshes.sample_mesh_poisson_disk(hm, tech_density * area)
-        result = PointCloud(vertices=pc.vertices, labels=pc.labels, encoding=hm.encoding, no_pred=hm.no_pred)
+        chunk_number = round(mesh.area / 40)
+        total = None
+        for i in range(chunk_number):
+            if i == chunk_number-1:
+                chunk_faces = hm.faces[offset:]
+            else:
+                chunk_faces = hm.faces[offset:offset+len(hm.faces) // chunk_number]
+                offset += len(hm.faces) // chunk_number
+            chunk_hm = HybridMesh(vertices=hm.vertices, faces=chunk_faces)
+            with suppress_stderr():
+                mesh = trimesh.Trimesh(vertices=chunk_hm.vertices, faces=chunk_hm.faces)\
+                    .convert_units('meters', guess=True)
+                assert mesh.units == 'meters'
+                area = mesh.area
+            pc = meshes.sample_mesh_poisson_disk(chunk_hm, tech_density * area)
+            if total is None:
+                total = pc
+            else:
+                total = clouds.merge_clouds([total, pc])
+        result = PointCloud(vertices=total.vertices, labels=total.labels, encoding=hm.encoding, no_pred=hm.no_pred)
     else:
         total = None
         intermediate = None
