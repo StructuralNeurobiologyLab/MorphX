@@ -82,8 +82,9 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
     """
 
     if hm.nodes is None:
-        mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces).convert_units('meters', guess=True)
-        assert mesh.units == 'meters'
+        with suppress_stderr():
+            mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces).convert_units('meters', guess=True)
+            assert mesh.units == 'meters'
         area = round(mesh.area)
         if area == 0:
             return PointCloud()
@@ -92,8 +93,10 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
         result = PointCloud(vertices=pc.vertices, labels=pc.labels, encoding=hm.encoding, no_pred=hm.no_pred)
     else:
         total = None
+        intermediate = None
         context_size = 10
         skel2node_mapping = True
+        counter = 0
         chunks = graphs.bfs_iterative(hm.graph(), 0, context_size)
         for chunk in tqdm(chunks):
             chunk = np.array(chunk)
@@ -105,34 +108,42 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
             if len(hm.faces) == 0:
                 continue
             # get the mesh area in trimesh units and use it to determine how many points should be sampled
-            with suppress_stdout():
+            with suppress_stderr():
                 mesh = trimesh.Trimesh(vertices=extract.vertices, faces=extract.faces)\
                     .convert_units('meters', guess=True)
-            assert mesh.units == 'meters'
+                assert mesh.units == 'meters'
             area = round(mesh.area)
             if area == 0:
                 continue
             else:
                 pc = meshes.sample_mesh_poisson_disk(extract, tech_density * area)
-            if total is None:
-                total = pc
+            if intermediate is None:
+                intermediate = pc
             else:
-                total = clouds.merge_clouds([total, pc])
+                intermediate = clouds.merge_clouds([intermediate, pc])
+            counter += 1
+            if counter % 50 == 0:
+                if total is None:
+                    total = intermediate
+                else:
+                    total = clouds.merge_clouds(([total, intermediate]))
+                intermediate = None
+        total = clouds.merge_clouds([total, intermediate])
         result = HybridCloud(hm.nodes, hm.edges, vertices=total.vertices, labels=total.labels, encoding=hm.encoding)
     return result
 
 
 @contextmanager
-def suppress_stdout():
+def suppress_stderr():
     with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        sys.stdout = devnull
+        old_stdout = sys.stderr
+        sys.stderr = devnull
         try:
             yield
         finally:
-            sys.stdout = old_stdout
+            sys.stderr = old_stdout
 
 
 if __name__ == '__main__':
     process_single_thread(['/home/john/loc_Bachelorarbeit/gt/gt_meshes/examples/sso_34811392.pkl',
-                           '/home/john/loc_Bachelorarbeit/gt/gt_meshes/poisson/', 1000])
+                           '/home/john/loc_Bachelorarbeit/gt/gt_meshes/poisson/', 10])
