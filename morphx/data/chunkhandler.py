@@ -38,7 +38,7 @@ class ChunkHandler:
                  base_distance: int = None,
                  bio_density: float = None,
                  tech_density: int = None,
-                 node_context: int = 20000,
+                 node_context: int = 40000,
                  chunk_size: int = None,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
@@ -70,8 +70,12 @@ class ChunkHandler:
 
         # Load chunks or split dataset into chunks if it was not done already
         if density_mode:
+            if base_distance is None or bio_density is None or tech_density is None or node_context is None:
+                raise ValueError("Density mode requires base_distance, bio_density, tech_density and node_context.")
             filename = self._data_path + 'splitted/d_' + str(bio_density) + '.pkl'
         else:
+            if chunk_size is None:
+                raise ValueError("Context mode requires chunk_size.")
             filename = self._data_path + 'splitted/c_' + str(chunk_size) + '.pkl'
         if not os.path.exists(filename):
             splitting.split(data_path, base_distance, node_context, bio_density, sample_num, tech_density,

@@ -26,10 +26,8 @@ def bfs_base_points(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarra
     """
     if source == -1:
         source = np.random.randint(g.number_of_nodes())
-
     visited = [source]
     chosen = [source]
-
     # add all neighbors with respective weights
     neighbors = g.neighbors(source)
     de = deque([(i, 0) for i in neighbors])
@@ -37,18 +35,21 @@ def bfs_base_points(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarra
         curr, buddy = de.pop()
         if curr not in visited:
             visited.append(curr)
-
             # only nodes with minimum distance to other chosen nodes get added
             buddy_pos = g.nodes[chosen[buddy]]['position']
             pos = g.nodes[curr]['position']
             if np.linalg.norm(buddy_pos - pos) >= min_dist:
-                buddy = len(chosen)
-                chosen.append(curr)
-
+                clear = True
+                for node in chosen:
+                    if np.linalg.norm(pos - g.nodes[node]['position']) >= min_dist:
+                        clear = False
+                        break
+                if clear:
+                    buddy = len(chosen)
+                    chosen.append(curr)
             # add all neighbors with their weights added to the current weight
             neighbors = g.neighbors(curr)
             de.extendleft([(i, buddy) for i in neighbors if i not in visited])
-
     # return only chosen nodes
     return np.array(chosen)
 
@@ -77,7 +78,6 @@ def bfs_euclid_sphere(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
             neighbors = g.neighbors(curr)
             de.extendleft([i for i in neighbors if np.linalg.norm(source_pos - g.nodes[i]['position']) <= max_dist
                            and i not in visited])
-
     return np.array(visited)
 
 
@@ -103,7 +103,6 @@ def bfs_num(g: nx.Graph, source: int, neighbor_num: int) -> np.ndarray:
             visited.append(curr)
             neighbors = g.neighbors(curr)
             de.extendleft([i for i in neighbors if i not in visited])
-
     return np.array(visited)
 
 

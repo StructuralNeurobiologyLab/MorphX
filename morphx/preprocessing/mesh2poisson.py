@@ -110,7 +110,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
     else:
         total = None
         intermediate = None
-        context_size = 15
+        context_size = 10
         skel2node_mapping = True
         counter = 0
         chunks = graphs.bfs_iterative(hm.graph(), 0, context_size)
@@ -149,4 +149,4 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/batch1/', '/u/jklimesch/thesis/gt/gt_meshsets/poisson/', 1500)
+    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/todo/', '/u/jklimesch/thesis/gt/gt_meshsets/poisson/', 1500)

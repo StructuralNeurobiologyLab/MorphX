@@ -23,11 +23,7 @@ def process_dataset(input_path: str, output_path: str):
 
     print("Starting to voxel down dataset...")
     for file in tqdm(files):
-        slashs = [pos for pos, char in enumerate(file) if char == '/']
-        name = file[slashs[-1]+1:-4]
-        ce = ensembles.ensemble_from_pkl(file)
-        ce = voxel_down(ce)
-        ce.save2pkl(output_path + name + '.pkl')
+        process_single_thread([file, output_path])
 
 
 def process_single_thread(args):
@@ -39,14 +35,15 @@ def process_single_thread(args):
 
     ce = ensembles.ensemble_from_pkl(file)
     ce = voxel_down(ce)
-    ce.save2pkl(output_path + name)
+    ce.save2pkl(output_path + name + '.pkl')
 
 
 def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
+    voxel_size = 80
     hc = ce.hc
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
-    pcd, idcs = pcd.voxel_down_sample_and_trace(50, pcd.get_min_bound(), pcd.get_max_bound())
+    pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound())
     idcs = np.max(idcs, axis=1)
     new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=hc.labels[idcs],
                          features=hc.labels[idcs], encoding=hc.encoding, node_labels=hc.node_labels, no_pred=hc.no_pred)
@@ -55,7 +52,7 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
         pc = ce.clouds[key]
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(ce.clouds[key].vertices)
-        pcd, idcs = pcd.voxel_down_sample_and_trace(50, pcd.get_min_bound(), pcd.get_max_bound())
+        pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound())
         idcs = np.max(idcs, axis=1)
         new_pc = PointCloud(np.asarray(pcd.points), labels=pc.labels[idcs], encoding=pc.encoding, no_pred=pc.no_pred)
         new_clouds[key] = new_pc
@@ -64,5 +61,5 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/poisson/',
+    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/',
                     '/u/jklimesch/thesis/gt/gt_meshsets/voxeled/')

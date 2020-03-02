@@ -155,31 +155,27 @@ def bfs_vertices(hc: HybridCloud, source: int, vertex_max: int) -> np.ndarray:
     return np.array(visited)
 
 
-def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, context: int = 5) -> np.ndarray:
-    """ 1. Reduce number of nodes of interest by exploiting the skeleton structure and extracting nodes
-        within a certain euclidian radius
-        2. Get independent from the (possibly irregular) skeleton by performing a k-nearest neighbor search
-        on the node extract with respect to the source
-        3. Iterate the k-nearest neighbors in ascending order until maximum number of corresponding vertices
-        is reached
+def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, context: int = 2) -> np.ndarray:
+    """ Starting from the source, a bfs is performed until 'context' consecutive nodes have a distance > 'euclid'
+        from the source. The resulting node list is then iterated until the maximum number of vertices is reached.
+        This gets all nodes within a certain radius in the order they would appear when traversing the skeleton.
 
     Args:
         hc: The HybridCloud with the graph, nodes and vertices on which the BFS should be performed
         source: The source node from which the BFS should start.
         vertex_max: The maximum number of vertices which should be included in the chunk
         euclid: All nodes within this radius of the source are iterated
-        context: Used for creating the node context which speeds up the k-nearest neighbor search. Starting
-            from the source, a bfs is performed until 'context' consecutive nodes are outside of the 'euclid'
-            radius
+        context: BFS gets performed until 'context' consecutive nodes have a distance > 'euclid' from
+            the source
 
     Returns:
-        np.ndarray with nodes which were extracted during this bfs
+        np.ndarray with nodes which were extracted during the bfs
     """
     g = hc.graph()
     source_pos = g.nodes[source]['position']
     # run bfs in order to get node context on which following k-nearest neighbor search is faster
     visited = [source]
-    node_extract = []
+    node_extract = [source]
     neighbors = g.neighbors(source)
     de = deque([(i, [i]) for i in neighbors])
     while de:
@@ -197,28 +193,11 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
                         new_out_preds = out_preds.copy()
                         new_out_preds.append(i)
                         de.extendleft([(i, new_out_preds)])
-
-    # the node context contains all nodes within a certain euclidian radius. In order to get independent from the
-    # skeleton, the graph structure gets abandoned and the nodes are iterated in order of their distance to the source.
-    # This is computationally feasible as the extracted node context only contains a few (probably < 100) nodes.
-    extract_coords = np.zeros((len(node_extract), 3))
-    for ix, node in enumerate(node_extract):
-        extract_coords[ix] = g.nodes[node]['position']
-    tree = cKDTree(extract_coords)
-    dist, ind = tree.query(source_pos, k=len(extract_coords))
-    if isinstance(ind, int):
-        ind = np.array([ind])
-
-    # iterate query result in order of distance (small to large) and add nodes to result as long as the number of
-    # corresponding vertices is below the specified number
-    vertex_num = len(hc.verts2node[source])
-    bfs_result = [source]
-    for ix in ind:
-        node = node_extract[ix]
-        if vertex_num + len(hc.verts2node[node]) <= vertex_max:
-            bfs_result.append(node)
-            vertex_num += len(hc.verts2node[node])
-        else:
-            break
-
+    bfs_result = []
+    vertex_num = 0
+    ix = 0
+    while vertex_num <= vertex_max and ix < len(node_extract):
+        vertex_num += len(hc.verts2node[node_extract[ix]])
+        bfs_result.append(node_extract[ix])
+        ix += 1
     return np.array(bfs_result)
