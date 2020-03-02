@@ -29,7 +29,6 @@ def sample_mesh_poisson_disk(hm: HybridMesh, sample_num: int) -> PointCloud:
     """
     vertices = hm.vertices.astype(float)
     s_vertices, s_normals = pcu.sample_mesh_poisson_disk(vertices, hm.faces, np.array([]), ceil(sample_num))
-    print(f'Requested: {sample_num}, given: {len(s_vertices)}')
 
     # map labels from input cloud to sample
     labels = None

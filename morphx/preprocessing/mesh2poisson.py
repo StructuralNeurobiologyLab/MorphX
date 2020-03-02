@@ -49,6 +49,7 @@ def process_single_thread(args):
     tech_density = args[2]
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
+    print(name)
     ce = None
     try:
         hm = HybridMesh()
@@ -63,11 +64,12 @@ def process_single_thread(args):
         result.save2pkl(output_path + name + '_poisson.pkl')
     else:
         ce.change_hybrid(result)
+        ce.save2pkl(output_path + name + '_poisson.pkl')
         for key in ce.clouds:
             cloud = ce.clouds[key]
-            print(f"Processing {key}")
+            print(f"\nProcessing {key}")
             ce.clouds[key] = hybridmesh2poisson(cloud, tech_density)
-        ce.save2pkl(output_path + name + '_poisson.pkl')
+            ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
 def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
@@ -84,10 +86,10 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
         offset = 0
         mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces)
         area = mesh.area * 1e-06
-        if area == 0:
-            return PointCloud()
         # number of chunks should be relative to area
-        chunk_number = round(area / 5)
+        chunk_number = round(area / 6)
+        if area == 0 or chunk_number == 0:
+            return PointCloud()
         total = None
         for i in tqdm(range(int(chunk_number))):
             # process all faces left with last chunk
@@ -108,7 +110,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
     else:
         total = None
         intermediate = None
-        context_size = 10
+        context_size = 15
         skel2node_mapping = True
         counter = 0
         chunks = graphs.bfs_iterative(hm.graph(), 0, context_size)
@@ -132,6 +134,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
                 intermediate = pc
             else:
                 intermediate = clouds.merge_clouds([intermediate, pc])
+            # merging slows down process => hold speed constant by reducing merging operations
             counter += 1
             if counter % 50 == 0:
                 if total is None:
@@ -146,5 +149,4 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
 
 
 if __name__ == '__main__':
-    process_single_thread(['/home/john/loc_Bachelorarbeit/gt/gt_meshes/examples/sso_34811392.pkl',
-                           '/home/john/loc_Bachelorarbeit/gt/gt_meshes/poisson/', 1000])
+    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/batch1/', '/u/jklimesch/thesis/gt/gt_meshsets/poisson/', 1500)

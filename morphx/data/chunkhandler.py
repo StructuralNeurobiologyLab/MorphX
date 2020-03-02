@@ -33,8 +33,13 @@ class ChunkHandler:
 
     def __init__(self,
                  data_path: str,
-                 chunk_size: int,
                  sample_num: int,
+                 density_mode: bool = True,
+                 base_distance: int = None,
+                 bio_density: float = None,
+                 tech_density: int = None,
+                 node_context: int = 20000,
+                 chunk_size: int = None,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
                  data_type: str = 'ce',
@@ -43,9 +48,13 @@ class ChunkHandler:
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
-            chunk_size: Size of the generated chunks. If existing chunking information should be used,
-                this must comply with the chunk size used for generating that information.
+            base_distance: Distance of base points
             sample_num: Number of vertices which should be sampled from the surface of each chunk.
+                Should be equal to the capacity of the given network architecture.
+            tech_density: poisson sampling density with which data set was preprocessed in point/um²
+            bio_density: chunk sampling density in point/um². This determines the size of the chunks.
+                If previous chunking information should be used, this information must be available
+                in the splitted/ folder with 'bio_density' as name.
             transform: Transformations which should be applied to the chunks before returning them
                 (e.g. see :func:`morphx.processing.clouds.Compose`)
             specific: Flag for setting mode of requesting specific or rather randomly drawn chunks.
@@ -53,19 +62,25 @@ class ChunkHandler:
             obj_feats: Only used when inputs are CloudEnsembles. Dict with feature array (1, n) keyed by
                 the name of the corresponding object in the CloudEnsemble. The HybridCloud gets addressed
                 with 'hc'.
+            node_context: size of node context which is used for splitting.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
 
         # Load chunks or split dataset into chunks if it was not done already
-        if not os.path.exists(self._data_path + 'splitted/' + str(chunk_size) + '.pkl'):
-            splitting.split(data_path, chunk_size)
-        with open(self._data_path + 'splitted/' + str(chunk_size) + '.pkl', 'rb') as f:
+        if density_mode:
+            filename = self._data_path + 'splitted/d_' + str(bio_density) + '.pkl'
+        else:
+            filename = self._data_path + 'splitted/c_' + str(chunk_size) + '.pkl'
+        if not os.path.exists(filename):
+            splitting.split(data_path, base_distance, node_context, bio_density, sample_num, tech_density,
+                            density=density_mode, chunk_size=chunk_size)
+        with open(filename, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
 
-        self._chunk_size = chunk_size
+        self._chunk_size = base_distance
         self._sample_num = sample_num
         self._transform = transform
         self._specific = specific
@@ -91,7 +106,7 @@ class ChunkHandler:
                 if item in self._obj_names:
                     for idx in range(len(self._splitted_objs[item])):
                         self._chunk_list.append((item, idx))
-        random.shuffle(self._chunk_list)
+            random.shuffle(self._chunk_list)
 
         # In specific mode, the files should be loaded sequentially
         self._curr_obj = None

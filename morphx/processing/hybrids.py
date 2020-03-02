@@ -155,7 +155,7 @@ def bfs_vertices(hc: HybridCloud, source: int, vertex_max: int) -> np.ndarray:
     return np.array(visited)
 
 
-def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, context: int = 20) -> np.ndarray:
+def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, context: int = 5) -> np.ndarray:
     """ 1. Reduce number of nodes of interest by exploiting the skeleton structure and extracting nodes
         within a certain euclidian radius
         2. Get independent from the (possibly irregular) skeleton by performing a k-nearest neighbor search
