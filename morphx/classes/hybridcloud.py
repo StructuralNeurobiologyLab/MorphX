@@ -188,9 +188,8 @@ class HybridCloud(PointCloud):
             return self._weighted_graph
 
     def base_points(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
-        """ Creates or returns an array of node indices which can be used as the order in which the hybrid
-        should be traversed. With ``method = 'global_bfs'``, this method calculates the global BFS for the weighted
-        graph of this hybrid object.
+        """ Creates uniformly sampled base points one the graph which have a distance 'min_dist' to
+        all other base points. These base points can be used for local chunk extraction.
 
         Args:
             method: The method with which the order array should be created.

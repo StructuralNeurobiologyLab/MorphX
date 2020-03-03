@@ -41,7 +41,7 @@ def bfs_base_points(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarra
             if np.linalg.norm(buddy_pos - pos) >= min_dist:
                 clear = True
                 for node in chosen:
-                    if np.linalg.norm(pos - g.nodes[node]['position']) >= min_dist:
+                    if np.linalg.norm(pos - g.nodes[node]['position']) < min_dist:
                         clear = False
                         break
                 if clear:

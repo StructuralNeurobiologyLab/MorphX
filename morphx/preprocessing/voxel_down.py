@@ -39,7 +39,7 @@ def process_single_thread(args):
 
 
 def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
-    voxel_size = 80
+    voxel_size = 500
     hc = ce.hc
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
@@ -62,4 +62,4 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
 
 if __name__ == '__main__':
     process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/',
-                    '/u/jklimesch/thesis/gt/gt_meshsets/voxeled/')
+                    '/u/jklimesch/thesis/gt/gt_meshsets/voxeled_test/')
