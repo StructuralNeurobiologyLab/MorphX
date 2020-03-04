@@ -35,10 +35,8 @@ class ChunkHandler:
                  data_path: str,
                  sample_num: int,
                  density_mode: bool = True,
-                 base_distance: int = None,
                  bio_density: float = None,
                  tech_density: int = None,
-                 node_context: int = 40000,
                  chunk_size: int = None,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
@@ -48,7 +46,6 @@ class ChunkHandler:
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
-            base_distance: Distance of base points
             sample_num: Number of vertices which should be sampled from the surface of each chunk.
                 Should be equal to the capacity of the given network architecture.
             tech_density: poisson sampling density with which data set was preprocessed in point/um²
@@ -62,24 +59,25 @@ class ChunkHandler:
             obj_feats: Only used when inputs are CloudEnsembles. Dict with feature array (1, n) keyed by
                 the name of the corresponding object in the CloudEnsemble. The HybridCloud gets addressed
                 with 'hc'.
-            node_context: size of node context which is used for splitting.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
+        if not os.path.exists(self._data_path + 'splitted/'):
+            os.makedirs(self._data_path + 'splitted/')
 
         # Load chunks or split dataset into chunks if it was not done already
         if density_mode:
-            if base_distance is None or bio_density is None or tech_density is None or node_context is None:
-                raise ValueError("Density mode requires base_distance, bio_density, tech_density and node_context.")
-            filename = self._data_path + 'splitted/d_' + str(bio_density) + '.pkl'
+            if bio_density is None or tech_density is None:
+                raise ValueError("Density mode requires bio_density and tech_density")
+            filename = f'{self._data_path}splitted/d{bio_density}.pkl'
         else:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
-            filename = self._data_path + 'splitted/c_' + str(chunk_size) + '.pkl'
+            filename = f'{self._data_path}splitted/s{chunk_size}.pkl'
         if not os.path.exists(filename):
-            splitting.split(data_path, base_distance, node_context, bio_density, sample_num, tech_density,
-                            density=density_mode, chunk_size=chunk_size)
+            splitting.split(data_path, filename, bio_density=bio_density, capacity=sample_num,
+                            tech_density=tech_density, density_mode=density_mode, chunk_size=chunk_size)
         with open(filename, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
@@ -203,7 +201,7 @@ class ChunkHandler:
 
         # Return sample and indices from where sample points were taken
         if self._specific:
-            return sample, ixs
+            return sample, ixs, local_bfs
         else:
             return sample
 

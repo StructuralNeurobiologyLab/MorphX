@@ -187,23 +187,26 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def base_points(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
-        """ Creates uniformly sampled base points one the graph which have a distance 'min_dist' to
-        all other base points. These base points can be used for local chunk extraction.
+    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1,
+                    radius: int = 1200) -> np.ndarray:
+        """ Creates base points on the graph of the hybrid. These points can be used to extract local
+            contexts.
 
         Args:
-            method: The method with which the order array should be created.
-                'global_bfs' for global BFS with minimum distance.
-            min_dist: The minimum distance between points in the result of the BFS.
-            source: The starting point of the BFS.
+            density_mode: flag for (de)activating density mode.
+            threshold: the minimum distance between points in the result of the BFS.
+            source: the starting point of the BFS.
+            radius: radius of the structures.
 
         Returns:
               Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
         """
-        from morphx.processing import graphs
+        from morphx.processing import graphs, hybrids
         if self._base_points is None:
-            if method == 'global_bfs':
-                self._base_points = graphs.bfs_base_points(self.graph(), min_dist, source=source)
+            if density_mode:
+                self._base_points = hybrids.bfs_base_points_density(self, threshold, source=source, radius=radius)
+            else:
+                self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points
 
     def filter_traverser(self):

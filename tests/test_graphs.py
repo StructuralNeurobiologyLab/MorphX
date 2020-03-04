@@ -37,7 +37,7 @@ def test_global_sanity():
         g.nodes[i]['position'] = pos[i]
     g.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 4), (3, 5), (3, 6), (4, 7), (5, 8), (8, 9), (8, 10), (10, 11)])
     expected = [0, 2, 4, 8, 11]
-    chosen = nodes[graphs.bfs_base_points(g, 2, source=0)]
+    chosen = nodes[graphs.bfs_base_points_euclid(g, 2, source=0)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
@@ -67,7 +67,7 @@ def test_radius():
         g.nodes[i]['position'] = pos[i]
     g.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 4), (3, 5), (3, 6), (4, 7), (5, 8), (8, 9), (8, 10), (10, 11)])
     expected = [0, 3, 9]
-    chosen = nodes[graphs.bfs_base_points(g, 3, source=0)]
+    chosen = nodes[graphs.bfs_base_points_euclid(g, 3, source=0)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
@@ -85,7 +85,7 @@ def test_local_sanity():
     for i in range(12):
         g.nodes[i]['position'] = pos[i]
     g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
-    chosen = nodes[graphs.bfs_euclid_sphere(g, 5, 1)]
+    chosen = nodes[graphs.bfs_euclid(g, 5, 1)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected

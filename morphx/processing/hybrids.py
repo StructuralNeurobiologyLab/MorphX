@@ -8,7 +8,7 @@
 import numpy as np
 from typing import Tuple
 from collections import deque
-from scipy.spatial.ckdtree import cKDTree
+from scipy.spatial import cKDTree
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.pointcloud import PointCloud
@@ -155,7 +155,7 @@ def bfs_vertices(hc: HybridCloud, source: int, vertex_max: int) -> np.ndarray:
     return np.array(visited)
 
 
-def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, context: int = 2) -> np.ndarray:
+def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: int, cutoff: int = 20) -> np.ndarray:
     """ Starting from the source, a bfs is performed until 'context' consecutive nodes have a distance > 'euclid'
         from the source. The resulting node list is then iterated until the maximum number of vertices is reached.
         This gets all nodes within a certain radius in the order they would appear when traversing the skeleton.
@@ -165,7 +165,7 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
         source: The source node from which the BFS should start.
         vertex_max: The maximum number of vertices which should be included in the chunk
         euclid: All nodes within this radius of the source are iterated
-        context: BFS gets performed until 'context' consecutive nodes have a distance > 'euclid' from
+        cutoff: BFS gets performed until 'context' consecutive nodes have a distance > 'euclid' from
             the source
 
     Returns:
@@ -186,7 +186,7 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
                 node_extract.append(curr)
                 out_preds = []
             # don't add neighbors if previous 'context' nodes are outside of euclidian sphere
-            if len(out_preds) < context:
+            if len(out_preds) < cutoff:
                 neighbors = g.neighbors(curr)
                 for i in neighbors:
                     if i not in visited:
@@ -201,3 +201,72 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
         bfs_result.append(node_extract[ix])
         ix += 1
     return np.array(bfs_result)
+
+
+def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius: int = 1200) -> np.ndarray:
+    """ Adds nodes to result as long as number of corresponding vertices is below a given threshold. To be
+        independent from the skeleton structure, for each node all nodes within a certain radius get
+        considered. """
+    source = int(source)
+    chosen = []
+    idx_nodes = np.arange(len(hc.nodes))
+    visited = [source]
+    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
+    vertex_num = 0
+    # add nodes as long as number of corresponding vertices is still below the threshold
+    for node in dia_nodes:
+        if vertex_num + len(hc.verts2node[node]) <= vertex_max:
+            chosen.append(node)
+            vertex_num += len(hc.verts2node[node])
+        else:
+            return np.array(chosen)
+    neighbors = hc.graph().neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        curr = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
+            for node in dia_nodes:
+                if node not in chosen:
+                    if vertex_num + len(hc.verts2node[node]) <= vertex_max:
+                        chosen.append(node)
+                        vertex_num += len(hc.verts2node[node])
+                    else:
+                        return np.array(chosen)
+            neighbors = hc.graph().neighbors(curr)
+            de.extendleft([i for i in neighbors if i not in visited])
+    return np.array(chosen)
+
+
+def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1, radius: int = 1200) -> np.ndarray:
+    """ Adds base points which have a certain number of vertices between them. """
+    if source == -1:
+        source = np.random.randint(g.number_of_nodes())
+    visited = [source]
+    closed = []
+    chosen = [source]
+    idx_nodes = np.arange(len(hc.nodes))
+    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
+    vertex_num = 0
+    for node in dia_nodes:
+        closed.append(node)
+        vertex_num += len(hc.verts2node[node])
+    neighbors = hc.graph().neighbors(source)
+    de = deque([(i, vertex_num) for i in neighbors])
+    while de:
+        curr, vertex_num = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
+            for node in dia_nodes:
+                closed.append(node)
+                vertex_num += len(hc.verts2node[node])
+            # add to base points if vertex number since last base point exceeds threshold and if node is not too near
+            # to other, already visited points
+            if vertex_num > vertex_max and curr not in closed:
+                chosen.append(curr)
+                vertex_num = 0
+            neighbors = hc.graph().neighbors(curr)
+            de.extendleft([(i, vertex_num) for i in neighbors if i not in visited])
+    return np.array(chosen)

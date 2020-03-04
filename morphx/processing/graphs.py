@@ -10,7 +10,7 @@ import networkx as nx
 from collections import deque
 
 
-def bfs_base_points(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
+def bfs_base_points_euclid(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum euclidian distance get added
         to the result. The graph nodes must contain the attribute 'position' as a numpy array with
         x,y,z position.
@@ -54,7 +54,7 @@ def bfs_base_points(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarra
     return np.array(chosen)
 
 
-def bfs_euclid_sphere(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
+def bfs_euclid(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
     """ Performs a BFS on a graph until maximum euclidian distance for each path is reached. The
         graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
 
@@ -141,3 +141,4 @@ def bfs_iterative(g: nx.Graph, source: int, context: int):
                 chunks.append(local_visited)
             de += local_de
     return chunks
+

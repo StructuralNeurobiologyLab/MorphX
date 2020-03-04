@@ -86,19 +86,26 @@ def visualize_clouds(cloud_list: list, capture: bool = False, path="", random_se
     core_visualizer(pcd, capture=capture, path=path)
 
 
-def visualize_skeleton(hc: HybridCloud, capture: bool = False, path="", random_seed: int = 4):
+def visualize_skeleton(hc: HybridCloud, colored: np.ndarray = None, capture: bool = False, path="",
+                       random_seed: int = 4):
     """ Uses open3d to visualize the skeleton of the given hybrid cloud in a single window or save the visualization
         without showing.
 
     Args:
         hc: The HybridCloud whose skeleton should be visualized.
+        colored: indices of nodes which should appear in red
         capture: Flag to only save screenshot without showing the cloud.
         path: filepath where screenshot should be saved.
         random_seed: flag for using the same colors.
     """
-    pc = PointCloud(hc.nodes, labels=np.zeros(len(hc.nodes)))
-    pcd = build_pcd([pc], random_seed=random_seed)
-    core_visualizer(pcd, capture=capture, path=path)
+    colors = np.zeros((len(hc.nodes), 3))
+    colors[colored.reshape(-1)] = np.array([1, 0, 0])
+    skel = o3d.geometry.PointCloud(points=o3d.utility.Vector3dVector(hc.nodes))
+    skel.colors = o3d.utility.Vector3dVector(colors)
+    edges = o3d.geometry.LineSet(points=o3d.utility.Vector3dVector(hc.nodes),
+                                 lines=o3d.utility.Vector2iVector(hc.edges))
+    edges.colors = o3d.utility.Vector3dVector(colors)
+    o3d.visualization.draw_geometries([skel, edges])
 
 
 def prepare_bfs(hc: HybridCloud, bfs: np.ndarray) -> PointCloud:
@@ -115,7 +122,6 @@ def prepare_bfs(hc: HybridCloud, bfs: np.ndarray) -> PointCloud:
     nodes = hc.nodes
     bfs = bfs.astype(int)
     bfs_skel = nodes[bfs]
-
     # create small point cubes around BFS points for better visualization
     sphere_size = 1000
     size = len(bfs_skel)
