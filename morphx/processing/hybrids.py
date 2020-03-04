@@ -5,8 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Philipp Schubert
 
-import time
-import ipdb
 import numpy as np
 from typing import Tuple
 from collections import deque

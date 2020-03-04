@@ -6,7 +6,6 @@
 # Authors: Jonathan Klimesch
 
 import pickle
-import ipdb
 import numpy as np
 import networkx as nx
 from typing import Optional, List, Dict
