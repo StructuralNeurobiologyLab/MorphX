@@ -240,14 +240,15 @@ def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius:
 
 
 def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1, radius: int = 1200) -> np.ndarray:
-    """ Adds base points which have a certain number of vertices between them. """
+    """ Extracts base points which have a certain number of vertices between them. """
+    counter = 0
     if source == -1:
-        source = np.random.randint(g.number_of_nodes())
+        source = np.random.randint(hc.graph().number_of_nodes())
     visited = [source]
     closed = []
     chosen = [source]
     idx_nodes = np.arange(len(hc.nodes))
-    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
+    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= 2*radius]
     vertex_num = 0
     for node in dia_nodes:
         closed.append(node)
@@ -255,18 +256,21 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1, 
     neighbors = hc.graph().neighbors(source)
     de = deque([(i, vertex_num) for i in neighbors])
     while de:
+        counter += 1
+        print(counter)
         curr, vertex_num = de.pop()
         if curr not in visited:
             visited.append(curr)
-            dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
-            for node in dia_nodes:
-                closed.append(node)
-                vertex_num += len(hc.verts2node[node])
             # add to base points if vertex number since last base point exceeds threshold and if node is not too near
             # to other, already visited points
             if vertex_num > vertex_max and curr not in closed:
                 chosen.append(curr)
                 vertex_num = 0
+            if curr not in closed:
+                dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= 2*radius]
+                for node in dia_nodes:
+                    closed.append(node)
+                    vertex_num += len(hc.verts2node[node])
             neighbors = hc.graph().neighbors(curr)
             de.extendleft([(i, vertex_num) for i in neighbors if i not in visited])
     return np.array(chosen)
