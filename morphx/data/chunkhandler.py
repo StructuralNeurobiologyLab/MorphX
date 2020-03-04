@@ -82,7 +82,6 @@ class ChunkHandler:
             self._splitted_objs = pickle.load(f)
         f.close()
 
-        self._chunk_size = base_distance
         self._sample_num = sample_num
         self._transform = transform
         self._specific = specific
@@ -208,10 +207,6 @@ class ChunkHandler:
     @property
     def obj_names(self):
         return self._obj_names
-
-    @property
-    def chunk_size(self):
-        return self._chunk_size
 
     @property
     def sample_num(self):

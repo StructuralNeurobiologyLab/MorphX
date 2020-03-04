@@ -86,7 +86,6 @@ def visualize_clouds(cloud_list: list, capture: bool = False, path="", random_se
     core_visualizer(pcd, capture=capture, path=path)
 
 
-<<<<<<< HEAD
 def visualize_skeleton(hc: HybridCloud, colored: np.ndarray = None):
     """ Uses open3d to visualize the skeleton of the given hybrid cloud in a single window or save the visualization
         without showing.

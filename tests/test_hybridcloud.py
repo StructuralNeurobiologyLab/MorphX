@@ -133,22 +133,6 @@ def test_bfs_vertices_diameter():
         assert item in expected
 
 
-def test_base_points_density():
-    hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
-                                     [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),
-                     edges=np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10]]),
-                     vertices=np.array([[0, 0, 0], [0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 2, 0], [0, 2, 0], [0, 5, 0],
-                                        [0, 5, 0], [1, 1, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0], [1, 5, 0], [-1, 1, 0],
-                                        [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
-
-    expected = [0, 3, 9, 5]
-    chosen = hybrids.bfs_base_points_density(hc, 3, source=0, radius=0)
-    print(chosen)
-    assert len(chosen) == len(expected)
-    for item in chosen:
-        assert item in expected
-
-
 @pytest.mark.skip(reason="WIP")
 def test_bfs_vertices_euclid():
     hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],

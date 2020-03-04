@@ -8,7 +8,6 @@
 import numpy as np
 from typing import Tuple
 from collections import deque
-from scipy.spatial import cKDTree
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.pointcloud import PointCloud
@@ -239,38 +238,74 @@ def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius:
     return np.array(chosen)
 
 
-def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1, radius: int = 1200) -> np.ndarray:
-    """ Extracts base points which have a certain number of vertices between them. """
+def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) -> np.ndarray:
+    """ Extracts base points which have an approximate number of vertices between them.
+
+    Args:
+        hc: the HybridCloud with the graph and vertices.
+        vertex_max: the approximate number of vertices which should be between two base points
+            (corresponding to the nodes between them)
+        source: the starting point.
+    """
     counter = 0
+    # after context nodes the number of vertices between the current and the starting node is checked
+    # if vertex number is higher than threshold the node gets added as a base point
+    context = 20
     if source == -1:
         source = np.random.randint(hc.graph().number_of_nodes())
-    visited = [source]
-    closed = []
     chosen = [source]
-    idx_nodes = np.arange(len(hc.nodes))
-    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= 2*radius]
-    vertex_num = 0
-    for node in dia_nodes:
-        closed.append(node)
-        vertex_num += len(hc.verts2node[node])
+    visited = []
     neighbors = hc.graph().neighbors(source)
-    de = deque([(i, vertex_num) for i in neighbors])
+    de = deque([(i, [source], 0) for i in neighbors])
     while de:
         counter += 1
         print(counter)
+        curr, preds, verts_num = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            # sum up all corresponding vertices after each 'context' nodes. This speeds up the search by
+            # a large factor
+            if len(preds) >= context:
+                for node in preds:
+                    verts_num += len(hc.verts2node[node])
+                if verts_num > vertex_max and check_vertex_num_between(hc, vertex_max, curr, chosen):
+                    chosen.append(curr)
+                    verts_num = 0
+                # reset the context to process the next 'context' nodes. The number of vertices
+                # is still the old one unless the node was added as a base point
+                preds = []
+            preds.append(curr)
+            neighbors = hc.graph().neighbors(curr)
+            de.extendleft([(i, preds, verts_num) for i in neighbors])
+
+    return np.array(chosen)
+
+
+def check_vertex_num_between(hc: HybridCloud, vertex_max: int, source: int, chosen: list) -> bool:
+    """ Checks if number of vertices corresponding to the skeleton nodes between the source and the
+        nearest node in chosen is below a certain threshold. Can be used to ensure a minimum distance
+        between base points.
+
+    Args:
+        hc: the HybridCloud with the graph and vertices
+        vertex_max: the threshold from the description
+        source: the starting point
+        chosen: a list of nodes from which the nearest node to the source is decisive
+    """
+    visited = [source]
+    vertex_num = len(hc.verts2node[source])
+    neighbors = hc.graph().neighbors(source)
+    de = deque([(i, vertex_num) for i in neighbors])
+    while de:
         curr, vertex_num = de.pop()
         if curr not in visited:
             visited.append(curr)
-            # add to base points if vertex number since last base point exceeds threshold and if node is not too near
-            # to other, already visited points
-            if vertex_num > vertex_max and curr not in closed:
-                chosen.append(curr)
-                vertex_num = 0
-            if curr not in closed:
-                dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= 2*radius]
-                for node in dia_nodes:
-                    closed.append(node)
-                    vertex_num += len(hc.verts2node[node])
+            vertex_num += len(hc.verts2node[curr])
+            if curr in chosen:
+                if vertex_num < vertex_max:
+                    return False
+                else:
+                    return True
             neighbors = hc.graph().neighbors(curr)
-            de.extendleft([(i, vertex_num) for i in neighbors if i not in visited])
-    return np.array(chosen)
+            de.extendleft([(i, vertex_num) for i in neighbors])
+    return True

@@ -187,8 +187,7 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1,
-                    radius: int = 1200) -> np.ndarray:
+    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local
             contexts.
 
@@ -196,7 +195,6 @@ class HybridCloud(PointCloud):
             density_mode: flag for (de)activating density mode.
             threshold: the minimum distance between points in the result of the BFS.
             source: the starting point of the BFS.
-            radius: radius of the structures.
 
         Returns:
               Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
@@ -204,7 +202,7 @@ class HybridCloud(PointCloud):
         from morphx.processing import graphs, hybrids
         if self._base_points is None:
             if density_mode:
-                self._base_points = hybrids.bfs_base_points_density(self, threshold, source=source, radius=radius)
+                self._base_points = hybrids.bfs_base_points_density(self, threshold, source=source)
             else:
                 self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points
