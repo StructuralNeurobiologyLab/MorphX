@@ -7,6 +7,8 @@
 
 
 import os
+import pytest
+import time
 import numpy as np
 from morphx.processing import hybrids
 from morphx.classes.hybridcloud import HybridCloud
@@ -101,6 +103,53 @@ def test_bfs_vertices():
         assert item in expected
 
 
+def test_bfs_vertices_diameter():
+    hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
+                                     [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),
+                     edges=np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10]]),
+                     vertices=np.array([[0, 0, 0], [0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 2, 0], [0, 2, 0], [0, 5, 0],
+                                        [0, 5, 0], [1, 1, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0], [1, 5, 0], [-1, 1, 0],
+                                        [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
+
+    expected = [0, 1, 2, 4, 8]
+    chosen = hybrids.bfs_vertices_diameter(hc, 0, 9, 1)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+    expected = [0, 1, 2]
+    chosen = hybrids.bfs_vertices_diameter(hc, 0, 6, 2)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+    expected = [1, 2, 5]
+    chosen = hybrids.bfs_vertices_diameter(hc, 2, 6, 1)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+
+def test_base_points_density():
+    hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
+                                     [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),
+                     edges=np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10]]),
+                     vertices=np.array([[0, 0, 0], [0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 2, 0], [0, 2, 0], [0, 5, 0],
+                                        [0, 5, 0], [1, 1, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0], [1, 5, 0], [-1, 1, 0],
+                                        [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
+
+    expected = [0, 3, 9, 5]
+    chosen = hybrids.bfs_base_points_density(hc, 3, source=0, radius=0)
+    print(chosen)
+    assert len(chosen) == len(expected)
+    for item in chosen:
+        assert item in expected
+
+
+@pytest.mark.skip(reason="WIP")
 def test_bfs_vertices_euclid():
     hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
                                      [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),
@@ -160,15 +209,21 @@ def test_bfs_vertices_euclid():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0], [2, 1, 0]]))
 
     expected = [0, 1, 2, 4, 5, 8, 9]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 3, context=2)
+    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 3, cutoff=2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 8, 9, 10]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 4, context=1)
+    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 4, cutoff=1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
+
+
+if __name__ == '__main__':
+    start = time.time()
+    test_base_points_density()
+    print('Finished after', time.time() - start)

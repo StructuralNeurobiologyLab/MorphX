@@ -19,17 +19,21 @@ class TorchHandler(data.Dataset):
 
     def __init__(self,
                  data_path: str,
-                 chunk_size: int,
                  sample_num: int,
                  nclasses: int,
+                 density_mode: bool = True,
+                 bio_density: float = None,
+                 tech_density: int = None,
+                 chunk_size: int = None,
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
                  data_type: str = 'ce',
                  obj_feats: dict = None
                  ):
         """ Initializes Dataset. """
-        self._ch = ChunkHandler(data_path, chunk_size, sample_num, transform, specific=specific, data_type=data_type,
-                                obj_feats=obj_feats)
+        self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
+                                tech_density=tech_density, chunk_size=chunk_size, transform=transform,
+                                specific=specific, data_type=data_type, obj_feats=obj_feats)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num

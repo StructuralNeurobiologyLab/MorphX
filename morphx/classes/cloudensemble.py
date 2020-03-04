@@ -110,7 +110,7 @@ class CloudEnsemble(object):
         if self._hc is None:
             np.zeros(0)
         else:
-            return self._hc.base_points(method=method, min_dist=min_dist, source=source)
+            return self._hc.base_points(method=method, threshold=min_dist, source=source)
 
     def graph(self, simple=False) -> nx.Graph:
         if self._hc is None:
