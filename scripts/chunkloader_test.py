@@ -6,7 +6,7 @@ from morphx.data import basics
 
 if __name__ == '__main__':
     tech_density = 1500
-    bio_density = 50
+    bio_density = 100
     points = 25000
     data_path = os.path.expanduser('~/loc_Bachelorarbeit/chunking_test/')
     save_path = os.path.expanduser('~/loc_Bachelorarbeit/chunking_test/samples/')
@@ -24,4 +24,4 @@ if __name__ == '__main__':
             else:
                 full = clouds.merge_clouds([full, chunk])
         full.save2pkl(f'{save_path}{obj}_d{bio_density}.pkl')
-        basics.save2pkl(samples, save_path, name=f'{obj}_d{bio_density}.pkl')
+        basics.save2pkl(samples, save_path, name=f'{obj}_d{bio_density}_samples')

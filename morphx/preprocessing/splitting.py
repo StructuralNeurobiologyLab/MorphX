@@ -38,8 +38,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         obj = ensembles.ensemble_from_pkl(file)
         # calculate number of vertices for extracting max surface area
         vert_num = int(capacity * tech_density / bio_density)
-        # create base points around which the local contexts get extracted
-        obj.base_points(threshold=vert_num)
+        # create base points around which the local contexts get extracted (divisor determines overlap of chunks)
+        obj.base_points(threshold=vert_num/4)
         with open(filename + 'base_points.pkl', 'wb') as f:
             pickle.dump(obj.base_points(), f)
         chunks = []

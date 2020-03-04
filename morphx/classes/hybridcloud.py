@@ -42,7 +42,7 @@ class HybridCloud(PointCloud):
         else:
             if edges is not None and edges.max() > len(nodes):
                 raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
-            self._edges = edges
+            self._edges = edges.astype(int)
 
             self._node_labels = None
             if node_labels is not None:

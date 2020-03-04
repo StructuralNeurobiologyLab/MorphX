@@ -5,10 +5,10 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Philipp Schubert
 
-
 import os
 import pytest
 import time
+import ipdb
 import numpy as np
 from morphx.processing import hybrids
 from morphx.classes.hybridcloud import HybridCloud
@@ -209,5 +209,4 @@ def test_bfs_vertices_euclid():
 
 if __name__ == '__main__':
     start = time.time()
-    test_base_points_density()
     print('Finished after', time.time() - start)

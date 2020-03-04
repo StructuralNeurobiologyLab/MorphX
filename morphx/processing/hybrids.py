@@ -204,7 +204,7 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
     return np.array(bfs_result)
 
 
-def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius: int = 1200) -> np.ndarray:
+def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius: int = 500) -> np.ndarray:
     """ Adds nodes to result as long as number of corresponding vertices is below a given threshold. To be
         independent from the skeleton structure, for each node all nodes within a certain radius get
         considered. """
@@ -250,26 +250,34 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
         source: the starting point.
     """
     # after context nodes the number of vertices between the current and the starting node is checked
-    # if vertex number is higher than threshold the node gets added as a base point
+    # if vertex number is higher than threshold the node gets added as a base point (doing this context-
+    # wise speeds up the process in contrast to doing it node-wise)
     context = 20
     if source == -1:
         source = np.random.randint(hc.graph().number_of_nodes())
     chosen = [source]
-    visited = []
+    visited = [source]
     neighbors = hc.graph().neighbors(source)
     de = deque([(i, [source], 0) for i in neighbors])
     while de:
         curr, preds, verts_num = de.pop()
         if curr not in visited:
             visited.append(curr)
-            # sum up all corresponding vertices after each 'context' nodes. This speeds up the search by
-            # a large factor
+            # sum up all corresponding vertices after each 'context' nodes
             if len(preds) >= context:
                 for node in preds:
                     verts_num += len(hc.verts2node[node])
-                if verts_num > vertex_max and check_vertex_num_between(hc, vertex_max, curr, chosen):
-                    chosen.append(curr)
-                    verts_num = 0
+                if verts_num > vertex_max:
+                    # include this node only if there are enough vertices between this one and all nodes
+                    # which were already chosen
+                    include = True
+                    for chosen_node in reversed(chosen):
+                        if not enough_vertices(hc, vertex_max, curr, chosen_node):
+                            include = False
+                            break
+                    if include:
+                        chosen.append(curr)
+                        verts_num = 0
                 # reset the context to process the next 'context' nodes. The number of vertices
                 # is still the old one unless the node was added as a base point
                 preds = []
@@ -279,7 +287,7 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
     return np.array(chosen)
 
 
-def check_vertex_num_between(hc: HybridCloud, vertex_max: int, source: int, chosen: list) -> bool:
+def enough_vertices(hc: HybridCloud, vertex_max: int, source: int, goal: int) -> bool:
     """ Checks if number of vertices corresponding to the skeleton nodes between the source and the
         nearest node in chosen is below a certain threshold. Can be used to ensure a minimum distance
         between base points.
@@ -288,7 +296,11 @@ def check_vertex_num_between(hc: HybridCloud, vertex_max: int, source: int, chos
         hc: the HybridCloud with the graph and vertices
         vertex_max: the threshold from the description
         source: the starting point
-        chosen: a list of nodes from which the nearest node to the source is decisive
+        goal: a list of nodes from which the nearest node to the source is decisive
+
+    Returns:
+        True if there are enough vertices between the source and the next node in chosen, False
+        otherwise
     """
     visited = [source]
     vertex_num = len(hc.verts2node[source])
@@ -299,13 +311,12 @@ def check_vertex_num_between(hc: HybridCloud, vertex_max: int, source: int, chos
         if curr not in visited:
             visited.append(curr)
             vertex_num += len(hc.verts2node[curr])
+            # if goal node was reached, but not enough vertices are in between, return False
+            if curr == goal and vertex_num < vertex_max:
+                return False
+            # if there are enough vertices and goal has not been or has just been reached, return True
             if vertex_num > vertex_max:
                 return True
-            if curr in chosen:
-                if vertex_num < vertex_max:
-                    return False
-                else:
-                    return True
             neighbors = hc.graph().neighbors(curr)
             de.extendleft([(i, vertex_num) for i in neighbors])
     return True

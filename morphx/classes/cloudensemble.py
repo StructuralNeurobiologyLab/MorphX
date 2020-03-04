@@ -6,9 +6,9 @@
 # Authors: Jonathan Klimesch
 
 import pickle
+import ipdb
 import numpy as np
 import networkx as nx
-from scipy.spatial import cKDTree
 from typing import Optional, List, Dict
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
