@@ -31,7 +31,7 @@ def extract_cloud_subset(obj: Union[HybridCloud, CloudEnsemble],
 
 def filter_preds(obj: Union[HybridCloud, CloudEnsemble]) -> PointCloud:
     if isinstance(obj, CloudEnsemble):
-        pc = obj.pc
+        pc = obj.flattened
         pc.set_predictions(obj.predictions)
         obj = pc
     return clouds.filter_preds(obj)

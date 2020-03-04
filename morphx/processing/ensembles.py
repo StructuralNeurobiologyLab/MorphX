@@ -99,17 +99,17 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray) -> Tuple[PointClo
     obj_bounds = {}
     offset = 0
     idcs = np.array(idcs)
-    for key in ensemble.pc.obj_bounds:
-        bounds = ensemble.pc.obj_bounds[key]
+    for key in ensemble.flattened.obj_bounds:
+        bounds = ensemble.flattened.obj_bounds[key]
         num = len(idcs[np.logical_and(idcs >= bounds[0], idcs < bounds[1])])
         if num != 0:
             obj_bounds[key] = np.array([offset, offset+num])
             offset += num
     if len(idcs) == 0:
         return PointCloud(vertices=np.array([])), np.array([])
-    return PointCloud(vertices=ensemble.pc.vertices[idcs], labels=ensemble.pc.labels[idcs],
-                      features=ensemble.pc.features[idcs], obj_bounds=obj_bounds,
-                      no_pred=ensemble.pc.no_pred, encoding=ensemble.pc.encoding), idcs
+    return PointCloud(vertices=ensemble.flattened.vertices[idcs], labels=ensemble.flattened.labels[idcs],
+                      features=ensemble.flattened.features[idcs], obj_bounds=obj_bounds,
+                      no_pred=ensemble.flattened.no_pred, encoding=ensemble.flattened.encoding), idcs
 
 
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #

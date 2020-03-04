@@ -210,7 +210,7 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
     merged = None
     for cloud in cloud_list:
         if isinstance(cloud, CloudEnsemble):
-            cloud = cloud.pc
+            cloud = cloud.flattened
         if merged is None:
             merged = cloud
         else:

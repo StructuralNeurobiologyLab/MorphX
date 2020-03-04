@@ -32,7 +32,7 @@ class CloudEnsemble(object):
         """
         self._clouds = clouds
         self._hc = hybrid
-        self._pc = None
+        self._flattened = None
         self._verts2node = None
         self._predictions = predictions
 
@@ -70,47 +70,29 @@ class CloudEnsemble(object):
         return self._hc
 
     @property
-    def pc(self):
-        if self._pc is None:
+    def flattened(self):
+        if self._flattened is None:
             # avoids cyclic import
             from morphx.processing import ensembles
-            self._pc = ensembles.ensemble2pointcloud(self)
-            self._pc.add_no_pred(self._no_pred)
+            self._flattened = ensembles.ensemble2pointcloud(self)
+            self._flattened.add_no_pred(self._no_pred)
             if self._predictions is not None:
-                self._pc.set_predictions(self._predictions)
-        return self._pc
+                self._flattened.set_predictions(self._predictions)
+        return self._flattened
 
     @property
     def predictions(self) -> dict:
-        return self.pc.predictions
+        return self.flattened.predictions
 
     @property
     def verts2node(self) -> dict:
-        """ Creates python dict with indices of nodes as keys and lists of vertex indices
-            which have their key as nearest node. The indices refer to the flattened ensemble
-            (see `morphx.processing.ensembles.ensemble2pointcloud`). All vertices from all
-            clouds in the ensemble are included in the mapping.
+        return self.flattened.verts2node
 
-        Returns:
-            Dict with mapping information
-        """
-        if self._verts2node is None:
-            self._verts2node = {}
-            if isinstance(self.pc, HybridCloud):
-                if len(self.pc.nodes) > 0:
-                    tree = cKDTree(self.pc.nodes)
-                    dist, ind = tree.query(self.pc.vertices, k=1)
-
-                    self._verts2node = {ix: [] for ix in range(len(self.pc.nodes))}
-                    for vertex_idx, skel_idx in enumerate(ind):
-                        self._verts2node[skel_idx].append(vertex_idx)
-        return self._verts2node
-
-    def base_points(self, method='global_bfs', min_dist=0, source=-1) -> np.ndarray:
-        if self._hc is None:
-            np.zeros(0)
+    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1) -> np.ndarray:
+        if isinstance(self.flattened, HybridCloud):
+            return self.flattened.base_points(density_mode=density_mode, threshold=threshold, source=source)
         else:
-            return self._hc.base_points(method=method, threshold=min_dist, source=source)
+            return np.ndarray([])
 
     def graph(self, simple=False) -> nx.Graph:
         if self._hc is None:
@@ -153,12 +135,12 @@ class CloudEnsemble(object):
     def preds2labels(self, mv: bool = True):
         """ Transfers predictions (gathered for the flattened CloudEnsemble) to the labels of each object in the
             CloudEnsemble. """
-        self.pc.preds2labels(mv)
-        hc_bounds = self.pc.obj_bounds['hybrid']
-        self.hc.set_labels(self.pc.labels[hc_bounds[0]:hc_bounds[1]])
+        self.flattened.preds2labels(mv)
+        hc_bounds = self.flattened.obj_bounds['hybrid']
+        self.hc.set_labels(self.flattened.labels[hc_bounds[0]:hc_bounds[1]])
         for key in self.clouds:
-            cloud_bounds = self.pc.obj_bounds[key]
-            self._clouds[key].set_labels(self.pc.labels[cloud_bounds[0]:cloud_bounds[1]])
+            cloud_bounds = self.flattened.obj_bounds[key]
+            self._clouds[key].set_labels(self.flattened.labels[cloud_bounds[0]:cloud_bounds[1]])
 
     # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 

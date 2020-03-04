@@ -40,6 +40,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         vert_num = int(capacity * tech_density / bio_density)
         # create base points around which the local contexts get extracted
         obj.base_points(threshold=vert_num)
+        with open(filename + 'base_points.pkl', 'wb') as f:
+            pickle.dump(obj.base_points(), f)
         chunks = []
         # extract the local contexts at each base point depending on which mode has been chosen
         for node in tqdm(obj.base_points()):

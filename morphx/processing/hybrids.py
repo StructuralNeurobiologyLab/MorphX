@@ -5,6 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Philipp Schubert
 
+import time
+import ipdb
 import numpy as np
 from typing import Tuple
 from collections import deque
@@ -247,7 +249,6 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
             (corresponding to the nodes between them)
         source: the starting point.
     """
-    counter = 0
     # after context nodes the number of vertices between the current and the starting node is checked
     # if vertex number is higher than threshold the node gets added as a base point
     context = 20
@@ -258,8 +259,6 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
     neighbors = hc.graph().neighbors(source)
     de = deque([(i, [source], 0) for i in neighbors])
     while de:
-        counter += 1
-        print(counter)
         curr, preds, verts_num = de.pop()
         if curr not in visited:
             visited.append(curr)
@@ -277,7 +276,6 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
             preds.append(curr)
             neighbors = hc.graph().neighbors(curr)
             de.extendleft([(i, preds, verts_num) for i in neighbors])
-
     return np.array(chosen)
 
 
@@ -301,6 +299,8 @@ def check_vertex_num_between(hc: HybridCloud, vertex_max: int, source: int, chos
         if curr not in visited:
             visited.append(curr)
             vertex_num += len(hc.verts2node[curr])
+            if vertex_num > vertex_max:
+                return True
             if curr in chosen:
                 if vertex_num < vertex_max:
                     return False
