@@ -65,20 +65,23 @@ class ChunkHandler:
             os.makedirs(self._data_path)
         if not os.path.exists(self._data_path + 'splitted/'):
             os.makedirs(self._data_path + 'splitted/')
+        if not os.path.exists(self._data_path + 'splitted/base_points/'):
+            os.makedirs(self._data_path + 'splitted/base_points/')
 
+        self._splitfile = ''
         # Load chunks or split dataset into chunks if it was not done already
         if density_mode:
             if bio_density is None or tech_density is None:
                 raise ValueError("Density mode requires bio_density and tech_density")
-            filename = f'{self._data_path}splitted/d{bio_density}.pkl'
+            self._splitfile = f'{self._data_path}splitted/d{bio_density}.pkl'
         else:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
-            filename = f'{self._data_path}splitted/s{chunk_size}.pkl'
-        if not os.path.exists(filename):
-            splitting.split(data_path, filename, bio_density=bio_density, capacity=sample_num,
+            self._splitfile = f'{self._data_path}splitted/s{chunk_size}.pkl'
+        if not os.path.exists(self._splitfile):
+            splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
                             tech_density=tech_density, density_mode=density_mode, chunk_size=chunk_size)
-        with open(filename, 'rb') as f:
+        with open(self._splitfile, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
 
@@ -212,6 +215,10 @@ class ChunkHandler:
     def sample_num(self):
         return self._sample_num
 
+    @property
+    def splitfile(self):
+        return self._splitfile
+
     def switch_mode(self):
         """ Switch specific mode on and off. """
         self._specific = not self._specific
@@ -232,7 +239,8 @@ class ChunkHandler:
                 for name in self._obj_feats:
                     feat_line = self._obj_feats[name]
                     subcloud = obj.get_cloud(name)
-                    feats = np.ones((len(subcloud.vertices), len(feat_line)))
-                    feats[:] = feat_line
-                    subcloud.set_features(feats)
+                    if subcloud is not None:
+                        feats = np.ones((len(subcloud.vertices), len(feat_line)))
+                        feats[:] = feat_line
+                        subcloud.set_features(feats)
         return obj

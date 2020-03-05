@@ -202,7 +202,7 @@ def bfs_vertices_euclid(hc: HybridCloud, source: int, vertex_max: int, euclid: i
     return np.array(bfs_result)
 
 
-def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius: int = 500) -> np.ndarray:
+def bfs_vertices_diameter(hc: HybridCloud, source: int, vertex_max: int, radius: int = 1300) -> np.ndarray:
     """ Adds nodes to result as long as number of corresponding vertices is below a given threshold. To be
         independent from the skeleton structure, for each node all nodes within a certain radius get
         considered. """
@@ -250,7 +250,6 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
     # after context nodes the number of vertices between the current and the starting node is checked
     # if vertex number is higher than threshold the node gets added as a base point (doing this context-
     # wise speeds up the process in contrast to doing it node-wise)
-    counter = 0
     context = 20
     if source == -1:
         source = np.random.randint(hc.graph().number_of_nodes())
@@ -259,8 +258,6 @@ def bfs_base_points_density(hc: HybridCloud, vertex_max: int, source: int = -1) 
     neighbors = hc.graph().neighbors(source)
     de = deque([(i, [source], 0) for i in neighbors])
     while de:
-        counter += 1
-        print(counter)
         curr, preds, verts_num = de.pop()
         if curr not in visited:
             visited.append(curr)

@@ -143,6 +143,14 @@ def ensemble_from_pkl(path):
             except TypeError:
                 cloudlist[key] = HybridMesh(**obj['clouds'][key])
 
+    # check for empty clouds
+    empty = []
+    for key in cloudlist:
+        if cloudlist[key].vertices is None:
+            empty.append(key)
+    for key in empty:
+        cloudlist.pop(key, None)
+
     try:
         predictions = obj['predictions']
     except KeyError:

@@ -39,11 +39,19 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         # calculate number of vertices for extracting max surface area
         vert_num = int(capacity * tech_density / bio_density)
         # create base points around which the local contexts get extracted (divisor determines overlap of chunks)
+        print('Generation of base points...')
         obj.base_points(threshold=vert_num/4)
-        with open(filename + 'base_points.pkl', 'wb') as f:
+        # save base points
+        slashs = [pos for pos, char in enumerate(filename) if char == '/']
+        identifier = filename[slashs[-1] + 1:-4]
+        basefile = f'{filename[:slashs[-1]]}/base_points/{identifier}/'
+        if not os.path.exists(basefile):
+            os.makedirs(basefile)
+        with open(f'{basefile}{name}_basepoints.pkl', 'wb') as f:
             pickle.dump(obj.base_points(), f)
         chunks = []
         # extract the local contexts at each base point depending on which mode has been chosen
+        print('Generation of contexts...')
         for node in tqdm(obj.base_points()):
             if density_mode:
                 if bio_density is None or tech_density is None or capacity is None:
