@@ -1,11 +1,11 @@
 import os
 import glob
 import pickle
+import ipdb
 import numpy as np
 from getkey import keys, getkey
 from morphx.data import basics
-import morphx.processing.objects
-from morphx.processing import clouds, visualize
+from morphx.processing import clouds, visualize, objects, ensembles
 from morphx.classes.pointcloud import PointCloud
 
 
@@ -22,7 +22,6 @@ class ViewControl(object):
             path2: Set if comparison of ground truth is intended. This should point to the directory of processed files.
             cloudset: Flag for viewing results from the morphx.data.analyser save_cloudset method.
         """
-
         self.cloudset = cloudset
         self.save_path = os.path.expanduser(save_path)
 
@@ -211,8 +210,8 @@ class ViewControl(object):
             slashs = [pos for pos, char in enumerate(gt_file) if char == '/']
             filename = gt_file[slashs[-1] + 1:-4]
 
-            gt = morphx.data.basics.load_pkl(gt_file)
-            pred = morphx.data.basics.load_pkl(pred_file)
+            gt = ensembles.ensemble_from_pkl(gt_file)
+            pred = PointCloud().load_from_pkl(pred_file)
 
             res = self.core_next(gt, pred, filename, seed=seed)
             if res is None:
