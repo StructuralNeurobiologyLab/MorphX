@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import ipdb
 import os
 import pickle
 import numpy as np
@@ -100,7 +99,6 @@ class PredictionMapper:
             name = self._curr_name
         self._curr_obj.save2pkl(f'{self._save_path}{name}.pkl')
         if light:
-            ipdb.set_trace()
             # Save additional lightweight cloud for fast inspection
             simple_cloud = objects.filter_preds(self._curr_obj)
             simple_cloud.preds2labels()
