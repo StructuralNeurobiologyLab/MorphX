@@ -8,6 +8,7 @@
 import os
 import glob
 import pickle
+import ipdb
 import numpy as np
 from tqdm import tqdm
 from morphx.processing import ensembles, objects, graphs
@@ -56,7 +57,9 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                 bfs = graphs.bfs_euclid(obj.graph(), choice[0], chunk_size)
             chunks.append(bfs)
             mask = np.ones(len(nodes_new), dtype=bool)
-            mask[bfs] = False
+            for node in bfs:
+                if node < len(mask):
+                    mask[node] = False
             nodes_new = nodes_new[mask]
         base_points = np.array(base_points)
 
