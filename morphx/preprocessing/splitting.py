@@ -42,10 +42,11 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         vert_num = int(capacity * tech_density / bio_density)
         base_points = []
         chunks = []
-        nodes_new = obj.nodes
+        nodes_new = np.arange(len(obj.nodes))
+        mask = np.ones(len(obj.nodes), dtype=bool)
         # choose random node, extract local context at this point, remove local context nodes, repeat until empty
         while len(nodes_new) != 0:
-            choice = np.random.choice(len(nodes_new), 1)
+            choice = np.random.choice(nodes_new, 1)
             base_points.append(choice[0])
             if density_mode:
                 if bio_density is None or tech_density is None or capacity is None:
@@ -56,11 +57,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                     raise ValueError('chunk_size parameter must be given in context mode.')
                 bfs = graphs.bfs_euclid(obj.graph(), choice[0], chunk_size)
             chunks.append(bfs)
-            mask = np.ones(len(nodes_new), dtype=bool)
-            for node in bfs:
-                if node < len(mask):
-                    mask[node] = False
-            nodes_new = nodes_new[mask]
+            mask[bfs] = False
+            nodes_new = np.arange(len(obj.nodes))[mask]
         base_points = np.array(base_points)
 
         slashs = [pos for pos, char in enumerate(filename) if char == '/']

@@ -14,6 +14,7 @@ from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.processing import hybrids, ensembles, clouds
 from morphx.data import basics
+from scipy.spatial import cKDTree
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -54,11 +55,15 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
         return pc.load_from_pkl(file)
 
 
-def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1300) \
+def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 10000) \
         -> np.ndarray:
     """ Adds nodes to result as long as number of corresponding vertices is below a given threshold. To be
         independent from the skeleton structure, for each node all nodes within a certain radius get
-        considered. """
+        considered.
+
+    Returns:
+        Index array which contains indices of nodes in the hc node array which are part of the bfs result.
+    """
     source = int(source)
     chosen = []
     idx_nodes = np.arange(len(hc.nodes))
@@ -66,7 +71,10 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
     dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
     vertex_num = 0
     # add nodes as long as number of corresponding vertices is still below the threshold
-    for node in dia_nodes:
+    tree = cKDTree(hc.nodes[dia_nodes])
+    dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+    for ix in ind:
+        node = dia_nodes[ix]
         if vertex_num + len(hc.verts2node[node]) <= vertex_max:
             chosen.append(node)
             vertex_num += len(hc.verts2node[node])
@@ -79,7 +87,10 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
         if curr not in visited:
             visited.append(curr)
             dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
-            for node in dia_nodes:
+            tree = cKDTree(hc.nodes[dia_nodes])
+            dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+            for ix in ind:
+                node = dia_nodes[ix]
                 if node not in chosen:
                     if vertex_num + len(hc.verts2node[node]) <= vertex_max:
                         chosen.append(node)
