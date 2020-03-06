@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import os
 import pickle
 import numpy as np
@@ -32,6 +33,8 @@ class PredictionMapper:
         self._save_path = os.path.expanduser(save_path)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
+        if not os.path.exists(f'{save_path}info/'):
+            os.makedirs(f'{save_path}info/')
 
         # Load chunks or split dataset into chunks if it was not done already
         if not os.path.exists(splitfile):
@@ -97,6 +100,7 @@ class PredictionMapper:
             name = self._curr_name
         self._curr_obj.save2pkl(f'{self._save_path}{name}.pkl')
         if light:
+            ipdb.set_trace()
             # Save additional lightweight cloud for fast inspection
             simple_cloud = objects.filter_preds(self._curr_obj)
             simple_cloud.preds2labels()

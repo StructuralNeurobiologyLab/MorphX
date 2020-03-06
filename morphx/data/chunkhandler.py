@@ -203,7 +203,7 @@ class ChunkHandler:
 
         # Return sample and indices from where sample points were taken
         if self._specific:
-            return sample, ixs, local_bfs
+            return sample, ixs
         else:
             return sample
 
