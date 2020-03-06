@@ -104,7 +104,7 @@ class CloudEnsemble(object):
             return self._hc
         try:
             return self._clouds[cloud_name]
-        except ValueError:
+        except KeyError:
             return None
 
     def add_cloud(self, cloud: PointCloud, cloud_name: str):
@@ -114,7 +114,7 @@ class CloudEnsemble(object):
     def remove_cloud(self, cloud_name: str):
         try:
             del self._clouds[cloud_name]
-        except ValueError:
+        except KeyError:
             return
 
     def change_hybrid(self, hybrid: HybridCloud):

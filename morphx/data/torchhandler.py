@@ -78,7 +78,8 @@ class TorchHandler(data.Dataset):
 
         no_pred_labels = []
         for name in sample.no_pred:
-            no_pred_labels.append(sample.encoding[name])
+            if name in sample.encoding.keys():
+                no_pred_labels.append(sample.encoding[name])
 
         # build mask for all indices which should not be used for loss calculation
         idcs = torch.from_numpy(np.isin(sample.labels, no_pred_labels).reshape(-1))
@@ -95,6 +96,14 @@ class TorchHandler(data.Dataset):
     @property
     def obj_names(self):
         return self._ch.obj_names
+
+    @property
+    def splitfile(self):
+        return self._ch.splitfile
+
+    @property
+    def sample_num(self):
+        return self._sample_num
 
     def get_hybrid_length(self, name: str):
         return self._ch.get_obj_length(name)
