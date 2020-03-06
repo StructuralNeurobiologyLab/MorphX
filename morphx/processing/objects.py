@@ -4,17 +4,17 @@
 # Copyright (c) 2020 - now
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
-from collections import deque
 
 import numpy as np
+from collections import deque
+from morphx.data import basics
 from typing import Union, Tuple
-from morphx.classes.cloudensemble import CloudEnsemble
-from morphx.classes.hybridcloud import HybridCloud
+from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
+from morphx.classes.hybridcloud import HybridCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 from morphx.processing import hybrids, ensembles, clouds
-from morphx.data import basics
-from scipy.spatial import cKDTree
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -55,11 +55,10 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
         return pc.load_from_pkl(file)
 
 
-def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 10000) \
+def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
         -> np.ndarray:
-    """ Adds nodes to result as long as number of corresponding vertices is below a given threshold. To be
-        independent from the skeleton structure, for each node all nodes within a certain radius get
-        considered.
+    """ Traverses the skeleton nodes. For each node, all nodes within 'radius' are sorted according to their distance.
+        Then the nodes are added to the result as long as vertex number is below threshold.
 
     Returns:
         Index array which contains indices of nodes in the hc node array which are part of the bfs result.
@@ -70,16 +69,18 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
     visited = [source]
     dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
     vertex_num = 0
-    # add nodes as long as number of corresponding vertices is still below the threshold
+    # sort nodes within 'radius' by their distance
     tree = cKDTree(hc.nodes[dia_nodes])
     dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
     for ix in ind:
         node = dia_nodes[ix]
+        # add nodes as long as number of corresponding vertices is still below the threshold
         if vertex_num + len(hc.verts2node[node]) <= vertex_max:
             chosen.append(node)
             vertex_num += len(hc.verts2node[node])
         else:
             return np.array(chosen)
+    # traverse all nodes
     neighbors = hc.graph().neighbors(source)
     de = deque([i for i in neighbors])
     while de:
@@ -98,7 +99,7 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
                     else:
                         return np.array(chosen)
             neighbors = hc.graph().neighbors(curr)
-            de.extendleft([i for i in neighbors if i not in visited])
+            de.extendleft([i for i in neighbors])
     return np.array(chosen)
 
 

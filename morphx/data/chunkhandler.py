@@ -78,9 +78,14 @@ class ChunkHandler:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
             self._splitfile = f'{self._data_path}splitted/s{chunk_size}.pkl'
-        if not os.path.exists(self._splitfile):
-            splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
-                            tech_density=tech_density, density_mode=density_mode, chunk_size=chunk_size)
+        self._splitted_objs = None
+        if os.path.exists(self._splitfile):
+            with open(self._splitfile, 'rb') as f:
+                self._splitted_objs = pickle.load(f)
+            f.close()
+        splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
+                        tech_density=tech_density, density_mode=density_mode, chunk_size=chunk_size,
+                        splitted_hcs=self._splitted_objs)
         with open(self._splitfile, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
