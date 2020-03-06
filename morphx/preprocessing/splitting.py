@@ -8,8 +8,9 @@
 import os
 import glob
 import pickle
+import numpy as np
 from tqdm import tqdm
-from morphx.processing import ensembles, hybrids, graphs
+from morphx.processing import ensembles, objects, graphs
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
@@ -38,31 +39,34 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         obj = ensembles.ensemble_from_pkl(file)
         # calculate number of vertices for extracting max surface area
         vert_num = int(capacity * tech_density / bio_density)
-        # create base points around which the local contexts get extracted (divisor determines overlap of chunks)
-        print('Generation of base points...')
-        obj.base_points(threshold=vert_num/4)
-        # save base points
+        base_points = []
+        chunks = []
+        nodes_new = obj.nodes
+        # choose random node, extract local context at this point, remove local context nodes, repeat until empty
+        while len(nodes_new) != 0:
+            choice = np.random.choice(len(nodes_new), 1)
+            base_points.append(choice[0])
+            if density_mode:
+                if bio_density is None or tech_density is None or capacity is None:
+                    raise ValueError('bio_density, tech_density and capacity must be given in density mode')
+                bfs = objects.bfs_vertices_diameter(obj, choice[0], vert_num)
+            else:
+                if chunk_size is None:
+                    raise ValueError('chunk_size parameter must be given in context mode.')
+                bfs = graphs.bfs_euclid(obj.graph(), choice[0], chunk_size)
+            chunks.append(bfs)
+            mask = np.ones(len(nodes_new), dtype=bool)
+            mask[bfs] = False
+            nodes_new = nodes_new[mask]
+        base_points = np.array(base_points)
+
         slashs = [pos for pos, char in enumerate(filename) if char == '/']
         identifier = filename[slashs[-1] + 1:-4]
         basefile = f'{filename[:slashs[-1]]}/base_points/{identifier}/'
         if not os.path.exists(basefile):
             os.makedirs(basefile)
         with open(f'{basefile}{name}_basepoints.pkl', 'wb') as f:
-            pickle.dump(obj.base_points(), f)
-        chunks = []
-        # extract the local contexts at each base point depending on which mode has been chosen
-        print('Generation of contexts...')
-        for node in tqdm(obj.base_points()):
-            if density_mode:
-                if bio_density is None or tech_density is None or capacity is None:
-                    raise ValueError('bio_density, tech_density and capacity must be given in density mode')
-                bfs = hybrids.bfs_vertices_diameter(obj, node, vert_num)
-                chunks.append(bfs)
-            else:
-                if chunk_size is None:
-                    raise ValueError('chunk_size parameter must be given in context mode.')
-                bfs = graphs.bfs_euclid(obj.graph(), node, chunk_size)
-                chunks.append(bfs)
+            pickle.dump(base_points, f)
         splitted_hcs[name] = chunks
     with open(filename, 'wb') as f:
         pickle.dump(splitted_hcs, f)

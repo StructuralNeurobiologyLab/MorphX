@@ -9,6 +9,8 @@ import os
 import pytest
 import time
 import numpy as np
+
+import morphx.processing.objects
 from morphx.processing import hybrids
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.data.basics import read_mesh_from_ply, load_skeleton_nx_pkl
@@ -81,21 +83,21 @@ def test_bfs_vertices():
                                         [2, 2, 2], [3, 3, 3], [3, 3, 3], [3, 3, 3], [4, 4, 4], [4, 4, 4], [4, 4, 4],
                                         [4, 4, 4], [4, 4, 4], [4, 4, 4], [5, 5, 5]]))
 
-    chosen = hybrids.bfs_vertices(hc, 0, 14)
+    chosen = morphx.processing.objects.bfs_vertices(hc, 0, 14)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0]
-    chosen = hybrids.bfs_vertices(hc, 0, 3)
+    chosen = morphx.processing.objects.bfs_vertices(hc, 0, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [1, 2, 3]
-    chosen = hybrids.bfs_vertices(hc, 2, 10)
+    chosen = morphx.processing.objects.bfs_vertices(hc, 2, 10)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
@@ -111,21 +113,21 @@ def test_bfs_vertices_diameter():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
 
     expected = [0, 1, 2, 4, 8]
-    chosen = hybrids.bfs_vertices_diameter(hc, 0, 9, 1)
+    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 0, 9, 1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2]
-    chosen = hybrids.bfs_vertices_diameter(hc, 0, 6, 2)
+    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 0, 6, 2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [1, 2, 5]
-    chosen = hybrids.bfs_vertices_diameter(hc, 2, 6, 1)
+    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 2, 6, 1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
@@ -142,42 +144,42 @@ def test_bfs_vertices_euclid():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
 
     expected = [0, 1, 2, 4, 8]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 9, 3)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 9, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 8]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 4, 3)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 4, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 4, 5, 8, 9]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 3)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 20, 3)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [3, 7]
-    chosen = hybrids.bfs_vertices_euclid(hc, 3, 5, 2)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 3, 5, 2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 4, 8]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 8, 20)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 8, 20)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 4, 5, 6, 8, 9, 10]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 4)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 20, 4)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
@@ -192,14 +194,14 @@ def test_bfs_vertices_euclid():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0], [2, 1, 0]]))
 
     expected = [0, 1, 2, 4, 5, 8, 9]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 3, cutoff=2)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 20, 3, cutoff=2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2, 8, 9, 10]
-    chosen = hybrids.bfs_vertices_euclid(hc, 0, 20, 4, cutoff=1)
+    chosen = morphx.processing.objects.bfs_vertices_euclid(hc, 0, 20, 4, cutoff=1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:

@@ -9,6 +9,8 @@ import numpy as np
 import networkx as nx
 from typing import Optional
 from scipy.spatial import cKDTree
+
+import morphx.processing.objects
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
 
@@ -202,7 +204,7 @@ class HybridCloud(PointCloud):
         from morphx.processing import graphs, hybrids
         if self._base_points is None:
             if density_mode:
-                self._base_points = hybrids.bfs_base_points_density(self, threshold, source=source)
+                self._base_points = morphx.processing.objects.bfs_base_points_density(self, threshold, source=source)
             else:
                 self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points

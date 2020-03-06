@@ -73,7 +73,7 @@ class ChunkHandler:
         if density_mode:
             if bio_density is None or tech_density is None:
                 raise ValueError("Density mode requires bio_density and tech_density")
-            self._splitfile = f'{self._data_path}splitted/d{bio_density}.pkl'
+            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}.pkl'
         else:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
