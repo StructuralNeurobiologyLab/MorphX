@@ -10,6 +10,7 @@
 
 import os
 import glob
+import ipdb
 from tqdm import tqdm
 import open3d as o3d
 import numpy as np
@@ -166,9 +167,20 @@ def visualize_prediction_set(input_path: str, output_path: str, random_seed: int
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
 
-    print("Starting to transform mesh dataset into poisson dataset...")
     for file in tqdm(files):
         visualize_prediction(file, output_path, random_seed=random_seed, data_type=data_type)
+
+
+def visualize_data_set(input_path: str, output_path: str, random_seed: int = 4, data_type: str = 'ce'):
+    files = glob.glob(input_path + '*.pkl')
+    if not os.path.isdir(output_path):
+        os.makedirs(output_path)
+
+    for file in tqdm(files):
+        slashs = [pos for pos, char in enumerate(file) if char == '/']
+        name = file[slashs[-1] + 1:-4]
+        obj = objects.load_obj(data_type, file)
+        visualize_clouds([obj], capture=True, path=output_path + name + '.png', random_seed=random_seed)
 
 
 def visualize_prediction(file: str, out_path: str, random_seed: int = 4, data_type: str = 'ce'):
@@ -233,7 +245,22 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
         label_num = int(max(np.unique(labels)) + 1)
 
         # generate colors
-        colors = np.random.choice(range(256), size=(label_num, 3)) / 255
+        if label_num == 7:
+            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
+                               [133, 1, 1], [107, 114, 219], [4, 52, 124]]) / 255
+        elif label_num == 8:
+            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
+                               [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78]]) / 255
+        elif label_num == 9:
+            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
+                               [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78],
+                               [46, 41, 78]]) / 255
+        elif label_num == 10:
+            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
+                               [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78],
+                               [46, 41, 78], [46, 41, 78]]) / 255
+        else:
+            colors = np.random.choice(range(256), size=(label_num, 3)) / 255
         colors = colors[labels.astype(int)]
 
         pcd.colors = o3d.utility.Vector3dVector(colors)
