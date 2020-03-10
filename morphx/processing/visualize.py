@@ -10,7 +10,6 @@
 
 import os
 import glob
-import ipdb
 from tqdm import tqdm
 import open3d as o3d
 import numpy as np
@@ -159,6 +158,16 @@ def visualize_bfs(hc: HybridCloud, bfs: np.ndarray, capture: bool = False, path=
 
     pcd = build_pcd([pure_skel, bfs_skel], random_seed=random_seed)
     core_visualizer(pcd, capture=capture, path=path)
+
+
+def visualize_training_set(set_path: str):
+    """ Saves images of all predicted files from different trainings using visualize_prediction_set for each
+        training. """
+    set_path = os.path.expanduser(set_path)
+    dirs = os.listdir(set_path)
+    for di in dirs:
+        path = set_path + di + '/'
+        visualize_prediction_set(path, path + 'images/')
 
 
 def visualize_prediction_set(input_path: str, output_path: str, random_seed: int = 4, data_type: str = 'ce'):
