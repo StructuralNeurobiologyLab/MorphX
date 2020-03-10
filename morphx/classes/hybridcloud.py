@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import ipdb
 import numpy as np
 import networkx as nx
 from typing import Optional
@@ -98,13 +99,15 @@ class HybridCloud(PointCloud):
             else:
                 self._node_labels = np.zeros((len(self.nodes), 1), dtype=int)
                 self._node_labels[:] = -1
-
                 # extract vertices corresponding to each node and take the majority label as the label for that node
                 for ix in range(len(self._nodes)):
                     verts_idcs = self.verts2node[ix]
                     # nodes with no corresponding vertices have label -1
                     if len(verts_idcs) != 0:
                         labels = self.labels[verts_idcs]
+                        labels = labels[labels != -1]
+                        if len(labels) == 0:
+                            continue
                         u_labels, counts = np.unique(labels, return_counts=True)
                         # take first label if there are multiple majorities
                         self._node_labels[ix] = u_labels[np.argmax(counts)]

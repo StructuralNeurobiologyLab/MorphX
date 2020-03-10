@@ -166,7 +166,6 @@ def visualize_prediction_set(input_path: str, output_path: str, random_seed: int
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
 
-    print("Starting to transform mesh dataset into poisson dataset...")
     for file in tqdm(files):
         visualize_prediction(file, output_path, random_seed=random_seed, data_type=data_type)
 

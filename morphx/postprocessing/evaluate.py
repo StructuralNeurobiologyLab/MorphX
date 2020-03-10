@@ -6,19 +6,18 @@
 # Authors: Jonathan Klimesch
 
 import os
+import ipdb
 import glob
 import numpy as np
 import sklearn.metrics as sm
 from tqdm import tqdm
 from typing import Tuple
-
-import morphx.data.basics
-import morphx.processing.objects
-from morphx.processing import clouds
+from morphx.processing import objects
 
 
 def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list, report_name: str = 'Evaluation',
-                 total: bool = False, direct: bool = False, filters: bool = False, drop_unpreds: bool = True):
+                 total: bool = False, direct: bool = False, filters: bool = False, drop_unpreds: bool = True,
+                 data_type: str = 'ce'):
     """ Apply different metrics to HybridClouds with predictions and compare these predictions with corresponding
         ground truth files with different filters or under different conditions.
 
@@ -37,6 +36,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
         drop_unpreds: Flag for dropping all vertices or nodes which don't have predictions and whose labels are thus set
             to -1. If this flag is not set, the number of vertices or nodes without predictions might be much higher
             than the one of the predicted vertices or nodes, which results in bad evaluation results.
+        data_type: 'ce' for CloudEnsembles, 'hc' for HybridClouds
     """
     input_path = os.path.expanduser(input_path)
     gt_path = os.path.expanduser(gt_path)
@@ -68,7 +68,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
 
         report = '\n\n### File: ' + name + ' ###\n'
         report += eval_single(file, gt_file, metrics, total_labels, direct=direct, filters=filters,
-                              drop_unpreds=drop_unpreds)
+                              drop_unpreds=drop_unpreds, data_type=data_type)
         reports.append(report)
 
     # Perform evaluation on total label arrays (labels from all files sticked together), prediction
@@ -101,7 +101,7 @@ def eval_dataset(input_path: str, gt_path: str, output_path: str, metrics: list,
 
 
 def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, direct: bool = False,
-                filters: bool = False, drop_unpreds: bool = True) -> str:
+                filters: bool = False, drop_unpreds: bool = True, data_type: str = 'obj') -> str:
     """ Apply different metrics to HybridClouds with predictions and compare these predictions with corresponding
         ground truth files with different filters or under different conditions.
 
@@ -117,6 +117,7 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
         drop_unpreds: Flag for dropping all vertices or nodes which don't have predictions and whose labels are thus set
             to -1. If this flag is not set, the number of vertices or nodes without predictions might be much higher
             than the one of the predicted vertices or nodes, which results in bad evaluation results.
+        data_type: 'obj' for CloudEnsembles, 'hc' for HybridClouds
 
     Returns:
         Evaluation report as string.
@@ -125,8 +126,11 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
     gt_file = os.path.expanduser(gt_file)
 
     # load HybridCloud and corresponding ground truth
-    hc = morphx.data.basics.load_pkl(file)
-    gt_hc = morphx.data.basics.load_pkl(gt_file)
+    obj = objects.load_obj(data_type, file)
+    gt_obj = objects.load_obj(data_type, gt_file)
+    hc = obj.hc
+    gt_hc = gt_obj.hc
+
     if len(hc.labels) != len(gt_hc.labels):
         raise ValueError("Length of ground truth label array doesn't match with length of predicted label array.")
 
@@ -137,10 +141,10 @@ def eval_single(file: str, gt_file: str, metrics: list, total: dict = None, dire
 
         # Perform majority vote on existing predictions and set these as new labels
         if direct:
-            hc.preds2labels(False)
+            obj.preds2labels(False)
             mode = 'direct'
         else:
-            hc.preds2labels()
+            obj.preds2labels()
             mode = 'majority vote'
 
         # Get evaluation for vertices
@@ -179,9 +183,7 @@ if __name__ == '__main__':
     #                   '~/thesis/gt/gt_poisson/ads/sso_24414208_c.pkl', [sm.classification_report], filters=True,
     #                   direct=True))
 
-    for radius in [25000]:
-        for npoints in [5000]:
-            eval_dataset(f'~/thesis/trainings/past/2020/01_14/2020_01_14_{radius}_{npoints}/predictions/',
-                         '~/thesis/gt/gt_poisson/ads/',
-                         f'~/thesis/trainings/past/2020/01_14/2020_01_14_{radius}_{npoints}/predictions/',
-                         [sm.classification_report], total=True, report_name='Evaluation_new')
+    eval_dataset(f'~/thesis/trainings/past/param_search_2/validation/2020_03_08_20_60000/',
+                 '~/thesis/gt/20_02_20/poisson/validation/',
+                 f'~/thesis/trainings/past/param_search_2/validation/2020_03_08_20_60000/predictions/',
+                 [sm.classification_report], total=False, report_name='Evaluation_test')

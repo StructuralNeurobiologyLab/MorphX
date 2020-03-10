@@ -81,7 +81,9 @@ class CloudEnsemble(object):
 
     @property
     def predictions(self) -> dict:
-        return self.flattened.predictions
+        if self._predictions is None:
+            self._predictions = self.flattened.predictions
+        return self._predictions
 
     @property
     def verts2node(self) -> dict:
