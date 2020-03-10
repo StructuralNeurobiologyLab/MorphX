@@ -8,6 +8,7 @@
 import open3d as o3d
 import glob
 import numpy as np
+import time
 import functools
 from tqdm import tqdm
 from typing import Callable
@@ -15,10 +16,16 @@ from scipy.spatial import cKDTree
 from morphx.processing import graphs, hybrids, clouds
 from morphx.classes.hybridcloud import HybridCloud, PointCloud
 from morphx.data.cloudset import CloudSet
+from morphx.utils.lru_cache import lru_cache
 
 
-@functools.lru_cache(256)
-def _load_merger_sample(fpath, query_radius=10e3, down_factor=50):
+
+# GB = 1024**3
+# @lru_cache(use_memory_up_to=(1 * GB))
+@functools.lru_cache(maxsize=512)
+def _load_merger_sample(fpath, query_radius=10e3, down_factor=50, start_time=0):
+    # print("loading cell from: {}".format(fpath))
+
     # load hybrid cloud
     hc = clouds.load_cloud(fpath)
     # Downsampling
@@ -32,16 +39,16 @@ def _load_merger_sample(fpath, query_radius=10e3, down_factor=50):
     kdtree_vert = cKDTree(hc._vertices)  # this takes up 100s for large cells
     kdtree_node = cKDTree(hc._nodes)
 
-    node2vert = kdtree_node.query_ball_tree(kdtree_vert, r=query_radius)
+    # node2vert = kdtree_node.query_ball_tree(kdtree_vert, r=query_radius)
     node2node = kdtree_node.query_ball_tree(kdtree_node, r=query_radius)
 
     all_nodes = hc.nodes
     all_verts = hc._vertices
     all_node_labels = hc.merger_node_labels
-    all_vert_labels = hc.labels
+    # all_vert_labels = hc.labels
 
-    # return node2vert, node2node, all_nodes, all_verts, all_node_labels, all_vert_labels
-    return node2vert, node2node, all_nodes, all_verts, all_node_labels
+    # return kdtree_vert, node2node, all_nodes, all_verts, all_node_labels, all_vert_labels
+    return kdtree_vert, node2node, all_nodes, all_verts, all_node_labels
 
 
 class MergerCloudSetFast:
@@ -66,6 +73,8 @@ class MergerCloudSetFast:
         self.curr_node_idx = 0
         self.include_skeleton = include_skeleton
 
+        self.start_time = time.time()
+
         # =============================
         # Tuneable parameters:
         # =============================
@@ -73,7 +82,7 @@ class MergerCloudSetFast:
         # For segmentation of false-merger, this list should contain equal number of merger/non-merger nodes.
         self.sampled_node_idx = []
         # Number of positive/negative samples, resulting in total number of 2*self.num_posneg_samples
-        self.num_posneg_samples = 50
+        self.num_posneg_samples = 64
         self.query_radius = 10e3
         # =============================
         # =============================
@@ -83,23 +92,24 @@ class MergerCloudSetFast:
         if self.curr_node_idx >= len(self.sampled_node_idx):
             self.curr_node_idx = 0
             self.cur_fname = self.files[np.random.randint(len(self.files))]
-            node2vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
-                                                                                              self.query_radius)
-            update_success = self.update_sampled_node_idx(node2vert, node2node, all_nodes, all_node_labels)
+            kdtree_vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
+                                                                                                self.query_radius)
+            update_success = self.update_sampled_node_idx(node2node, all_nodes, all_node_labels)
 
             while not update_success:
                 self.curr_node_idx = 0
                 self.cur_fname = self.files[np.random.randint(len(self.files))]
-                node2vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
-                                                                                                  self.query_radius)
-                update_success = self.update_sampled_node_idx(node2vert, node2node, all_nodes, all_node_labels)
+                kdtree_vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
+                                                                                                    self.query_radius)
+                update_success = self.update_sampled_node_idx(node2node, all_nodes, all_node_labels)
 
         else:
-            node2vert, node2node, all_nodes, all_verts, all_node_labels= _load_merger_sample(self.cur_fname,
-                                                                                              self.query_radius)
+            kdtree_vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
+                                                                                                self.query_radius)
 
         query_center_idx = self.sampled_node_idx[self.curr_node_idx]
-        chunk_vert_ixs = node2vert[query_center_idx]
+        query_center = all_nodes[query_center_idx]
+        chunk_vert_ixs = kdtree_vert.query_ball_point(query_center, r=self.query_radius)
         chunk_node_ixs = node2node[query_center_idx]
         chunk_vertices = all_verts[chunk_vert_ixs]
         # chunk_vert_labels = all_vert_labels[chunk_vert_ixs]
@@ -112,7 +122,7 @@ class MergerCloudSetFast:
         subset = PointCloud(vertices=chunk_vertices)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
 
-        # Tempprally add nodes into _vertices in point cloud
+        # Temporally add nodes into _vertices in point cloud
         num_nodes = len(chunk_nodes)
         sample_cloud._vertices = np.concatenate((sample_cloud._vertices, chunk_nodes), axis=0)
 
@@ -132,7 +142,7 @@ class MergerCloudSetFast:
         else:
             return sample_cloud
 
-    def update_sampled_node_idx(self, node2vert, node2node, all_nodes, node_labels) -> bool:
+    def update_sampled_node_idx(self, node2node, all_nodes, node_labels) -> bool:
         node_idx_merger = np.argwhere(node_labels.squeeze() == 1).squeeze()
         node_idx_no_merger = np.argwhere(node_labels.squeeze() == 0).squeeze()
 
