@@ -5,8 +5,10 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch, Yang Liu
 
+import open3d as o3d
 import glob
 import numpy as np
+import functools
 from tqdm import tqdm
 from typing import Callable
 from scipy.spatial import cKDTree
@@ -15,7 +17,216 @@ from morphx.classes.hybridcloud import HybridCloud, PointCloud
 from morphx.data.cloudset import CloudSet
 
 
-class MergerCloudSet():
+@functools.lru_cache(256)
+def _load_merger_sample(fpath, query_radius=10e3, down_factor=50):
+    # load hybrid cloud
+    hc = clouds.load_cloud(fpath)
+    # Downsampling
+    pcd = o3d.geometry.PointCloud()
+    verts = hc._vertices
+    pcd.points = o3d.utility.Vector3dVector(verts)
+    pcd = pcd.voxel_down_sample(voxel_size=down_factor)
+    hc._vertices = np.asarray(pcd.points)
+
+    # kdTree of vertices / nodes
+    kdtree_vert = cKDTree(hc._vertices)  # this takes up 100s for large cells
+    kdtree_node = cKDTree(hc._nodes)
+
+    node2vert = kdtree_node.query_ball_tree(kdtree_vert, r=query_radius)
+    node2node = kdtree_node.query_ball_tree(kdtree_node, r=query_radius)
+
+    all_nodes = hc.nodes
+    all_verts = hc._vertices
+    all_node_labels = hc.merger_node_labels
+    all_vert_labels = hc.labels
+
+    # return node2vert, node2node, all_nodes, all_verts, all_node_labels, all_vert_labels
+    return node2vert, node2node, all_nodes, all_verts, all_node_labels
+
+
+class MergerCloudSetFast:
+
+    def __init__(self,
+                 data_path: str,
+                 radius_nm: int,
+                 sample_num: int,
+                 transform: Callable = clouds.Identity(),
+                 iterator_method: str = 'global_bfs',
+                 global_source: int = -1,
+                 radius_factor: float = 1.5,
+                 class_num: int = 2,
+                 label_filter: list = None,
+                 verbose: bool = False,
+                 include_skeleton: bool = True
+                 ):
+        self.files = glob.glob(data_path + '*.pkl')
+        self.sample_num = sample_num
+        self.transform = transform
+        self.cur_fname = self.files[0]
+        self.curr_node_idx = 0
+        self.include_skeleton = include_skeleton
+
+        # =============================
+        # Tuneable parameters:
+        # =============================
+        # node_idx_list stores all the nodes that will be used as querying location to chunk the point cloud.
+        # For segmentation of false-merger, this list should contain equal number of merger/non-merger nodes.
+        self.sampled_node_idx = []
+        # Number of positive/negative samples, resulting in total number of 2*self.num_posneg_samples
+        self.num_posneg_samples = 50
+        self.query_radius = 10e3
+        # =============================
+        # =============================
+
+    def __getitem__(self, index):
+        # Get a new file name after the samples are used up. (Determined by self.num_samples_per_cell)
+        if self.curr_node_idx >= len(self.sampled_node_idx):
+            self.curr_node_idx = 0
+            self.cur_fname = self.files[np.random.randint(len(self.files))]
+            node2vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
+                                                                                              self.query_radius)
+            update_success = self.update_sampled_node_idx(node2vert, node2node, all_nodes, all_node_labels)
+
+            while not update_success:
+                self.curr_node_idx = 0
+                self.cur_fname = self.files[np.random.randint(len(self.files))]
+                node2vert, node2node, all_nodes, all_verts, all_node_labels = _load_merger_sample(self.cur_fname,
+                                                                                                  self.query_radius)
+                update_success = self.update_sampled_node_idx(node2vert, node2node, all_nodes, all_node_labels)
+
+        else:
+            node2vert, node2node, all_nodes, all_verts, all_node_labels= _load_merger_sample(self.cur_fname,
+                                                                                              self.query_radius)
+
+        query_center_idx = self.sampled_node_idx[self.curr_node_idx]
+        chunk_vert_ixs = node2vert[query_center_idx]
+        chunk_node_ixs = node2node[query_center_idx]
+        chunk_vertices = all_verts[chunk_vert_ixs]
+        # chunk_vert_labels = all_vert_labels[chunk_vert_ixs]
+        chunk_nodes = all_nodes[chunk_node_ixs]
+        chunk_node_labels = all_node_labels[chunk_node_ixs]
+        # convert all -1 to 0 in chunk_node_labels
+        chunk_node_labels = np.where(chunk_node_labels == -1, 0, chunk_node_labels)
+
+        # subset = PointCloud(vertices=chunk_vertices, labels=chunk_vert_labels)
+        subset = PointCloud(vertices=chunk_vertices)
+        sample_cloud = clouds.sample_cloud(subset, self.sample_num)
+
+        # Tempprally add nodes into _vertices in point cloud
+        num_nodes = len(chunk_nodes)
+        sample_cloud._vertices = np.concatenate((sample_cloud._vertices, chunk_nodes), axis=0)
+
+        # apply transformations
+        if len(sample_cloud.vertices) > 0:
+            self.transform(sample_cloud)
+
+        # Remove nodes coordinates from _vertices
+        chunk_nodes = sample_cloud._vertices[self.sample_num:]
+        sample_cloud._vertices = sample_cloud._vertices[:-num_nodes]
+
+        self.curr_node_idx += 1
+
+        if self.include_skeleton:
+            chunk_nodes, chunk_node_labels = self.skel_node_fixation(chunk_nodes, chunk_node_labels, num_nodes=500)
+            return sample_cloud, chunk_nodes, chunk_node_labels
+        else:
+            return sample_cloud
+
+    def update_sampled_node_idx(self, node2vert, node2node, all_nodes, node_labels) -> bool:
+        node_idx_merger = np.argwhere(node_labels.squeeze() == 1).squeeze()
+        node_idx_no_merger = np.argwhere(node_labels.squeeze() == 0).squeeze()
+
+        # Iterate through every merger_node, and query all the nodes within the radius that centered around the
+        # current merger_node. These nodes combined are considered to be the query-center that will generate chunk of
+        # vertices that contains the merger.
+        nodes_to_filter = set()
+        for index in node_idx_merger:
+            chunk_node_ixs_set = set(node2node[index])
+            nodes_to_filter.update(chunk_node_ixs_set)
+
+        # Filter out `nodes_to_filter` from node_idx_no_merger
+        # Nodes that left are considered not containing the merger.
+        filtered_nodes_idx_no_merger = [index for index in node_idx_no_merger if index not in nodes_to_filter]
+        filtered_nodes_idx_no_merger = np.array(filtered_nodes_idx_no_merger)
+        if len(filtered_nodes_idx_no_merger) == 0:
+            return False
+
+        # Also expand the node_idx_merger so that the merger is not always in the center of the chunk
+        merger_radius = self.query_radius - 3.5e3
+        assert merger_radius > 0, "self.query_radius must be bigger than 3.5e3"
+        nodes_idx_merger_expanded = set()
+        for index in node_idx_merger:
+            chunk_node_ixs_set = set(node2node[index])
+            nodes_idx_merger_expanded.update(chunk_node_ixs_set)
+        nodes_idx_merger_expanded = np.array(list(nodes_idx_merger_expanded))
+        if len(nodes_idx_merger_expanded) == 0:
+            return False
+
+        num_samples = self.num_posneg_samples
+
+        merger_subset = np.random.choice(nodes_idx_merger_expanded, num_samples)
+        no_merger_subset = np.random.choice(filtered_nodes_idx_no_merger, num_samples)
+
+        self.sampled_node_idx = np.concatenate((merger_subset, no_merger_subset))
+        np.random.shuffle(self.sampled_node_idx)
+
+        return True
+
+    def skel_node_fixation(self, skel_nodes, node_labels, num_nodes=500):
+        """
+        Upsample or downsample the skeleton node to a given fix number (num_nodes).
+        This is necessary since PyTorch batch loader requires tensors to have the same size.
+        Args:
+            skel_nodes: shape (N,3), list of (x,y,z) coordinates.
+            node_labels: shape (N, 1), list of node labels, either 0(non-merger-node) or 1(merger_node)
+            num_nodes: number of nodes the output skeleton should have.
+
+        Returns:
+
+        """
+        assert len(skel_nodes) == len(node_labels), "inconsistent length of skel_nodes array and node_labels array"
+        if len(skel_nodes) > num_nodes:
+            # Downsample the skeleton nodes to num_nodes
+            diff = len(skel_nodes) - num_nodes
+            # Get the list of indexes of label 1 and label 0
+            idx_label_1 = np.argwhere(node_labels.squeeze() == 1).squeeze()
+            idx_label_0 = np.argwhere(node_labels.squeeze() == 0).squeeze()
+
+            # Calculate the ratio of label 1.
+            if len(idx_label_1.shape) == 0:
+                idx_label_1 = np.array([idx_label_1])
+            ratio = len(idx_label_1) / len(node_labels)
+
+            # Calculate the number of labels should be cut out for 1 and 0 respectively
+            num_draws_1 = int(diff * ratio)
+            num_draws_0 = diff - num_draws_1
+            num_remain_1 = len(idx_label_1) - num_draws_1
+            num_remain_0 = len(idx_label_0) - num_draws_0
+            assert 0 < num_remain_0 < len(idx_label_0)
+
+            # Randomly draw out indexes from label 1 and label 0 that should remain in the skeleton
+            idx_remain_1 = np.random.choice(idx_label_1, num_remain_1, replace=False)
+            idx_remain_0 = np.random.choice(idx_label_0, num_remain_0, replace=False)
+            idx_remain = np.sort(np.concatenate((idx_remain_1, idx_remain_0)))
+            skel_nodes = skel_nodes[idx_remain]
+            node_labels = node_labels[idx_remain]
+
+        if len(skel_nodes) < num_nodes:
+            # Upsample the skeleton nodes to num_nodes
+            diff = num_nodes - len(skel_nodes)
+            # Randomly pick some indexes nodes and repeat those nodes in the original array
+            random_idx = np.random.randint(len(skel_nodes), size=diff)
+            for idx in random_idx:
+                skel_nodes = np.append(skel_nodes, skel_nodes[idx].reshape(1, 3), axis=0)
+                node_labels = np.append(node_labels, node_labels[idx])
+
+        return skel_nodes, node_labels
+
+    def __len__(self):
+        return len(self.files) * self.num_posneg_samples * 2
+
+
+class MergerCloudSet:
     """ Dataset iterator class that creates point cloud samples from point clouds in pickle files at data_path. """
 
     def __init__(self,
@@ -133,15 +344,12 @@ class MergerCloudSet():
         chunk_vertices = self.curr_hybrid.vertices[chunk_vert_ixs]
         chunk_vert_labels = self.curr_hybrid.labels[chunk_vert_ixs]
         chunk_nodes = self.curr_hybrid.nodes[chunk_node_ixs]
-        chunk_node_labels = self.curr_hybrid.node_labels[chunk_node_ixs]
+        chunk_node_labels = self.curr_hybrid.merger_node_labels[chunk_node_ixs]
         # convert all -1 to 0 in chunk_node_labels
         chunk_node_labels = np.where(chunk_node_labels==-1, 0, chunk_node_labels)
 
         subset = PointCloud(vertices=chunk_vertices, labels=chunk_vert_labels)
         sample_cloud = clouds.sample_cloud(subset, self.sample_num)
-
-        test_cloud = type(sample_cloud)
-        test_node = type(chunk_nodes)
 
         # Temporally add nodes in to _vertices in point cloud
         num_nodes = len(chunk_nodes)
@@ -208,8 +416,8 @@ class MergerCloudSet():
         #                            source=self.global_source)
 
         # Fill in node_idx_list with equal number of merger/non-merger node idx.
-        node_idx_merger = np.argwhere(self.curr_hybrid.node_labels == 1)
-        node_idx_no_merger = np.argwhere(self.curr_hybrid.node_labels == 0)
+        node_idx_merger = np.argwhere(self.curr_hybrid.merger_node_labels == 1)
+        node_idx_no_merger = np.argwhere(self.curr_hybrid.merger_node_labels == 0)
 
         # Iterate through every merger_node, and query all the nodes within the radius that centered around the
         # current merger_node. These nodes combined are considered to be the query-center that will generate chunk of

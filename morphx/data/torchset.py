@@ -10,7 +10,7 @@ from typing import Callable
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.cloudset import CloudSet
-from morphx.data.merger_cloudset import MergerCloudSet
+from morphx.data.merger_cloudset import MergerCloudSet, MergerCloudSetFast
 from morphx.classes.hybridcloud import HybridCloud
 
 
@@ -46,7 +46,7 @@ class TorchSet(data.Dataset):
         """
 
         if data_type == 'merger':
-            self.cloudset = MergerCloudSet(data_path, radius_nm, sample_num,
+            self.cloudset = MergerCloudSetFast(data_path, radius_nm, sample_num,
                                            transform=transform,
                                            iterator_method=iterator_method,
                                            global_source=global_source,
@@ -117,7 +117,7 @@ class TorchSetSkeleton(TorchSet):
         while len(sample.vertices) == 0:
             sample = self.cloudset[0]
 
-        vert_labels = sample.labels.reshape(len(sample.labels))
+        # vert_labels = sample.labels.reshape(len(sample.labels))
         node_labels = chunk_node_labels.reshape(len(chunk_node_labels))
 
         # pack all numpy arrays into torch tensors
@@ -125,7 +125,9 @@ class TorchSetSkeleton(TorchSet):
         nodes = torch.from_numpy(chunk_nodes).float()
         lbs = torch.from_numpy(node_labels).long()
         features = torch.ones(len(sample.vertices), 1).float()
-        vert_labels = torch.from_numpy(vert_labels).long()
+        # vert_labels = torch.from_numpy(vert_labels).long()
 
-        return {'pts': pts, 'nodes': nodes, 'features': features, 'target': lbs,
-                'vert_labels': vert_labels}
+        # return {'pts': pts, 'nodes': nodes, 'features': features, 'target': lbs,
+        #         'vert_labels': vert_labels}
+
+        return {'pts': pts, 'nodes': nodes, 'features': features, 'target': lbs}
