@@ -1,6 +1,7 @@
 import os
 import glob
 import pickle
+import ipdb
 import numpy as np
 from getkey import keys, getkey
 from morphx.data import basics
@@ -26,7 +27,7 @@ class ViewControl(object):
 
         self.path1 = os.path.expanduser(path1)
         if cloudset:
-            self.files1 = glob.glob(path1 + 'h*.pkl')
+            self.files1 = glob.glob(path1 + '*.pkl')
         else:
             self.files1 = glob.glob(path1 + '*.pkl')
         self.files1.sort()
@@ -35,7 +36,7 @@ class ViewControl(object):
             self.load = self.simple_view
         else:
             if cloudset:
-                self.files2 = glob.glob(path1 + 'cloud*.pkl')
+                self.files2 = glob.glob(path1 + '*.pkl')
             else:
                 self.cmp = False
                 if path2 is not None:
