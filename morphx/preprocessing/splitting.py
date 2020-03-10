@@ -10,6 +10,8 @@ import glob
 import pickle
 import numpy as np
 from tqdm import tqdm
+
+import morphx.processing.objects
 from morphx.processing import ensembles, objects, graphs
 
 
@@ -58,7 +60,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             else:
                 if chunk_size is None:
                     raise ValueError('chunk_size parameter must be given in context mode.')
-                bfs = graphs.bfs_euclid(obj.graph(), choice[0], chunk_size)
+                bfs = objects.bfs_euclid_diameter(obj, choice[0], chunk_size)
             chunks.append(bfs)
             mask[bfs] = False
             nodes_new = np.arange(len(obj.nodes))[mask]

@@ -296,6 +296,10 @@ class Normalization:
         """
         pc.scale(self._radius)
 
+    @property
+    def radius(self):
+        return self._radius
+
 
 class RandomRotate:
     def __init__(self, angle_range: tuple = (-180, 180)):

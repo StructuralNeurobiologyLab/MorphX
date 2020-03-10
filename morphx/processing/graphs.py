@@ -54,33 +54,6 @@ def bfs_base_points_euclid(g: nx.Graph, min_dist: float, source: int = -1) -> np
     return np.array(chosen)
 
 
-def bfs_euclid(g: nx.Graph, source: int, max_dist: float) -> np.ndarray:
-    """ Performs a BFS on a graph until maximum euclidian distance for each path is reached. The
-        graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
-
-    Args:
-        g: The weighted networkx graph on which the BFS should be performed. Nodes must have a position attribute
-         with their xyz positions as a numpy array, e.g. g.nodes[0]['position'] = np.array([1,2,3])
-        source: The source node from which the BFS should start.
-        max_dist: The maximum distance which should limit the BFS.
-
-    Returns:
-        np.ndarray with nodes sorted recording to the result of the limited BFS
-    """
-    source_pos = g.nodes[source]['position']
-    visited = [source]
-    neighbors = g.neighbors(source)
-    de = deque([i for i in neighbors if np.linalg.norm(source_pos - g.nodes[i]['position']) <= max_dist])
-    while de:
-        curr = de.pop()
-        if curr not in visited:
-            visited.append(curr)
-            neighbors = g.neighbors(curr)
-            de.extendleft([i for i in neighbors if np.linalg.norm(source_pos - g.nodes[i]['position']) <= max_dist
-                           and i not in visited])
-    return np.array(visited)
-
-
 def bfs_num(g: nx.Graph, source: int, neighbor_num: int) -> np.ndarray:
     """ Performs a BFS on a graph until maximum number of visited nodes is reached.
 
