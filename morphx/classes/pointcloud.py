@@ -91,7 +91,7 @@ class PointCloud(object):
     @property
     def predictions(self) -> dict:
         if self._predictions is None:
-            self._predictions = {ix: [] for ix in range(len(self._vertices))}
+            self._predictions = {}
         return self._predictions
 
     @property
@@ -204,16 +204,14 @@ class PointCloud(object):
         Returns:
             The newly generated labels.
         """
-        for idx in range(len(self._labels)):
-            preds = np.array(self._predictions[idx])
-            if len(preds) > 0:
-                if mv:
-                    u_preds, counts = np.unique(preds, return_counts=True)
-                    self._labels[idx] = u_preds[np.argmax(counts)]
-                else:
-                    self._labels[idx] = preds[0]
+        self._labels[:] = -1
+        for key in self._predictions:
+            preds = np.array(self._predictions[key])
+            if mv:
+                u_preds, counts = np.unique(preds, return_counts=True)
+                self._labels[key] = u_preds[np.argmax(counts)]
             else:
-                self._labels[idx] = -1
+                self._labels[key] = preds[0]
         if self._encoding is not None and -1 in self._labels:
             self._encoding['no_prediction'] = -1
 

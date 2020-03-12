@@ -6,7 +6,9 @@
 # Authors: Jonathan Klimesch
 
 import os
+import ipdb
 import pickle
+import time
 import numpy as np
 from morphx.processing import ensembles, objects
 from morphx.classes.pointcloud import PointCloud
@@ -69,15 +71,20 @@ class PredictionMapper:
         if self._curr_name != obj_name:
             self.save_prediction(self._curr_name)
             self.load_prediction(obj_name)
+
         node_context = self._splitted_objs[obj_name][chunk_idx]
         # Get indices of vertices for requested local BFS
         _, idcs = objects.extract_cloud_subset(self._curr_obj, node_context)
         mapping_idcs = mapping_idcs.astype(int)
+        start = time.time()
         for pred_idx, subset_idx in enumerate(mapping_idcs):
             # Get indices of vertices in full object (not only in the subset)
             vertex_idx = idcs[subset_idx]
-            self._curr_obj.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
-        self.save_prediction(self._curr_name, light=False)
+            try:
+                self._curr_obj.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
+            except KeyError:
+                self._curr_obj.predictions[vertex_idx] = [int(pred_cloud.labels[pred_idx])]
+        print(f"mapping: {time.time()-start}")
 
     def load_prediction(self, name: str):
         try:
@@ -94,7 +101,7 @@ class PredictionMapper:
                 self._curr_obj.load_from_pkl(f'{self._data_path}{name}.pkl')
         self._curr_name = name
 
-    def save_prediction(self, name: str = None, light: bool = True):
+    def save_prediction(self, name: str = None, light: bool = False):
         if name is None:
             name = self._curr_name
         self._curr_obj.save2pkl(f'{self._save_path}{name}.pkl')

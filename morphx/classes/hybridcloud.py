@@ -5,7 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import ipdb
+import time
 import numpy as np
 import networkx as nx
 from typing import Optional
@@ -76,12 +76,14 @@ class HybridCloud(PointCloud):
             Dict with mapping information
         """
         if self._verts2node is None:
+            start = time.time()
             tree = cKDTree(self.nodes)
             dist, ind = tree.query(self.vertices, k=1)
 
             self._verts2node = {ix: [] for ix in range(len(self.nodes))}
             for vertex_idx, skel_idx in enumerate(ind):
                 self._verts2node[skel_idx].append(vertex_idx)
+            print(f"Verts2node: {time.time()-start}")
         return self._verts2node
 
     @property
