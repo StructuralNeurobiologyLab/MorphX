@@ -4,12 +4,9 @@
 # Copyright (c) 2020 - now
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
-import networkx as nx
+
 import numpy as np
 from collections import deque
-
-from scipy.spatial.ckdtree import cKDTree
-
 from morphx.data import basics
 from typing import Union, Tuple
 from scipy.spatial import cKDTree
@@ -57,6 +54,8 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
         pc = PointCloud()
         return pc.load_from_pkl(file)
 
+
+# -------------------------------------- BFS ALGORITHMS -------------------------------------- #
 
 def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
         -> np.ndarray:

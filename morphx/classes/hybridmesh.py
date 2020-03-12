@@ -19,6 +19,7 @@ class HybridMesh(HybridCloud):
     def __init__(self,
                  faces: np.ndarray = None,
                  normals: Optional[np.ndarray] = None,
+                 faces2node: dict = None,
                  *args, **kwargs):
         """
         Args:
@@ -35,7 +36,7 @@ class HybridMesh(HybridCloud):
             if len(normals) != len(self.vertices):
                 raise ValueError("Normals array must have same length as vertices array.")
             self._normals = normals.reshape(len(normals), 1)
-        self._faces2node = None
+        self._faces2node = faces2node
 
     @property
     def faces(self) -> np.ndarray:
@@ -72,7 +73,7 @@ class HybridMesh(HybridCloud):
         return self._faces2node
 
     def get_attr_dict(self):
-        attr_dict = {'faces': self._faces, 'normals': self._normals}
+        attr_dict = {'faces': self._faces, 'normals': self._normals, 'faces2node': self.faces2node}
         attr_dict.update(super().get_attr_dict())
         return attr_dict
 

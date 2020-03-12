@@ -187,10 +187,7 @@ class PointCloud(object):
         self._obj_bounds = None
 
     def set_predictions(self, predictions: dict):
-        if len(predictions) != len(self.vertices):
-            raise ValueError("Prediction dict must have as many keys as there are values.")
-        else:
-            self._predictions = predictions
+        self._predictions = predictions
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 

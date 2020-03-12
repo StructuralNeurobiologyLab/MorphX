@@ -6,9 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import os
-import ipdb
 import pickle
-import time
 import numpy as np
 from morphx.processing import ensembles, objects
 from morphx.classes.pointcloud import PointCloud
@@ -76,7 +74,6 @@ class PredictionMapper:
         # Get indices of vertices for requested local BFS
         _, idcs = objects.extract_cloud_subset(self._curr_obj, node_context)
         mapping_idcs = mapping_idcs.astype(int)
-        start = time.time()
         for pred_idx, subset_idx in enumerate(mapping_idcs):
             # Get indices of vertices in full object (not only in the subset)
             vertex_idx = idcs[subset_idx]
@@ -84,7 +81,6 @@ class PredictionMapper:
                 self._curr_obj.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
             except KeyError:
                 self._curr_obj.predictions[vertex_idx] = [int(pred_cloud.labels[pred_idx])]
-        print(f"mapping: {time.time()-start}")
 
     def load_prediction(self, name: str):
         try:

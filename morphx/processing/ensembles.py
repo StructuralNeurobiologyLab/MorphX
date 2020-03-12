@@ -156,4 +156,9 @@ def ensemble_from_pkl(path):
     except KeyError:
         predictions = None
 
-    return CloudEnsemble(cloudlist, h, obj['no_pred'], predictions=predictions)
+    try:
+        verts2node = obj['verts2node']
+    except KeyError:
+        verts2node = None
+
+    return CloudEnsemble(cloudlist, h, obj['no_pred'], predictions=predictions, verts2node=verts2node)

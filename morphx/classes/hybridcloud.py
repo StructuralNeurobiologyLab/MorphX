@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import time
+import warnings
 import numpy as np
 import networkx as nx
 from typing import Optional
@@ -116,6 +117,9 @@ class HybridCloud(PointCloud):
 
                 # nodes without label (still == -1) get label from nearest node with label
                 mapping = np.arange(len(self._nodes))
+                if np.all(self._node_labels == -1):
+                    warnings.warn("All node labels have label -1. Label mapping was not possible.")
+                    return self._node_labels
                 for ix in range(len(self._nodes)):
                     if self._node_labels[ix] == -1:
                         mapping[ix] = hybrids.label_search(self, ix)
@@ -128,6 +132,11 @@ class HybridCloud(PointCloud):
         if len(node_labels) != len(self._nodes):
             raise ValueError('Length of node_labels must comply with length of nodes.')
         self._node_labels = node_labels
+        
+    def set_verts2node(self, verts2node: dict):
+        if len(verts2node) != len(self._nodes):
+            raise ValueError('Length of verts2nodes must comply with length of nodes.')
+        self._verts2node = verts2node
 
     # -------------------------------------- HYBRID BASICS ------------------------------------------- #
 
@@ -267,6 +276,6 @@ class HybridCloud(PointCloud):
     # -------------------------------------- HYBRID I/O ------------------------------------------- #
 
     def get_attr_dict(self):
-        attr_dict = {'nodes': self._nodes, 'edges': self._edges}
+        attr_dict = {'nodes': self._nodes, 'edges': self._edges, 'verts2node': self.verts2node}
         attr_dict.update(super().get_attr_dict())
         return attr_dict

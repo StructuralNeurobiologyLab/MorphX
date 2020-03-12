@@ -20,7 +20,7 @@ class CloudEnsemble(object):
     """
 
     def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None,
-                 predictions: Optional[dict] = None):
+                 predictions: Optional[dict] = None, verts2node: dict = None):
         """
         Args:
             clouds: Dict with cloud names as keys and PointCloud objects as Values. Objects like HybridClouds in this
@@ -33,7 +33,7 @@ class CloudEnsemble(object):
         self._clouds = clouds
         self._hc = hybrid
         self._flattened = None
-        self._verts2node = None
+        self._verts2node = verts2node
         self._predictions = predictions
 
         if no_pred is None:
@@ -78,6 +78,8 @@ class CloudEnsemble(object):
             self._flattened.add_no_pred(self._no_pred)
             if self._predictions is not None:
                 self._flattened.set_predictions(self._predictions)
+            if self._verts2node is not None and isinstance(self._flattened, HybridCloud):
+                self._flattened.set_verts2node(self._verts2node)
         return self._flattened
 
     @property
@@ -159,7 +161,8 @@ class CloudEnsemble(object):
             attr_dicts = {'hybrid': self.hc.get_attr_dict(),
                           'no_pred': self._no_pred,
                           'clouds': {},
-                          'predictions': self._predictions}
+                          'predictions': self._predictions,
+                          'verts2node': self.verts2node}
             for key in self._clouds:
                 attr_dicts['clouds'][key] = self._clouds[key].get_attr_dict()
 
