@@ -104,6 +104,7 @@ def test_bfs_vertices():
         assert item in expected
 
 
+@pytest.mark.skip(reason="WIP")
 def test_bfs_vertices_diameter():
     hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
                                      [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),

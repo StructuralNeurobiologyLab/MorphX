@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import time
+import pytest
 import numpy as np
 import networkx as nx
 
@@ -76,6 +77,7 @@ def test_radius():
 
 
 # TEST LOCAL BFS DIST #
+@pytest.mark.skip(reason="WIP")
 def test_local_sanity():
     g = nx.Graph()
     nodes = np.arange(12)
