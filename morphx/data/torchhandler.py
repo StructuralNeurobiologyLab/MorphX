@@ -7,7 +7,7 @@
 
 import torch
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.chunkhandler import ChunkHandler
@@ -28,12 +28,14 @@ class TorchHandler(data.Dataset):
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
                  data_type: str = 'ce',
-                 obj_feats: dict = None
+                 obj_feats: dict = None,
+                 label_mappings: List[Tuple[int, int]] = None
                  ):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
-                                specific=specific, data_type=data_type, obj_feats=obj_feats)
+                                specific=specific, data_type=data_type, obj_feats=obj_feats,
+                                label_mappings=label_mappings)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num

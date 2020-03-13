@@ -219,7 +219,8 @@ def filter_objects(cloud: PointCloud, objects: list) -> PointCloud:
 def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
     """ Returns a PointCloud where all labels given in the labels list got mapped to the target label. E.g. if the
         label array was [1,1,2,3] and the label 1 and 2 were mapped onto the target 3, the label array now is [3,3,3,3].
-        This method works for PointClouds and HybridClouds, not for more specific classes.
+        This method works for PointClouds and HybridClouds, not for more specific classes (HybridMesh is returned as
+        HybridCloud).
 
     Args:
         cloud: The PointCloud whose labels should get merged.

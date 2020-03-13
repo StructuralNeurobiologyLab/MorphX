@@ -7,7 +7,7 @@
 
 import pickle
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
 from morphx.data.basics import load_pkl
 
@@ -114,7 +114,7 @@ class PointCloud(object):
                 return False
         return True
 
-    # -------------------------------------- LABEL ANALYSIS ------------------------------------------- #
+    # -------------------------------------- LABEL METHODS ------------------------------------------- #
 
     @property
     def weights_mean(self) -> np.ndarray:
@@ -160,6 +160,18 @@ class PointCloud(object):
             return freq
         else:
             return np.array([])
+
+    def map_labels(self, mappings: List[Tuple[int, int]]):
+        """ In-place method for changing labels. Encoding gets updated.
+
+        Args:
+            mappings: List of tuples with original labels and target labels. E.g. [(1, 2), (3, 2)] means that
+              the labels 1 and 3 will get replaced by 3.
+        """
+        for mapping in mappings:
+            self._labels[self._labels == mapping[0]] = mapping[1]
+            if self._encoding is not None and mapping[0] in self._encoding:
+                self._encoding.pop(mapping[0], None)
 
     # --------------------------------------------- SETTER ------------------------------------------------ #
 
