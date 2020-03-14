@@ -42,7 +42,8 @@ class ChunkHandler:
                  specific: bool = False,
                  data_type: str = 'ce',
                  obj_feats: dict = None,
-                 label_mappings: List[Tuple[int, int]] = None):
+                 label_mappings: List[Tuple[int, int]] = None,
+                 hybrid_mode: bool = False):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -98,6 +99,7 @@ class ChunkHandler:
         self._data_type = data_type
         self._obj_feats = obj_feats
         self._label_mappings = label_mappings
+        self._hybrid_mode = hybrid_mode
 
         # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
@@ -239,6 +241,9 @@ class ChunkHandler:
 
     def _adapt_obj(self, obj: Union[CloudEnsemble, HybridCloud]) -> Union[CloudEnsemble, HybridCloud]:
         """ Adds given parameters like features or label mappings to the loaded object. """
+        # transform to HybridCloud:
+        if self._hybrid_mode and isinstance(obj, CloudEnsemble):
+            obj = obj.hc
         # change features
         if self._obj_feats is not None:
             if isinstance(obj, CloudEnsemble):
@@ -249,6 +254,8 @@ class ChunkHandler:
                         feats = np.ones((len(subcloud.vertices), len(feat_line)))
                         feats[:] = feat_line
                         subcloud.set_features(feats)
+            elif self._hybrid_mode:
+                obj.set_features(np.ones(len(obj.vertices))*self._obj_feats['hc'])
         # change labels
         if self._label_mappings is not None:
             if isinstance(obj, CloudEnsemble):

@@ -29,13 +29,14 @@ class TorchHandler(data.Dataset):
                  specific: bool = False,
                  data_type: str = 'ce',
                  obj_feats: dict = None,
-                 label_mappings: List[Tuple[int, int]] = None
+                 label_mappings: List[Tuple[int, int]] = None,
+                 hybrid_mode: bool = False
                  ):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
                                 specific=specific, data_type=data_type, obj_feats=obj_feats,
-                                label_mappings=label_mappings)
+                                label_mappings=label_mappings, hybrid_mode=hybrid_mode)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
