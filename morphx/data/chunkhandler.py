@@ -153,10 +153,10 @@ class ChunkHandler:
             all numbers are set to 0.
 
         Args:
-            item: With :attr:`specific` as False, this parameter gets ignored. With true
-            it must be a tuple of the filename of the requested object and the index
-            of the chunk within that object. E.g. if chunk 5 from object in pickle
-            file object.pkl is requested, this would be ('object', 5).
+            item: With :attr:`specific` as False, this parameter is a simple integer indexing
+                the training examples. With true it must be a tuple of the filename of the
+                requested object and the index of the chunk within that object. E.g. if chunk
+                5 from object in pickle file object.pkl is requested, this would be ('object', 5).
         """
         if self._specific:
             # Get specific item (e.g. chunk 5 of object 1)
@@ -182,13 +182,7 @@ class ChunkHandler:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
                                  'chunk index within that cloud.')
         else:
-            # Get the next item while iterating the entire dataset
-            if self._ix >= len(self._chunk_list):
-                random.shuffle(self._chunk_list)
-                self._ix = 0
-
-            next_item = self._chunk_list[self._ix]
-            self._ix += 1
+            next_item = self._chunk_list[item]
             curr_obj_chunks = self._splitted_objs[next_item[0]]
             self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
 
@@ -255,7 +249,7 @@ class ChunkHandler:
                         feats[:] = feat_line
                         subcloud.set_features(feats)
             elif self._hybrid_mode:
-                obj.set_features(np.ones(len(obj.vertices))*self._obj_feats['hc'])
+                obj.set_features(np.ones(len(obj.vertices)).reshape(-1, 1)*self._obj_feats['hc'])
         # change labels
         if self._label_mappings is not None:
             if isinstance(obj, CloudEnsemble):

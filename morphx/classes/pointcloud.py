@@ -54,7 +54,7 @@ class PointCloud(object):
         else:
             if vertices is None or len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
-            self._features = features.reshape(len(features), 1)
+            self._features = features
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds

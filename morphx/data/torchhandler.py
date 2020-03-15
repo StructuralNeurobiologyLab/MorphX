@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import torch
+import time
 import numpy as np
 from typing import Union, Tuple, List
 from torch.utils import data
@@ -45,7 +46,6 @@ class TorchHandler(data.Dataset):
         return len(self._ch)
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
-        """ Index gets ignored. """
         # TODO: Improve handling of empty pointclouds
         # Get new sample from base dataloader, skip samples without any points
         ixs = np.empty(0)
