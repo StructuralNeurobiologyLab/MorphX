@@ -136,15 +136,15 @@ class CloudEnsemble(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self, mv: bool = True):
+    def generate_pred_labels(self, mv: bool = True):
         """ Transfers predictions (gathered for the flattened CloudEnsemble) to the labels of each object in the
             CloudEnsemble. """
         self.flattened.generate_pred_labels(mv)
         hc_bounds = self.flattened.obj_bounds['hybrid']
-        self.hc.set_labels(self.flattened.labels[hc_bounds[0]:hc_bounds[1]])
+        self.hc.set_pred_labels(self.flattened.pred_labels[hc_bounds[0]:hc_bounds[1]])
         for key in self.clouds:
             cloud_bounds = self.flattened.obj_bounds[key]
-            self._clouds[key].set_labels(self.flattened.labels[cloud_bounds[0]:cloud_bounds[1]])
+            self._clouds[key].set_pred_labels(self.flattened.pred_labels[cloud_bounds[0]:cloud_bounds[1]])
 
     # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 

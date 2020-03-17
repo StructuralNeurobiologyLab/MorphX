@@ -192,6 +192,12 @@ class PointCloud(object):
         else:
             self._labels = labels
 
+    def set_pred_labels(self, pred_labels: np.ndarray):
+        if len(pred_labels) != len(self.vertices):
+            raise ValueError("Label array must have same length as vertex array.")
+        else:
+            self._pred_labels = pred_labels
+
     def set_features(self, features: np.ndarray):
         if len(features) != len(self.vertices):
             raise ValueError("Feature array must have same length as vertex array.")

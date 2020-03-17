@@ -32,8 +32,6 @@ class PredictionMapper:
         self._save_path = os.path.expanduser(save_path)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        if not os.path.exists(f'{save_path}info/'):
-            os.makedirs(f'{save_path}info/')
 
         # Load chunks or split dataset into chunks if it was not done already
         if not os.path.exists(splitfile):
@@ -83,13 +81,13 @@ class PredictionMapper:
                 self._curr_obj.predictions[vertex_idx] = [int(pred_cloud.labels[pred_idx])]
 
     def load_prediction(self, name: str):
-        try:
+        if os.path.exists(f'{self._save_path}{name}.pkl'):
             if self._datatype == 'ce':
                 self._curr_obj = ensembles.ensemble_from_pkl(f'{self._save_path}{name}.pkl')
             elif self._datatype == 'hc':
                 self._curr_obj = HybridCloud()
                 self._curr_obj.load_from_pkl(f'{self._save_path}{name}.pkl')
-        except FileNotFoundError:
+        else:
             if self._datatype == 'ce':
                 self._curr_obj = ensembles.ensemble_from_pkl(f'{self._data_path}{name}.pkl')
             elif self._datatype == 'hc':
@@ -101,8 +99,3 @@ class PredictionMapper:
         if name is None:
             name = self._curr_name
         self._curr_obj.save2pkl(f'{self._save_path}{name}.pkl')
-        if light:
-            # Save additional lightweight cloud for fast inspection
-            simple_cloud = objects.filter_preds(self._curr_obj)
-            simple_cloud.generate_pred_labels()
-            simple_cloud.save2pkl(f'{self._save_path}info/{name}_light.pkl')

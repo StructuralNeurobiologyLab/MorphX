@@ -23,6 +23,7 @@ class HybridCloud(PointCloud):
                  edges: np.ndarray = None,
                  verts2node: dict = None,
                  node_labels: np.ndarray = None,
+                 pred_node_labels: np.ndarray = None,
                  *args, **kwargs):
         """
         Args:
@@ -51,6 +52,7 @@ class HybridCloud(PointCloud):
                     raise ValueError("Node label array must have same length as nodes array.")
                 self._node_labels = node_labels.reshape(len(node_labels), 1)
 
+        self._pred_node_labels = pred_node_labels
         self._verts2node = None
         if verts2node is not None:
             self._verts2node = verts2node
@@ -87,6 +89,12 @@ class HybridCloud(PointCloud):
     @property
     def node_labels(self):
         if self._node_labels is None:
+            return self.labels2nodes()
+        return self._node_labels
+
+    @property
+    def pred_node_labels(self):
+        if self._pred_node_labels is None:
             return self.preds2nodes()
         return self._node_labels
 
@@ -98,6 +106,21 @@ class HybridCloud(PointCloud):
         for idx, node in enumerate(self._nodes):
             dist, ind = tree.query(node, k=k)
             u_preds, counts = np.unique(self.pred_labels[mask][ind], return_counts=True)
+            self._node_labels[idx] = u_preds[np.argmax(counts)]
+        return self._node_labels
+
+    def labels2nodes(self, k: int = 20) -> np.ndarray:
+        """ Each node gets majority vote on pred_labels of k nearest vertices with predictions as label. """
+        self._pred_node_labels = np.zeros((len(self.nodes), 1))
+        for idx, node in enumerate(self._nodes):
+            initial = 2000
+            mask = np.linalg.norm(self._vertices-node, axis=1) < initial
+            while len(self._vertices[mask.reshape(-1)] < k):
+                initial += 1000
+                mask = np.linalg.norm(self._vertices - node) < initial
+            tree = cKDTree(self._vertices[mask.reshape(-1)])
+            dist, ind = tree.query(node, k=k)
+            u_preds, counts = np.unique(self.labels[mask][ind], return_counts=True)
             self._node_labels[idx] = u_preds[np.argmax(counts)]
         return self._node_labels
 
