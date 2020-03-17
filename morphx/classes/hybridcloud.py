@@ -89,39 +89,13 @@ class HybridCloud(PointCloud):
     @property
     def node_labels(self):
         if self._node_labels is None:
-            return self.labels2nodes()
+            return self.vertl2nodel(pred=False)
         return self._node_labels
 
     @property
     def pred_node_labels(self):
         if self._pred_node_labels is None:
-            return self.preds2nodes()
-        return self._node_labels
-
-    def preds2nodes(self, k: int = 20) -> np.ndarray:
-        """ Each node gets majority vote on pred_labels of k nearest vertices with predictions as label. """
-        mask = self.pred_labels != -1
-        tree = cKDTree(self._vertices[mask.reshape(-1)])
-        self._node_labels = np.zeros((len(self.nodes), 1))
-        for idx, node in enumerate(self._nodes):
-            dist, ind = tree.query(node, k=k)
-            u_preds, counts = np.unique(self.pred_labels[mask][ind], return_counts=True)
-            self._node_labels[idx] = u_preds[np.argmax(counts)]
-        return self._node_labels
-
-    def labels2nodes(self, k: int = 20) -> np.ndarray:
-        """ Each node gets majority vote on pred_labels of k nearest vertices with predictions as label. """
-        self._pred_node_labels = np.zeros((len(self.nodes), 1))
-        for idx, node in enumerate(self._nodes):
-            initial = 2000
-            mask = np.linalg.norm(self._vertices-node, axis=1) < initial
-            while len(self._vertices[mask.reshape(-1)] < k):
-                initial += 1000
-                mask = np.linalg.norm(self._vertices - node) < initial
-            tree = cKDTree(self._vertices[mask.reshape(-1)])
-            dist, ind = tree.query(node, k=k)
-            u_preds, counts = np.unique(self.labels[mask][ind], return_counts=True)
-            self._node_labels[idx] = u_preds[np.argmax(counts)]
+            return self.vertl2nodel(pred=True)
         return self._node_labels
 
     # -------------------------------------- SETTERS ------------------------------------------- #
@@ -159,6 +133,46 @@ class HybridCloud(PointCloud):
             u_labels, counts = np.unique(labels, return_counts=True)
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._node_labels = new_labels
+
+    def vertl2nodel(self, pred: bool = True) -> Optional[np.ndarray]:
+        """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
+         the corresponding vertices is performed and the most frequent label is transferred to the node.
+         Returns:
+             None if there are no vertex labels or a np.ndarray with the node labels (ith label corresponds to ith node)
+         """
+        from morphx.processing import hybrids
+        if pred:
+            vertl = self._pred_labels
+        else:
+            vertl = self._labels
+        if vertl is None:
+            return None
+        else:
+            nodel = np.zeros((len(self._nodes), 1), dtype=int)
+            nodel[:] = -1
+            # extract vertices corresponding to each node and take the majority label as the label for that node
+            for ix in range(len(self._nodes)):
+                verts_idcs = self.verts2node[ix]
+                # nodes with no corresponding vertices have label -1
+                if len(verts_idcs) != 0:
+                    labels = vertl[verts_idcs]
+                    # remove unpredicted nodes (no action if pred == False)
+                    labels = labels[labels != -1]
+                    if len(labels) == 0:
+                        continue
+                    u_labels, counts = np.unique(labels, return_counts=True)
+                    # take first label if there are multiple majorities
+                    nodel[ix] = u_labels[np.argmax(counts)]
+            # nodes without label (still == -1) get label from nearest node with label
+            mapping = np.arange(len(self._nodes))
+            if np.all(nodel == -1):
+                warnings.warn("All node labels have label -1. Label mapping was not possible.")
+                return nodel
+            for ix in range(len(self._nodes)):
+                if nodel[ix] == -1:
+                    mapping[ix] = hybrids.label_search(self, ix)
+            nodel = nodel[mapping]
+        return nodel
 
     def nodel2vertl(self):
         """ Uses the verts2node dict to map labels from nodes onto vertices. """
@@ -274,6 +288,7 @@ class HybridCloud(PointCloud):
     # -------------------------------------- HYBRID I/O ------------------------------------------- #
 
     def get_attr_dict(self):
-        attr_dict = {'nodes': self._nodes, 'edges': self._edges, 'verts2node': self.verts2node}
+        attr_dict = {'nodes': self._nodes, 'edges': self._edges, 'verts2node': self.verts2node,
+                     'pred_node_labels': self._pred_node_labels, 'node_labels': self._node_labels}
         attr_dict.update(super().get_attr_dict())
         return attr_dict
