@@ -269,7 +269,7 @@ class PointCloud(object):
             u_preds, counts = np.unique(self._pred_labels[neighbors], return_counts=True)
             new_pred_labels[pred] = u_preds[np.argmax(counts)]
         self._pred_labels = new_pred_labels
-        return self._pred_labels
+        return self._pred_labels.astype(int)
 
     def prediction_expansion(self, k: int = 20) -> np.ndarray:
         """ Each vertex gets majority vote on labels from k nearest vertices with predicitions as label.
@@ -288,7 +288,7 @@ class PointCloud(object):
             u_preds, counts = np.unique(self._pred_labels[neighbors], return_counts=True)
             new_pred_labels[vert] = u_preds[np.argmax(counts)]
         self._pred_labels = new_pred_labels
-        return self._pred_labels
+        return self._pred_labels.astype(int)
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
