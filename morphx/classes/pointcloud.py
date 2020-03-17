@@ -10,6 +10,7 @@ import numpy as np
 from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
 from morphx.data.basics import load_pkl
+from scipy.spatial import cKDTree
 
 
 class PointCloud(object):
@@ -20,6 +21,7 @@ class PointCloud(object):
     def __init__(self,
                  vertices: np.ndarray = None,
                  labels: np.ndarray = None,
+                 pred_labels: np.ndarray = None,
                  features: np.ndarray = None,
                  encoding: dict = None,
                  obj_bounds: Optional[dict] = None,
@@ -29,6 +31,7 @@ class PointCloud(object):
         Args:
             vertices: Point coordinates with shape (n, 3).
             labels: Vertex label array with shape (n, 1).
+            pred_labels: Predicted labels (n, 1).
             features: Feature array with shape (n, m).
             encoding: Dict with description strings for respective label as keys and unique labels as values.
             obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object
@@ -43,11 +46,13 @@ class PointCloud(object):
         self._vertices = vertices
 
         if labels is None or len(labels) == 0:
-            self._labels = np.zeros(0)  # TODO: why not None?
+            self._labels = np.zeros(0)  # TODO: change to None (and update according label handlings)
         else:
             if vertices is None or len(labels) != len(vertices):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
+
+        self._pred_labels = pred_labels
 
         if features is None or len(features) == 0:
             self._features = np.zeros(0)
@@ -75,6 +80,12 @@ class PointCloud(object):
     @property
     def labels(self) -> np.ndarray:
         return self._labels
+
+    @property
+    def pred_labels(self) -> np.ndarray:
+        if self._pred_labels is None:
+            return self.generate_pred_labels()
+        return self._pred_labels
 
     @property
     def features(self) -> np.ndarray:
@@ -203,26 +214,75 @@ class PointCloud(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self, mv: bool = True):
-        """ Flag mv = True: For each vertex, a majority vote is applied to the existing predictions and the prediction
-            with the highest occurance is set as label for this vertex. If there are no predictions, the label is set
-            to -1.
+    def generate_pred_labels(self, mv: bool = True) -> np.ndarray:
+        """ Flag mv = True: Each vertex gets the result of a majority vote on the predictions as label.
+            If there are no predictions, the label is set to -1.
             Flag mc = False: For each vertex, the first predictions is taken as the new label. If there are no
             predictions, the label is set to -1.
 
         Returns:
             The newly generated labels.
         """
-        self._labels[:] = -1
+        if self._pred_labels is None:
+            self._pred_labels = np.zeros((len(self._vertices), 1))
+        self._pred_labels[:] = -1
+        if self._predictions is None or len(self._predictions) == 0:
+            return self._pred_labels
         for key in self._predictions:
             preds = np.array(self._predictions[key])
             if mv:
                 u_preds, counts = np.unique(preds, return_counts=True)
-                self._labels[key] = u_preds[np.argmax(counts)]
+                self._pred_labels[key] = u_preds[np.argmax(counts)]
             else:
-                self._labels[key] = preds[0]
-        if self._encoding is not None and -1 in self._labels:
-            self._encoding['no_prediction'] = -1
+                self._pred_labels[key] = preds[0]
+        if self._encoding is not None and -1 in self._pred_labels:
+            self._encoding['no_pred'] = -1
+        return self._pred_labels.astype(int)
+
+    def get_coverage(self):
+        """ Get fraction of vertices with predictions. """
+        labels, counts = np.unique(self.pred_labels, return_counts=True)
+        idx = np.argwhere(labels == -1)
+        if len(idx) == 0:
+            return 1
+        else:
+            return 1 - counts[int(idx)] / counts.sum()
+
+    def prediction_smoothing(self, k: int = 20) -> np.ndarray:
+        """ Each vertex with existing prediction gets majority vote on labels from k nearest vertices
+            with predicitions as label. """
+        preds = np.fromiter(self._predictions.keys(), dtype=int)
+        if k > len(preds):
+            k = len(preds)
+        tree = cKDTree(self._vertices[preds])
+        # copy labels as smoothing results should not influence smooting itself
+        new_pred_labels = self.pred_labels.copy()
+        for pred in preds:
+            dist, ind = tree.query(self._vertices[pred], k=k)
+            neighbors = preds[ind]
+            u_preds, counts = np.unique(self._pred_labels[neighbors], return_counts=True)
+            new_pred_labels[pred] = u_preds[np.argmax(counts)]
+        self._pred_labels = new_pred_labels
+        return self._pred_labels
+
+    def prediction_expansion(self, k: int = 20) -> np.ndarray:
+        """ Each vertex gets majority vote on labels from k nearest vertices with predicitions as label.
+            Should be called after preds2labels. If there are only vertices with predictions this method
+            is the same as prediction_smoothing. """
+        preds = np.fromiter(self._predictions.keys(), dtype=int)
+        if k > len(preds):
+            k = len(preds)
+        tree = cKDTree(self._vertices[preds])
+        # copy labels as expansion results should not influence expansion itself
+        new_pred_labels = self.pred_labels.copy()
+        verts_idcs = np.arange(len(self._vertices))
+        for vert in verts_idcs:
+            dist, ind = tree.query(self._vertices[vert], k=k)
+            neighbors = preds[ind]
+            u_preds, counts = np.unique(self._pred_labels[neighbors], return_counts=True)
+            new_pred_labels[vert] = u_preds[np.argmax(counts)]
+        self._pred_labels = new_pred_labels
+        return self._pred_labels
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
@@ -301,6 +361,7 @@ class PointCloud(object):
     def get_attr_dict(self):
         attr_dict = {'vertices': self._vertices,
                      'labels': self._labels,
+                     'pred_labels': self._pred_labels,
                      'features': self._features,
                      'encoding': self._encoding,
                      'obj_bounds': self._obj_bounds,

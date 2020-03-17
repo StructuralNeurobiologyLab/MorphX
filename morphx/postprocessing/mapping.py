@@ -104,5 +104,5 @@ class PredictionMapper:
         if light:
             # Save additional lightweight cloud for fast inspection
             simple_cloud = objects.filter_preds(self._curr_obj)
-            simple_cloud.preds2labels()
+            simple_cloud.generate_pred_labels()
             simple_cloud.save2pkl(f'{self._save_path}info/{name}_light.pkl')

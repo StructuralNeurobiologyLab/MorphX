@@ -85,42 +85,20 @@ class HybridCloud(PointCloud):
         return self._verts2node
 
     @property
-    def node_labels(self) -> Optional[np.ndarray]:
-        """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
-         the corresponding vertices is performed and the most frequent label is transferred to the node.
-
-         Returns:
-             None if there are no vertex labels or a np.ndarray with the node labels (ith label corresponds to ith node)
-         """
-        from morphx.processing import hybrids
+    def node_labels(self):
         if self._node_labels is None:
-            if self.labels is None:
-                return None
-            else:
-                self._node_labels = np.zeros((len(self.nodes), 1), dtype=int)
-                self._node_labels[:] = -1
-                # extract vertices corresponding to each node and take the majority label as the label for that node
-                for ix in range(len(self._nodes)):
-                    verts_idcs = self.verts2node[ix]
-                    # nodes with no corresponding vertices have label -1
-                    if len(verts_idcs) != 0:
-                        labels = self.labels[verts_idcs]
-                        labels = labels[labels != -1]
-                        if len(labels) == 0:
-                            continue
-                        u_labels, counts = np.unique(labels, return_counts=True)
-                        # take first label if there are multiple majorities
-                        self._node_labels[ix] = u_labels[np.argmax(counts)]
+            return self.preds2nodes()
+        return self._node_labels
 
-                # nodes without label (still == -1) get label from nearest node with label
-                mapping = np.arange(len(self._nodes))
-                if np.all(self._node_labels == -1):
-                    warnings.warn("All node labels have label -1. Label mapping was not possible.")
-                    return self._node_labels
-                for ix in range(len(self._nodes)):
-                    if self._node_labels[ix] == -1:
-                        mapping[ix] = hybrids.label_search(self, ix)
-                self._node_labels = self.node_labels[mapping]
+    def preds2nodes(self, k: int = 20) -> np.ndarray:
+        """ Each node gets majority vote on pred_labels of k nearest vertices with predictions as label. """
+        mask = self.pred_labels != -1
+        tree = cKDTree(self._vertices[mask.reshape(-1)])
+        self._node_labels = np.zeros((len(self.nodes), 1))
+        for idx, node in enumerate(self._nodes):
+            dist, ind = tree.query(node, k=k)
+            u_preds, counts = np.unique(self.pred_labels[mask][ind], return_counts=True)
+            self._node_labels[idx] = u_preds[np.argmax(counts)]
         return self._node_labels
 
     # -------------------------------------- SETTERS ------------------------------------------- #
