@@ -219,7 +219,8 @@ def filter_objects(cloud: PointCloud, objects: list) -> PointCloud:
 def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
     """ Returns a PointCloud where all labels given in the labels list got mapped to the target label. E.g. if the
         label array was [1,1,2,3] and the label 1 and 2 were mapped onto the target 3, the label array now is [3,3,3,3].
-        This method works for PointClouds and HybridClouds, not for more specific classes.
+        This method works for PointClouds and HybridClouds, not for more specific classes (HybridMesh is returned as
+        HybridCloud).
 
     Args:
         cloud: The PointCloud whose labels should get merged.
@@ -261,6 +262,15 @@ def map_labels(cloud: PointCloud, labels: list, target) -> PointCloud:
 
 # -------------------------------------- CLOUD TRANSFORMATIONS ------------------------------------------- #
 
+class Transformation:
+    @property
+    def augmentation(self):
+        return None
+
+    @property
+    def attributes(self):
+        return None
+
 
 class Compose:
     """ Composes several transformations together. """
@@ -277,14 +287,22 @@ class Compose:
         return self._transforms
 
 
-class Identity:
+class Identity(Transformation):
     """ This transformation does nothing. """
 
     def __call__(self, pc: PointCloud):
         return
 
+    @property
+    def augmentation(self):
+        return False
 
-class Normalization:
+    @property
+    def attributes(self):
+        return 1
+
+
+class Normalization(Transformation):
     def __init__(self, radius: int):
         if radius <= 0:
             radius = 1
@@ -296,8 +314,20 @@ class Normalization:
         """
         pc.scale(self._radius)
 
+    @property
+    def radius(self):
+        return self._radius
 
-class RandomRotate:
+    @property
+    def augmentation(self):
+        return False
+
+    @property
+    def attributes(self):
+        return self._radius
+
+
+class RandomRotate(Transformation):
     def __init__(self, angle_range: tuple = (-180, 180)):
         self.angle_range = angle_range
 
@@ -308,8 +338,16 @@ class RandomRotate:
         """
         pc.rotate_randomly(self.angle_range)
 
+    @property
+    def augmentation(self):
+        return True
 
-class Center:
+    @property
+    def attributes(self):
+        return self.angle_range
+
+
+class Center(Transformation):
     def __init__(self):
         self._centroid = None
 
@@ -325,8 +363,16 @@ class Center:
     def centroid(self):
         return self._centroid
 
+    @property
+    def augmentation(self):
+        return False
 
-class RandomVariation:
+    @property
+    def attributes(self):
+        return 1
+
+
+class RandomVariation(Transformation):
     def __init__(self, limits: tuple = (-1, 1)):
         self.limits = limits
 
@@ -334,7 +380,15 @@ class RandomVariation:
         """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
             Possible nodes get ignored. Operates in-place for the given PointCloud.
         """
-        pc.add_noise()
+        pc.add_noise(self.limits)
+
+    @property
+    def augmentation(self):
+        return True
+
+    @property
+    def attributes(self):
+        return self.limits
 
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #

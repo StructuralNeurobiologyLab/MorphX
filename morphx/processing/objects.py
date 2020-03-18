@@ -55,6 +55,8 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
         return pc.load_from_pkl(file)
 
 
+# -------------------------------------- BFS ALGORITHMS -------------------------------------- #
+
 def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
         -> np.ndarray:
     """ Traverses the skeleton nodes. For each node, all nodes within 'radius' are sorted according to their distance.
@@ -72,6 +74,8 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
     # sort nodes within 'radius' by their distance
     tree = cKDTree(hc.nodes[dia_nodes])
     dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+    if isinstance(ind, int):
+        ind = [ind]
     for ix in ind:
         node = dia_nodes[ix]
         # add nodes as long as number of corresponding vertices is still below the threshold
@@ -85,13 +89,17 @@ def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, ve
     de = deque([i for i in neighbors])
     while de:
         curr = de.pop()
+        # visited is node list for traversing the graph
         if curr not in visited:
             visited.append(curr)
             dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
             tree = cKDTree(hc.nodes[dia_nodes])
             dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+            if isinstance(ind, int):
+                ind = [ind]
             for ix in ind:
                 node = dia_nodes[ix]
+                # chosen is node list for gathering all valid nodes
                 if node not in chosen:
                     if vertex_num + len(hc.verts2node[node]) <= vertex_max:
                         chosen.append(node)
@@ -264,3 +272,42 @@ def bfs_vertices_euclid(hc: Union[HybridCloud, CloudEnsemble], source: int, vert
         bfs_result.append(node_extract[ix])
         ix += 1
     return np.array(bfs_result)
+
+
+def bfs_euclid_diameter(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float, radius: int = 1000) -> np.ndarray:
+    """ Performs a BFS on a graph until maximum euclidian distance for each path is reached. The
+        graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
+
+    Args:
+        obj: HybridCloud or CloudEnsemble on which the bfs should be performed.
+        source: The source node from which the BFS should start.
+        max_dist: The maximum distance which should limit the BFS.
+        radius: radius of sphere around each node in which all nodes should get processed.
+
+    Returns:
+        np.ndarray with nodes sorted recording to the result of the limited BFS
+    """
+    idx_nodes = np.arange(len(obj.nodes))
+    visited = []
+    chosen = []
+    de = deque([source])
+    neighbors = obj.graph().neighbors(source)
+    de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
+    while de:
+        curr = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            # get all nodes within radius and check if condition is satisfied
+            dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[curr], axis=1) <= radius]
+            tree = cKDTree(obj.nodes[dia_nodes])
+            dist, ind = tree.query(obj.nodes[curr], k=len(dia_nodes))
+            if isinstance(ind, int):
+                ind = [ind]
+            for ix in ind:
+                node = dia_nodes[ix]
+                if node not in chosen:
+                    if np.linalg.norm(obj.nodes[source] - obj.nodes[node]) <= max_dist:
+                        chosen.append(node)
+            neighbors = obj.graph().neighbors(curr)
+            de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
+    return np.array(chosen)

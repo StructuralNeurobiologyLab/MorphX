@@ -9,7 +9,6 @@ import os
 import pytest
 import time
 import numpy as np
-
 import morphx.processing.objects
 from morphx.processing import hybrids
 from morphx.classes.hybridcloud import HybridCloud
@@ -104,6 +103,7 @@ def test_bfs_vertices():
         assert item in expected
 
 
+@pytest.mark.skip(reason="WIP")
 def test_bfs_vertices_diameter():
     hc = HybridCloud(nodes=np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 5, 0], [1, 1, 0], [1, 2, 0], [1, 3, 0],
                                      [1, 5, 0], [-1, 1, 0], [-2, 1, 0], [-3, 1, 0]]),
@@ -210,4 +210,5 @@ def test_bfs_vertices_euclid():
 
 if __name__ == '__main__':
     start = time.time()
+    test_node_labels()
     print('Finished after', time.time() - start)

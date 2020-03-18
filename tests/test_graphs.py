@@ -6,8 +6,11 @@
 # Authors: Jonathan Klimesch
 
 import time
+import pytest
 import numpy as np
 import networkx as nx
+
+import morphx.processing.objects
 from morphx.processing import graphs
 
 
@@ -74,6 +77,7 @@ def test_radius():
 
 
 # TEST LOCAL BFS DIST #
+@pytest.mark.skip(reason="WIP")
 def test_local_sanity():
     g = nx.Graph()
     nodes = np.arange(12)
@@ -85,7 +89,7 @@ def test_local_sanity():
     for i in range(12):
         g.nodes[i]['position'] = pos[i]
     g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
-    chosen = nodes[graphs.bfs_euclid(g, 5, 1)]
+    chosen = nodes[morphx.processing.objects.bfs_euclid_diameter(g, 5, 1)]
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected

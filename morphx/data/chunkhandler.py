@@ -10,7 +10,7 @@ import glob
 import pickle
 import random
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.hybridcloud import HybridCloud
@@ -41,7 +41,9 @@ class ChunkHandler:
                  transform: clouds.Compose = clouds.Compose([clouds.Identity()]),
                  specific: bool = False,
                  data_type: str = 'ce',
-                 obj_feats: dict = None):
+                 obj_feats: dict = None,
+                 label_mappings: List[Tuple[int, int]] = None,
+                 hybrid_mode: bool = False):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -59,6 +61,8 @@ class ChunkHandler:
             obj_feats: Only used when inputs are CloudEnsembles. Dict with feature array (1, n) keyed by
                 the name of the corresponding object in the CloudEnsemble. The HybridCloud gets addressed
                 with 'hc'.
+            label_mappings: list of labels which should get replaced by other labels. E.g. [(1, 2), (3, 2)]
+                means that the labels 1 and 3 will get replaced by 3.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -67,7 +71,6 @@ class ChunkHandler:
             os.makedirs(self._data_path + 'splitted/')
         if not os.path.exists(self._data_path + 'splitted/base_points/'):
             os.makedirs(self._data_path + 'splitted/base_points/')
-
         self._splitfile = ''
         # Load chunks or split dataset into chunks if it was not done already
         if density_mode:
@@ -95,11 +98,12 @@ class ChunkHandler:
         self._specific = specific
         self._data_type = data_type
         self._obj_feats = obj_feats
+        self._label_mappings = label_mappings
+        self._hybrid_mode = hybrid_mode
 
-        # In non-specific mode, the entire dataset gets loaded
+        # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
         self._objs = []
-
         files = glob.glob(data_path + '*.pkl')
         for file in files:
             slashs = [pos for pos, char in enumerate(file) if char == '/']
@@ -108,7 +112,6 @@ class ChunkHandler:
             if not self._specific:
                 obj = self._adapt_obj(objects.load_obj(self._data_type, file))
                 self._objs.append(obj)
-
         self._chunk_list = []
         if not self._specific:
             for item in self._splitted_objs:
@@ -150,10 +153,10 @@ class ChunkHandler:
             all numbers are set to 0.
 
         Args:
-            item: With :attr:`specific` as False, this parameter gets ignored. With true
-            it must be a tuple of the filename of the requested object and the index
-            of the chunk within that object. E.g. if chunk 5 from object in pickle
-            file object.pkl is requested, this would be ('object', 5).
+            item: With :attr:`specific` as False, this parameter is a simple integer indexing
+                the training examples. With true it must be a tuple of the filename of the
+                requested object and the index of the chunk within that object. E.g. if chunk
+                5 from object in pickle file object.pkl is requested, this would be ('object', 5).
         """
         if self._specific:
             # Get specific item (e.g. chunk 5 of object 1)
@@ -179,13 +182,7 @@ class ChunkHandler:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
                                  'chunk index within that cloud.')
         else:
-            # Get the next item while iterating the entire dataset
-            if self._ix >= len(self._chunk_list):
-                random.shuffle(self._chunk_list)
-                self._ix = 0
-
-            next_item = self._chunk_list[self._ix]
-            self._ix += 1
+            next_item = self._chunk_list[item]
             curr_obj_chunks = self._splitted_objs[next_item[0]]
             self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
 
@@ -237,8 +234,11 @@ class ChunkHandler:
         return len(self._splitted_objs[name])
 
     def _adapt_obj(self, obj: Union[CloudEnsemble, HybridCloud]) -> Union[CloudEnsemble, HybridCloud]:
-        """ If the given object is a CloudEnsemble, the features get changed to the features given in
-            self._obj_feats. """
+        """ Adds given parameters like features or label mappings to the loaded object. """
+        # transform to HybridCloud:
+        if self._hybrid_mode and isinstance(obj, CloudEnsemble):
+            obj = obj.hc
+        # change features
         if self._obj_feats is not None:
             if isinstance(obj, CloudEnsemble):
                 for name in self._obj_feats:
@@ -248,4 +248,15 @@ class ChunkHandler:
                         feats = np.ones((len(subcloud.vertices), len(feat_line)))
                         feats[:] = feat_line
                         subcloud.set_features(feats)
+            elif self._hybrid_mode:
+                obj.set_features(np.ones(len(obj.vertices)).reshape(-1, 1)*self._obj_feats['hc'])
+        # change labels
+        if self._label_mappings is not None:
+            if isinstance(obj, CloudEnsemble):
+                obj.hc.map_labels(self._label_mappings)
+                for key in obj.clouds.keys():
+                    cloud = obj.get_cloud(key)
+                    cloud.map_labels(self._label_mappings)
+            else:
+                obj.map_labels(self._label_mappings)
         return obj

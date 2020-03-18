@@ -208,7 +208,7 @@ def visualize_prediction(file: str, out_path: str, random_seed: int = 4, data_ty
     slashs = [pos for pos, char in enumerate(file) if char == '/']
     name = file[slashs[-1] + 1:-4]
     obj = objects.load_obj(data_type, file)
-    obj.preds2labels()
+    obj.generate_pred_labels()
     if isinstance(obj, CloudEnsemble):
         obj = obj.hc
     # reduce object to vertices where predictions exist

@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import time
 import pickle
 import numpy as np
 import networkx as nx
@@ -19,7 +20,7 @@ class CloudEnsemble(object):
     """
 
     def __init__(self, clouds: Dict[str, PointCloud], hybrid: Optional[HybridCloud] = None, no_pred: List[str] = None,
-                 predictions: Optional[dict] = None):
+                 predictions: Optional[dict] = None, verts2node: dict = None):
         """
         Args:
             clouds: Dict with cloud names as keys and PointCloud objects as Values. Objects like HybridClouds in this
@@ -32,7 +33,7 @@ class CloudEnsemble(object):
         self._clouds = clouds
         self._hc = hybrid
         self._flattened = None
-        self._verts2node = None
+        self._verts2node = verts2node
         self._predictions = predictions
 
         if no_pred is None:
@@ -77,11 +78,15 @@ class CloudEnsemble(object):
             self._flattened.add_no_pred(self._no_pred)
             if self._predictions is not None:
                 self._flattened.set_predictions(self._predictions)
+            if self._verts2node is not None and isinstance(self._flattened, HybridCloud):
+                self._flattened.set_verts2node(self._verts2node)
         return self._flattened
 
     @property
     def predictions(self) -> dict:
-        return self.flattened.predictions
+        if self._predictions is None:
+            self._predictions = self.flattened.predictions
+        return self._predictions
 
     @property
     def verts2node(self) -> dict:
@@ -131,15 +136,15 @@ class CloudEnsemble(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def preds2labels(self, mv: bool = True):
+    def generate_pred_labels(self, mv: bool = True):
         """ Transfers predictions (gathered for the flattened CloudEnsemble) to the labels of each object in the
             CloudEnsemble. """
-        self.flattened.preds2labels(mv)
+        self.flattened.generate_pred_labels(mv)
         hc_bounds = self.flattened.obj_bounds['hybrid']
-        self.hc.set_labels(self.flattened.labels[hc_bounds[0]:hc_bounds[1]])
+        self.hc.set_pred_labels(self.flattened.pred_labels[hc_bounds[0]:hc_bounds[1]])
         for key in self.clouds:
             cloud_bounds = self.flattened.obj_bounds[key]
-            self._clouds[key].set_labels(self.flattened.labels[cloud_bounds[0]:cloud_bounds[1]])
+            self._clouds[key].set_pred_labels(self.flattened.pred_labels[cloud_bounds[0]:cloud_bounds[1]])
 
     # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 
@@ -156,7 +161,8 @@ class CloudEnsemble(object):
             attr_dicts = {'hybrid': self.hc.get_attr_dict(),
                           'no_pred': self._no_pred,
                           'clouds': {},
-                          'predictions': self._predictions}
+                          'predictions': self._predictions,
+                          'verts2node': self.verts2node}
             for key in self._clouds:
                 attr_dicts['clouds'][key] = self._clouds[key].get_attr_dict()
 
