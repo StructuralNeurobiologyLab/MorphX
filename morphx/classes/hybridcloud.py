@@ -89,14 +89,14 @@ class HybridCloud(PointCloud):
     @property
     def node_labels(self):
         if self._node_labels is None:
-            return self.vertl2nodel(pred=False)
+            self._node_labels = self.vertl2nodel(pred=False)
         return self._node_labels
 
     @property
     def pred_node_labels(self):
         if self._pred_node_labels is None:
-            return self.vertl2nodel(pred=True)
-        return self._node_labels
+            self._pred_node_labels = self.vertl2nodel(pred=True)
+        return self._pred_node_labels
 
     # -------------------------------------- SETTERS ------------------------------------------- #
 
@@ -170,7 +170,7 @@ class HybridCloud(PointCloud):
                 return nodel
             for ix in range(len(self._nodes)):
                 if nodel[ix] == -1:
-                    mapping[ix] = hybrids.label_search(self, ix)
+                    mapping[ix] = hybrids.label_search(self, nodel, ix)
             nodel = nodel[mapping]
         return nodel
 

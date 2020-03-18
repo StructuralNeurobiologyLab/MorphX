@@ -97,17 +97,18 @@ def extract_mesh_subset(hm: HybridMesh, local_bfs: np.ndarray) -> HybridMesh:
 
 # -------------------------------------- HYBRID GRAPH ALGORITHMS --------------------------------------- #
 
-def label_search(hc: HybridCloud, source: int) -> int:
+def label_search(hc: HybridCloud, node_labels: np.ndarray, source: int) -> int:
     """ Performs BFS on nodes starting from source until first node with label != -1 has been found.
 
     Args:
         hc: HybridCloud in which source is part of the graph
+        node_labels: array of node labels (cannot be accessed through hc as it doesn't exists).
         source: The node for which the first neighboring node with label != -1 should be found.
 
     Returns:
         The index of the first node with label != -1
     """
-    if hc.node_labels is None:
+    if node_labels is None:
         return source
     g = hc.graph()
     visited = [source]
@@ -115,7 +116,7 @@ def label_search(hc: HybridCloud, source: int) -> int:
     de = deque([i for i in neighbors])
     while de:
         curr = de.pop()
-        if hc.node_labels[curr] != -1:
+        if node_labels[curr] != -1:
             return curr
         if curr not in visited:
             visited.append(curr)

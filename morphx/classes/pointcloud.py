@@ -7,10 +7,10 @@
 
 import pickle
 import numpy as np
+from scipy.spatial import cKDTree
+from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
-from morphx.data.basics import load_pkl
-from scipy.spatial import cKDTree
 
 
 class PointCloud(object):
@@ -234,7 +234,7 @@ class PointCloud(object):
         self._pred_labels[:] = -1
         if self._predictions is None or len(self._predictions) == 0:
             return self._pred_labels
-        for key in self._predictions:
+        for key in self._predictions.keys():
             preds = np.array(self._predictions[key])
             if mv:
                 u_preds, counts = np.unique(preds, return_counts=True)

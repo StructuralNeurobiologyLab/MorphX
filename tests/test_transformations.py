@@ -5,6 +5,7 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+import random
 import numpy as np
 from morphx.processing import clouds
 from morphx.classes.pointcloud import PointCloud
@@ -123,8 +124,19 @@ def test_composition():
     assert np.all(hc.vertices == dummy)
 
 
+def test_random_variation():
+    np.random.seed(0)
+    pc = PointCloud(np.array([[10, 10, 10], [20, 20, 20]]))
+    transform = clouds.RandomVariation((-10000, 10000))
+    transform(pc)
+
+    expected = np.array([[986., 4314., 2065.], [918., -1507., 2938.]])
+    assert np.all(np.round(pc.vertices) == expected)
+
+
 if __name__ == '__main__':
     test_normalization()
     test_rotate_randomly()
     test_center()
     test_composition()
+    test_random_variation()

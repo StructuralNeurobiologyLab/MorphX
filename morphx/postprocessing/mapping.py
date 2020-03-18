@@ -8,9 +8,9 @@
 import os
 import pickle
 import numpy as np
-from morphx.processing import ensembles, objects
+from morphx.data import basics
+from morphx.processing import objects
 from morphx.classes.pointcloud import PointCloud
-from morphx.classes.hybridcloud import HybridCloud
 
 
 class PredictionMapper:
@@ -26,20 +26,17 @@ class PredictionMapper:
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
-
         if save_path is None:
             raise ValueError('There must be a save_path as mapped predictions must be saved.')
         self._save_path = os.path.expanduser(save_path)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-
         # Load chunks or split dataset into chunks if it was not done already
         if not os.path.exists(splitfile):
             raise ValueError('Previous splitting information must exist in order to map back predictions for chunks.')
         with open(splitfile, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
-
         self._datatype = datatype
         self._curr_obj = None
         self._curr_name = None
@@ -65,9 +62,8 @@ class PredictionMapper:
         # If requested object differs from object in memory, save current object and try loading new object from save
         # path in case previous predictions were already saved before. If that fails, load new object from data path
         if self._curr_name != obj_name:
-            self.save_prediction(self._curr_name)
+            self.save_prediction()
             self.load_prediction(obj_name)
-
         node_context = self._splitted_objs[obj_name][chunk_idx]
         # Get indices of vertices for requested local BFS
         _, idcs = objects.extract_cloud_subset(self._curr_obj, node_context)
@@ -81,21 +77,12 @@ class PredictionMapper:
                 self._curr_obj.predictions[vertex_idx] = [int(pred_cloud.labels[pred_idx])]
 
     def load_prediction(self, name: str):
-        if os.path.exists(f'{self._save_path}{name}.pkl'):
-            if self._datatype == 'ce':
-                self._curr_obj = ensembles.ensemble_from_pkl(f'{self._save_path}{name}.pkl')
-            elif self._datatype == 'hc':
-                self._curr_obj = HybridCloud()
-                self._curr_obj.load_from_pkl(f'{self._save_path}{name}.pkl')
-        else:
-            if self._datatype == 'ce':
-                self._curr_obj = ensembles.ensemble_from_pkl(f'{self._data_path}{name}.pkl')
-            elif self._datatype == 'hc':
-                self._curr_obj = HybridCloud()
-                self._curr_obj.load_from_pkl(f'{self._data_path}{name}.pkl')
+        self._curr_obj = objects.load_obj(self._datatype, f'{self._data_path}{name}.pkl')
         self._curr_name = name
+        if os.path.exists(f'{self._save_path}{name}_preds.pkl'):
+            preds = basics.load_pkl(f'{self._save_path}{name}_preds.pkl')
+            self._curr_obj.set_predictions(preds)
 
-    def save_prediction(self, name: str = None, light: bool = False):
-        if name is None:
-            name = self._curr_name
-        self._curr_obj.save2pkl(f'{self._save_path}{name}.pkl')
+    def save_prediction(self):
+        with open(f'{self._save_path}{self._curr_name}_preds.pkl', 'wb') as f:
+            pickle.dump((f'{self._data_path}{self._curr_name}.pkl', self._curr_obj.predictions), f)
