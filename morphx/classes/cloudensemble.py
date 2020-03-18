@@ -134,6 +134,10 @@ class CloudEnsemble(object):
             if name not in self._no_pred:
                 self._no_pred.append(name)
 
+    def set_predictions(self, predictions: dict):
+        self.flattened.set_predictions(predictions)
+        self._predictions = self._flattened.predictions
+
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
     def generate_pred_labels(self, mv: bool = True):
