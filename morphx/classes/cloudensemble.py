@@ -5,7 +5,6 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
-import time
 import pickle
 import numpy as np
 import networkx as nx

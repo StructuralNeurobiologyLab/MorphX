@@ -181,7 +181,7 @@ class HybridCloud(PointCloud):
         else:
             for ix in range(len(self._nodes)):
                 verts_idcs = self.verts2node[ix]
-                self._labels[verts_idcs] = self._node_labels[ix]
+                self._pred_labels[verts_idcs] = self._node_labels[ix]
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the
