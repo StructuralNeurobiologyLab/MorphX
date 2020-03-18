@@ -7,6 +7,7 @@
 
 import pickle
 import numpy as np
+from tqdm import tqdm
 from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
@@ -257,13 +258,17 @@ class PointCloud(object):
     def prediction_smoothing(self, k: int = 20) -> np.ndarray:
         """ Each vertex with existing prediction gets majority vote on labels from k nearest vertices
             with predicitions as label. """
-        preds = np.fromiter(self._predictions.keys(), dtype=int)
+        print("Prediction smoothing...")
+        preds = self._pred_labels != -1
+        preds = preds.reshape(-1)
+        idcs = np.arange(len(self._vertices))
+        preds = idcs[preds]
         if k > len(preds):
             k = len(preds)
         tree = cKDTree(self._vertices[preds])
         # copy labels as smoothing results should not influence smooting itself
         new_pred_labels = self.pred_labels.copy()
-        for pred in preds:
+        for pred in tqdm(preds):
             dist, ind = tree.query(self._vertices[pred], k=k)
             neighbors = preds[ind]
             u_preds, counts = np.unique(self._pred_labels[neighbors], return_counts=True)

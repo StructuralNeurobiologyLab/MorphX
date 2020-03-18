@@ -249,7 +249,9 @@ class ChunkHandler:
                         feats[:] = feat_line
                         subcloud.set_features(feats)
             elif self._hybrid_mode:
-                obj.set_features(np.ones(len(obj.vertices)).reshape(-1, 1)*self._obj_feats['hc'])
+                feats = np.ones(len(obj.vertices)).reshape(-1, 1)
+                feats[:] = self._obj_feats['hc']
+                obj.set_features(feats)
         # change labels
         if self._label_mappings is not None:
             if isinstance(obj, CloudEnsemble):

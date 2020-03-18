@@ -41,6 +41,17 @@ class TorchHandler(data.Dataset):
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
+        feat_dim = None
+        for key in obj_feats.keys():
+            if feat_dim is None:
+                if isinstance(obj_feats[key], int):
+                    feat_dim = 1
+                else:
+                    feat_dim = len(obj_feats[key])
+            else:
+                if not isinstance(obj_feats[key], int) and len(obj_feats[key]) != feat_dim:
+                    raise ValueError("Feature dimensions do not match each other.")
+        self._feat_dim = feat_dim
 
     def __len__(self):
         return len(self._ch)
@@ -57,7 +68,7 @@ class TorchHandler(data.Dataset):
                 if ixs is None:
                     sample, ixs = PointCloud(vertices=np.zeros((self._sample_num, 3)),
                                              labels=np.zeros(self._sample_num),
-                                             features=np.zeros((self._sample_num, 4))), \
+                                             features=np.zeros((self._sample_num, self._feat_dim))), \
                                   np.zeros(self._sample_num)
                     break
             else:
