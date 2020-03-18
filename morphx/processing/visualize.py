@@ -219,8 +219,6 @@ def visualize_prediction(obj: Union[CloudEnsemble, HybridCloud], out_path: str, 
     if isinstance(obj, CloudEnsemble):
         obj = obj.hc
     # reduce object to vertices where predictions exist
-    import ipdb
-    ipdb.set_trace()
     mask = obj.pred_labels != -1
     mask = mask.reshape(-1)
     red_obj = HybridCloud(nodes=obj.nodes, edges=obj.edges, vertices=obj.vertices[mask], labels=obj.labels[mask],
