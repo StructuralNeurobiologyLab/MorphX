@@ -77,6 +77,8 @@ class HybridCloud(PointCloud):
         Returns:
             Dict with mapping information
         """
+        if self._nodes is None:
+            return None
         if self._verts2node is None:
             tree = cKDTree(self.nodes)
             dist, ind = tree.query(self.vertices, k=1)
@@ -104,8 +106,16 @@ class HybridCloud(PointCloud):
         if len(node_labels) != len(self._nodes):
             raise ValueError('Length of node_labels must comply with length of nodes.')
         self._node_labels = node_labels
+
+    def set_pred_node_labels(self, pred_node_labels: np.ndarray):
+        if len(pred_node_labels) != len(self._nodes):
+            raise ValueError('Length of node_labels must comply with length of nodes.')
+        self._pred_node_labels = pred_node_labels
         
     def set_verts2node(self, verts2node: dict):
+        if verts2node is None:
+            self._verts2node = None
+            return
         if len(verts2node) != len(self._nodes):
             raise ValueError('Length of verts2nodes must comply with length of nodes.')
         self._verts2node = verts2node
@@ -174,14 +184,22 @@ class HybridCloud(PointCloud):
             nodel = nodel[mapping]
         return nodel
 
-    def nodel2vertl(self):
+    def prednodel2predvertl(self):
         """ Uses the verts2node dict to map labels from nodes onto vertices. """
+        if self._pred_node_labels is None:
+            return
+        else:
+            for ix in range(len(self._nodes)):
+                verts_idcs = self.verts2node[ix]
+                self._pred_labels[verts_idcs] = self._pred_node_labels[ix]
+
+    def nodel2vertl(self):
         if self._node_labels is None:
             return
         else:
             for ix in range(len(self._nodes)):
                 verts_idcs = self.verts2node[ix]
-                self._pred_labels[verts_idcs] = self._node_labels[ix]
+                self._labels[verts_idcs] = self._node_labels[ix]
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the

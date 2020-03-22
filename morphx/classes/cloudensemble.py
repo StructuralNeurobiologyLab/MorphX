@@ -39,6 +39,7 @@ class CloudEnsemble(object):
             self._no_pred = []
         else:
             self._no_pred = no_pred
+        self._pred_num = None
 
     @property
     def clouds(self):
@@ -91,6 +92,12 @@ class CloudEnsemble(object):
     def verts2node(self) -> dict:
         return self.flattened.verts2node
 
+    @property
+    def pred_num(self) -> int:
+        if self._pred_num is None:
+            self._pred_num = self.get_pred_num()
+        return self._pred_num
+
     def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1) -> np.ndarray:
         if isinstance(self.flattened, HybridCloud):
             return self.flattened.base_points(density_mode=density_mode, threshold=threshold, source=source)
@@ -113,7 +120,7 @@ class CloudEnsemble(object):
 
     def add_cloud(self, cloud: PointCloud, cloud_name: str):
         self._clouds[cloud_name] = cloud
-        self._reset_ensemble()
+        self.reset_ensemble()
 
     def remove_cloud(self, cloud_name: str):
         try:
@@ -123,9 +130,9 @@ class CloudEnsemble(object):
 
     def change_hybrid(self, hybrid: HybridCloud):
         self._hc = hybrid
-        self._reset_ensemble()
+        self.reset_ensemble()
 
-    def _reset_ensemble(self):
+    def reset_ensemble(self):
         self._verts2node = None
 
     def add_no_pred(self, obj_names: List[str]):
@@ -139,15 +146,23 @@ class CloudEnsemble(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
-    def generate_pred_labels(self, mv: bool = True):
+    def generate_pred_labels(self, mv: bool = True) -> np.ndarray:
         """ Transfers predictions (gathered for the flattened CloudEnsemble) to the labels of each object in the
-            CloudEnsemble. """
+            CloudEnsemble.
+
+        Returns:
+            Predicted labels of the HybridCloud
+        """
         self.flattened.generate_pred_labels(mv)
         hc_bounds = self.flattened.obj_bounds['hybrid']
         self.hc.set_pred_labels(self.flattened.pred_labels[hc_bounds[0]:hc_bounds[1]])
         for key in self.clouds:
             cloud_bounds = self.flattened.obj_bounds[key]
             self._clouds[key].set_pred_labels(self.flattened.pred_labels[cloud_bounds[0]:cloud_bounds[1]])
+        return self.hc.pred_labels
+
+    def get_pred_num(self) -> int:
+        return self.flattened.pred_num
 
     # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
 

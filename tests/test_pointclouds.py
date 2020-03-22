@@ -22,14 +22,17 @@ def test_generate_pred_labels():
 def test_get_coverage():
     pc = PointCloud(np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]), labels=np.array([1, 2, 3, 4]),
                     predictions={0: [2, 0, 0, 0, 1], 2: [7, 7, 7, 6, 6, 6, 6]})
-    assert pc.get_coverage() == 0.5
+    coverage = pc.get_coverage()
+    assert (1 - coverage[0]/coverage[1]) == 0.5
 
     pc = PointCloud(np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]), labels=np.array([1, 2, 3, 4]),
                     predictions={0: [2, 0, 0, 0, 1], 1: [1], 2: [7, 7, 7, 6, 6, 6, 6], 3: [1]})
-    assert pc.get_coverage() == 1
+    coverage = pc.get_coverage()
+    assert (1 - coverage[0]/coverage[1]) == 1
 
     pc = PointCloud(np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]]), labels=np.array([1, 2, 3, 4]))
-    assert pc.get_coverage() == 0
+    coverage = pc.get_coverage()
+    assert (1 - coverage[0]/coverage[1]) == 0
 
 
 def test_prediction_smoothing():
@@ -39,6 +42,7 @@ def test_prediction_smoothing():
 
     expected = np.array([1, 1, 1, -1, 7, 7, 7, -1, 7, -1, -1]).reshape(-1, 1)
     assert np.all(pc.prediction_smoothing(3) == expected)
+
 
 def test_prediction_expansion():
     pc = PointCloud(np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2], [2, 2, 2],

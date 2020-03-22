@@ -17,7 +17,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 
 
-def process_dataset(input_path: str, output_path: str, tech_density: int):
+def poissonize_dataset(input_path: str, output_path: str, tech_density: int):
     """ Converts all objects, saved as pickle files at input_path, into poisson disk sampled HybridClouds and
         saves them at output_path with the same names.
 
@@ -32,44 +32,29 @@ def process_dataset(input_path: str, output_path: str, tech_density: int):
 
     print("Starting to transform mesh dataset into poisson dataset...")
     for file in tqdm(files):
-        process_single_thread([file, output_path, tech_density])
-
-
-def process_single_thread(args):
-    """ Converts single pickle file into poisson disk sampled HybridCloud.
-
-    Args:
-        args:
-            args[0] - file: The full path to a specific pickle file
-            args[1] - output_path: The folder where the result should be stored.
-            args[2] - tech_density: poisson sampling density in point/um²
-    """
-    file = args[0]
-    output_path = args[1]
-    tech_density = args[2]
-    slashs = [pos for pos, char in enumerate(file) if char == '/']
-    name = file[slashs[-1] + 1:-4]
-    print(name)
-    ce = None
-    try:
-        hm = HybridMesh()
-        hm.load_from_pkl(file)
-    except TypeError:
-        ce = ensembles.ensemble_from_pkl(file)
-        hm = ce.hc
-    if not isinstance(hm, HybridMesh) or hm.faces is None:
-        raise ValueError("Poisson sampling requires existing faces.")
-    result = hybridmesh2poisson(hm, tech_density)
-    if ce is None:
-        result.save2pkl(output_path + name + '_poisson.pkl')
-    else:
-        ce.change_hybrid(result)
-        ce.save2pkl(output_path + name + '_poisson.pkl')
-        for key in ce.clouds:
-            cloud = ce.clouds[key]
-            print(f"\nProcessing {key}")
-            ce.clouds[key] = hybridmesh2poisson(cloud, tech_density)
+        slashs = [pos for pos, char in enumerate(file) if char == '/']
+        name = file[slashs[-1] + 1:-4]
+        print(name)
+        ce = None
+        try:
+            hm = HybridMesh()
+            hm.load_from_pkl(file)
+        except TypeError:
+            ce = ensembles.ensemble_from_pkl(file)
+            hm = ce.hc
+        if not isinstance(hm, HybridMesh) or hm.faces is None:
+            raise ValueError("Poisson sampling requires existing faces.")
+        result = hybridmesh2poisson(hm, tech_density)
+        if ce is None:
+            result.save2pkl(output_path + name + '_poisson.pkl')
+        else:
+            ce.change_hybrid(result)
             ce.save2pkl(output_path + name + '_poisson.pkl')
+            for key in ce.clouds:
+                cloud = ce.clouds[key]
+                print(f"\nProcessing {key}")
+                ce.clouds[key] = hybridmesh2poisson(cloud, tech_density)
+                ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
 def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
@@ -149,4 +134,4 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/todo/', '/u/jklimesch/thesis/gt/gt_meshsets/poisson/', 1500)
+    poissonize_dataset('/u/jklimesch/thesis/gt/20_03_18/', '/u/jklimesch/thesis/gt/20_03_18/poisson/', 1500)

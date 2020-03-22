@@ -72,7 +72,7 @@ class PointCloud(object):
             self._no_pred = no_pred
 
         self._class_num = len(np.unique(labels))
-        self._scale_count = 0
+        self._pred_num = None
 
     @property
     def vertices(self) -> np.ndarray:
@@ -113,6 +113,12 @@ class PointCloud(object):
     @property
     def class_num(self) -> int:
         return self._class_num
+
+    @property
+    def pred_num(self) -> int:
+        if self._pred_num is None:
+            self._pred_num = self.get_pred_num()
+        return self._pred_num
 
     def __eq__(self, other: 'PointCloud'):
         if type(self) != type(other):
@@ -221,6 +227,15 @@ class PointCloud(object):
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
+    def get_pred_num(self) -> int:
+        """ Returns number of predictions which are available for this PointCloud. """
+        total = 0
+        if self._predictions is None:
+            return 0
+        for key in self._predictions:
+            total += len(self._predictions[key])
+        return total
+
     def generate_pred_labels(self, mv: bool = True) -> np.ndarray:
         """ Flag mv = True: Each vertex gets the result of a majority vote on the predictions as label.
             If there are no predictions, the label is set to -1.
@@ -230,6 +245,7 @@ class PointCloud(object):
         Returns:
             The newly generated labels.
         """
+        total = 0
         if self._pred_labels is None:
             self._pred_labels = np.zeros((len(self._vertices), 1))
         self._pred_labels[:] = -1
@@ -237,6 +253,7 @@ class PointCloud(object):
             return self._pred_labels
         for key in self._predictions.keys():
             preds = np.array(self._predictions[key])
+            total += len(preds)
             if mv:
                 u_preds, counts = np.unique(preds, return_counts=True)
                 self._pred_labels[key] = u_preds[np.argmax(counts)]
@@ -246,20 +263,24 @@ class PointCloud(object):
             self._encoding['no_pred'] = -1
         return self._pred_labels.astype(int)
 
-    def get_coverage(self):
-        """ Get fraction of vertices with predictions. """
+    def get_coverage(self) -> Tuple:
+        """ Get fraction of vertices with predictions.
+
+        Returns:
+            (Number of unpredicted labels, Total number of labels)
+        """
         labels, counts = np.unique(self.pred_labels, return_counts=True)
         idx = np.argwhere(labels == -1)
         if len(idx) == 0:
-            return 1
+            return 0, len(self._pred_labels)
         else:
-            return 1 - counts[int(idx)] / counts.sum()
+            return counts[int(idx)], len(self._pred_labels)
 
-    def prediction_smoothing(self, k: int = 20) -> np.ndarray:
+    def prediction_smoothing(self, k: int = 20) -> Optional[np.ndarray]:
         """ Each vertex with existing prediction gets majority vote on labels from k nearest vertices
             with predicitions as label. """
         print("Prediction smoothing...")
-        preds = self._pred_labels != -1
+        preds = self.pred_labels != -1
         preds = preds.reshape(-1)
         idcs = np.arange(len(self._vertices))
         preds = idcs[preds]
@@ -306,9 +327,6 @@ class PointCloud(object):
             self._vertices = self._vertices / -factor
         else:
             self._vertices = self._vertices * factor
-        self._scale_count += 1
-        if self._scale_count > 1:
-            raise ValueError('Multiple scaling should not happen')
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180)):
         """ Randomly rotates vertices by performing an Euler rotation. The three angles are choosen randomly

@@ -57,6 +57,8 @@ class HybridMesh(HybridCloud):
         Returns:
             Python dict with mapping information.
         """
+        if self.nodes is None:
+            return None
         if self._faces2node is None:
             self._faces2node = dict()
             for node_ix, vert_ixs in tqdm(self.verts2node.items()):

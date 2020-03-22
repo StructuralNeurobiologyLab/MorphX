@@ -409,6 +409,9 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     Returns:
         PointCloud which consists of the merged clouds.
     """
+    for cloud in clouds:
+        if cloud is None:
+            clouds.remove(cloud)
 
     if names is not None:
         if len(names) != len(clouds):

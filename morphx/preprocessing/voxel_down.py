@@ -16,26 +16,19 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 
 
-def process_dataset(input_path: str, output_path: str):
+def voxel_down_dataset(input_path: str, output_path: str):
     files = glob.glob(input_path + '*.pkl')
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
 
     print("Starting to voxel down dataset...")
     for file in tqdm(files):
-        process_single_thread([file, output_path])
+        slashs = [pos for pos, char in enumerate(file) if char == '/']
+        name = file[slashs[-1] + 1:-4]
 
-
-def process_single_thread(args):
-    file = args[0]
-    output_path = args[1]
-
-    slashs = [pos for pos, char in enumerate(file) if char == '/']
-    name = file[slashs[-1] + 1:-4]
-
-    ce = ensembles.ensemble_from_pkl(file)
-    ce = voxel_down(ce)
-    ce.save2pkl(output_path + name + '.pkl')
+        ce = ensembles.ensemble_from_pkl(file)
+        ce = voxel_down(ce)
+        ce.save2pkl(output_path + name + '.pkl')
 
 
 def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
@@ -61,5 +54,5 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
 
 
 if __name__ == '__main__':
-    process_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/',
+    voxel_down_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/',
                     '/u/jklimesch/thesis/gt/gt_meshsets/voxeled_test/')

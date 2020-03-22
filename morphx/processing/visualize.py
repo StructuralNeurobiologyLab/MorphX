@@ -223,8 +223,8 @@ def visualize_prediction(obj: Union[CloudEnsemble, HybridCloud], out_path: str, 
     mask = mask.reshape(-1)
     red_obj = HybridCloud(nodes=obj.nodes, edges=obj.edges, vertices=obj.vertices[mask], labels=obj.labels[mask],
                           pred_labels=obj.pred_labels[mask])
-    obj.set_node_labels(red_obj.pred_node_labels)
-    obj.nodel2vertl()
+    obj.set_pred_node_labels(red_obj.pred_node_labels)
+    obj.prednodel2predvertl()
     obj.set_labels(obj.pred_labels)
     visualize_clouds([obj], capture=True, path=out_path, random_seed=random_seed)
 
