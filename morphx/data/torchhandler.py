@@ -124,3 +124,9 @@ class TorchHandler(data.Dataset):
 
     def get_obj_length(self, name: str):
         return self._ch.get_obj_length(name)
+
+    def get_obj_info(self, name: str):
+        return self._ch.get_obj_info(name)
+
+    def get_set_info(self):
+        return self._ch.get_set_info()
