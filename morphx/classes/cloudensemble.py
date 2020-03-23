@@ -58,6 +58,14 @@ class CloudEnsemble(object):
         return self._hc.edges
 
     @property
+    def vertices(self) -> np.ndarray:
+        return self.flattened.vertices
+
+    @property
+    def labels(self) -> np.ndarray:
+        return self.flattened.labels
+
+    @property
     def no_pred(self) -> List[str]:
         return self._no_pred
 

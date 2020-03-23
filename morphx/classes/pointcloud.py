@@ -8,6 +8,7 @@
 import pickle
 import numpy as np
 from tqdm import tqdm
+from typing import Dict
 from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
@@ -24,6 +25,7 @@ class PointCloud(object):
                  labels: np.ndarray = None,
                  pred_labels: np.ndarray = None,
                  features: np.ndarray = None,
+                 types: np.ndarray = None,
                  encoding: dict = None,
                  obj_bounds: Optional[dict] = None,
                  predictions: dict = None,
@@ -34,6 +36,8 @@ class PointCloud(object):
             labels: Vertex label array with shape (n, 1).
             pred_labels: Predicted labels (n, 1).
             features: Feature array with shape (n, m).
+            types: Type array with shape (n, 1). Can be used for indicating differences between points by e.g. assigning
+                different values to the different types.
             encoding: Dict with description strings for respective label as keys and unique labels as values.
             obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object
                 as values. E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to
@@ -62,6 +66,10 @@ class PointCloud(object):
                 raise ValueError("Feature array must have same length as vertices array.")
             self._features = features
 
+        if types is not None:
+            if vertices is None or len(types) != len(vertices):
+                raise ValueError("Type array must have same length as vertices array.")
+        self._types = types
         self._encoding = encoding
         self._obj_bounds = obj_bounds
         self._predictions = predictions
@@ -91,6 +99,10 @@ class PointCloud(object):
     @property
     def features(self) -> np.ndarray:
         return self._features
+
+    @property
+    def types(self) -> np.ndarray:
+        return self._types
 
     @property
     def encoding(self) -> dict:
@@ -225,6 +237,39 @@ class PointCloud(object):
     def set_predictions(self, predictions: dict):
         self._predictions = predictions
 
+    def set_types(self, types: np.ndarray):
+        if self.vertices is None or len(types) != len(self.vertices):
+            raise ValueError("Given type array doesn't match nodes.")
+        else:
+            self._types = types
+
+    # --------------------------------------- FEATURE HANDLING --------------------------------------------- #
+
+    def types2feat(self, types2feat_map: Dict[int, np.ndarray]):
+        """ Given a dict with feature arrays keyed by type ints, this method creates the feature array of the
+            PointCloud. E.g. {1: [1, 0], 2: [0, 1]} would result in a one-hot encoding for types 1 and 2. This
+            will override the feature array.
+
+        Args:
+            types2feat_map: keys must be equal to np.unique(type), so all and only all types must be included.
+                All features associated with the types must have the same length
+
+        Returns:
+            None if type array doesn't exist. The newly created feature array if successful.
+        """
+        if self._types is None:
+            return None
+        types = np.unique(self._types)
+        if len(types) != len(types2feat_map):
+            raise ValueError("Not enough types given for feature creation.")
+        self._features = None
+        for key in types2feat_map:
+            if self._features is None:
+                self._features = np.zeros((len(self._vertices), len(types2feat_map[key])))
+            mask = (self._types == key).reshape(-1)
+            self._features[mask] = types2feat_map[key]
+        return self._features
+
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
     def get_pred_num(self) -> int:
@@ -245,7 +290,6 @@ class PointCloud(object):
         Returns:
             The newly generated labels.
         """
-        total = 0
         if self._pred_labels is None:
             self._pred_labels = np.zeros((len(self._vertices), 1))
         self._pred_labels[:] = -1
@@ -253,7 +297,6 @@ class PointCloud(object):
             return self._pred_labels
         for key in self._predictions.keys():
             preds = np.array(self._predictions[key])
-            total += len(preds)
             if mv:
                 u_preds, counts = np.unique(preds, return_counts=True)
                 self._pred_labels[key] = u_preds[np.argmax(counts)]
@@ -392,6 +435,7 @@ class PointCloud(object):
                      'labels': self._labels,
                      'pred_labels': self._pred_labels,
                      'features': self._features,
+                     'type': self._types,
                      'encoding': self._encoding,
                      'obj_bounds': self._obj_bounds,
                      'predictions': self._predictions,

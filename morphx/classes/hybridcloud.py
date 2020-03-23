@@ -122,7 +122,7 @@ class HybridCloud(PointCloud):
 
     # -------------------------------------- HYBRID BASICS ------------------------------------------- #
 
-    def clean_node_labels(self, neighbor_num: int = 2):
+    def clean_node_labels(self, neighbor_num: int = 20):
         """ For each node, this method performs a majority vote on the labels of neighbor_num neighbors which were
         extracted with a limited bfs. The most frequent label is used for the current node. This method can be used as
         a sliding window filter for removing single or small groups of wrong labels on the skeleton.
@@ -131,18 +131,16 @@ class HybridCloud(PointCloud):
             neighbor_num: Number of neighbors which limits the radius of the bfs.
         """
         from morphx.processing import graphs
-        if self.node_labels is None:
-            return
-        new_labels = np.zeros((len(self.node_labels), 1))
+        new_labels = np.zeros((len(self.pred_node_labels), 1))
         graph = self.graph(simple=True)
 
         # for each node extract neighbor_num neighbors with a bfs and take the most frequent label as new node label
         for ix in range(len(self.nodes)):
             local_bfs = graphs.bfs_num(graph, ix, neighbor_num)
-            labels = self.node_labels[local_bfs.astype(int)]
+            labels = self.pred_node_labels[local_bfs.astype(int)]
             u_labels, counts = np.unique(labels, return_counts=True)
             new_labels[ix] = u_labels[np.argmax(counts)]
-        self._node_labels = new_labels
+        self._pred_node_labels = new_labels
 
     def vertl2nodel(self, pred: bool = True) -> Optional[np.ndarray]:
         """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of

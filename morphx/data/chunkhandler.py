@@ -233,16 +233,18 @@ class ChunkHandler:
         """
         return len(self._splitted_objs[name])
 
-    def get_obj_info(self, name: str):
+    def get_obj_info(self, name: str, hybrid_only: bool = False):
         obj = self._adapt_obj(objects.load_obj(self._data_type, self._data_path + name + '.pkl'))
+        if hybrid_only and self._data_type == 'ce':
+            obj = obj.hc
         attr_dict = {'vertex_num': len(obj.vertices), 'node_num': len(obj.nodes),
                      'labels': list(np.unique(obj.labels, return_counts=True)), 'length': self.get_obj_length(name)}
         return attr_dict
 
-    def get_set_info(self):
+    def get_set_info(self, hybrid_only: bool = False):
         total_attr_dict = {'vertex_num': 0, 'node_num': 0, 'labels': None, 'length': 0}
         for name in self.obj_names:
-            attr_dict = self.get_obj_info(name)
+            attr_dict = self.get_obj_info(name, hybrid_only)
             total_attr_dict['vertex_num'] += attr_dict['vertex_num']
             total_attr_dict['node_num'] += attr_dict['node_num']
             total_attr_dict['length'] += attr_dict['length']
