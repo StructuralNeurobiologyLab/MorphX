@@ -435,7 +435,7 @@ class PointCloud(object):
                      'labels': self._labels,
                      'pred_labels': self._pred_labels,
                      'features': self._features,
-                     'type': self._types,
+                     'types': self._types,
                      'encoding': self._encoding,
                      'obj_bounds': self._obj_bounds,
                      'predictions': self._predictions,
