@@ -22,6 +22,7 @@ class TorchHandler(data.Dataset):
                  data_path: str,
                  sample_num: int,
                  nclasses: int,
+                 feat_dim: int,
                  density_mode: bool = True,
                  bio_density: float = None,
                  tech_density: int = None,
@@ -31,7 +32,7 @@ class TorchHandler(data.Dataset):
                  data_type: str = 'ce',
                  obj_feats: dict = None,
                  label_mappings: List[Tuple[int, int]] = None,
-                 hybrid_mode: bool = False
+                 hybrid_mode: bool = False,
                  ):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
@@ -41,16 +42,6 @@ class TorchHandler(data.Dataset):
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
-        feat_dim = None
-        for key in obj_feats.keys():
-            if feat_dim is None:
-                if isinstance(obj_feats[key], int):
-                    feat_dim = 1
-                else:
-                    feat_dim = len(obj_feats[key])
-            else:
-                if not isinstance(obj_feats[key], int) and len(obj_feats[key]) != feat_dim:
-                    raise ValueError("Feature dimensions do not match each other.")
         self._feat_dim = feat_dim
 
     def __len__(self):

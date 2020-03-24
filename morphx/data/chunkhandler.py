@@ -276,9 +276,12 @@ class ChunkHandler:
                     feat_line = self._obj_feats[name]
                     subcloud = obj.get_cloud(name)
                     if subcloud is not None:
-                        feats = np.ones((len(subcloud.vertices), len(feat_line)))
-                        feats[:] = feat_line
-                        subcloud.set_features(feats)
+                        if isinstance(feat_line, dict):
+                            subcloud.types2feat(feat_line)
+                        else:
+                            feats = np.ones((len(subcloud.vertices), len(feat_line)))
+                            feats[:] = feat_line
+                            subcloud.set_features(feats)
             elif self._hybrid_mode:
                 feats = np.ones(len(obj.vertices)).reshape(-1, 1)
                 feats[:] = self._obj_feats['hc']

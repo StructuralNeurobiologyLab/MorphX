@@ -260,13 +260,15 @@ class PointCloud(object):
         if self._types is None:
             return None
         types = np.unique(self._types)
-        if len(types) != len(types2feat_map):
+        if len(types) > len(types2feat_map):
             raise ValueError("Not enough types given for feature creation.")
         self._features = None
         for key in types2feat_map:
             if self._features is None:
                 self._features = np.zeros((len(self._vertices), len(types2feat_map[key])))
             mask = (self._types == key).reshape(-1)
+            if len(mask) == 0:
+                continue
             self._features[mask] = types2feat_map[key]
         return self._features
 
