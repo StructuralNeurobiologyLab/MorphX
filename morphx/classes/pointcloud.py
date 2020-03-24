@@ -372,7 +372,7 @@ class PointCloud(object):
         else:
             self._vertices = self._vertices * factor
 
-    def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = True):
+    def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = False):
         """ Randomly rotates vertices by performing an Euler rotation. The three angles are chosen randomly
             from the given angle_range. If `random_flip` is True, flips axes independently around the origin. """
         # switch limits if lower limit is larger
