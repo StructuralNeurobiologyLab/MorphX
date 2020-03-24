@@ -328,15 +328,17 @@ class Normalization(Transformation):
 
 
 class RandomRotate(Transformation):
-    def __init__(self, angle_range: tuple = (-180, 180)):
+    def __init__(self, angle_range: tuple = (-180, 180), apply_flip: bool = False):
         self.angle_range = angle_range
+        self.apply_flip = apply_flip
 
     def __call__(self, pc: PointCloud):
-        """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are choosen randomly
+        """ Randomly rotates a given PointCloud by performing an Euler rotation. The three angles are chosen randomly
             from the given angle_range. If the PointCloud is a HybridCloud then the nodes get rotated as well. Operates
-            in-place for the given Pointcloud.
+            in-place for the given Pointcloud. If apply_flip is true, randomly flips spatial axes around origin
+            independently.
         """
-        pc.rotate_randomly(self.angle_range)
+        pc.rotate_randomly(self.angle_range, random_flip=self.apply_flip)
 
     @property
     def augmentation(self):
@@ -373,14 +375,22 @@ class Center(Transformation):
 
 
 class RandomVariation(Transformation):
-    def __init__(self, limits: tuple = (-1, 1)):
+    def __init__(self, limits: tuple = (-1, 1), distr: str = 'uniform'):
+        """
+
+        Args:
+            limits: Range of the noise values. Tuple is used as lower and upper bounds for ``distr='uniform'``
+                or only the entry at index 1 as scale factor if ``distr='normal'``.
+            distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
+        """
         self.limits = limits
+        self.noise_distr = distr
 
     def __call__(self, pc: PointCloud):
         """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
             Possible nodes get ignored. Operates in-place for the given PointCloud.
         """
-        pc.add_noise(self.limits)
+        pc.add_noise(self.limits, self.noise_distr)
 
     @property
     def augmentation(self):
@@ -388,7 +398,36 @@ class RandomVariation(Transformation):
 
     @property
     def attributes(self):
+        # TODO: add self.noise_distr
         return self.limits
+
+
+class RandomScale(Transformation):
+    def __init__(self, distr_scale: float = 0.05, distr: str = 'uniform'):
+        """
+        Vertices will be multiplied with the factor (1+X), where X is drawn from the
+        given distribution `distr` scaled by `distr_scale`.
+
+        Args:
+            distr_scale: Scale factor applied to the noise distribution values.
+            distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
+        """
+        self.distr_scale = distr_scale
+        self.noise_distr = distr
+
+    def __call__(self, pc: PointCloud):
+        """ Adds some random variation (amplitude given by the limits parameter) to vertices of the given PointCloud.
+            Possible nodes get ignored. Operates in-place for the given PointCloud.
+        """
+        pc.mult_noise(self.distr_scale, self.noise_distr)
+
+    @property
+    def augmentation(self):
+        return True
+
+    @property
+    def attributes(self):
+        return self.distr_scale, self.noise_distr
 
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #

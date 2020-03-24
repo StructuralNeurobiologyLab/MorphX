@@ -61,7 +61,7 @@ def test_rotate_randomly():
                      vertices=np.array([[10, 10, 10], [20, 20, 20]]))
 
     # test transformation class from processing.clouds
-    transform = clouds.RandomRotate(angle_range)
+    transform = clouds.RandomRotate(angle_range, apply_flip=False)
     transform(pc)
     transform(hc)
 

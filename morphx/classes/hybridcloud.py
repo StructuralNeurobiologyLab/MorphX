@@ -282,7 +282,7 @@ class HybridCloud(PointCloud):
             self._vertices = self._vertices * factor
             self._nodes = self.nodes * factor
 
-    def rotate_randomly(self, angle_range: tuple = (-180, 180)):
+    def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = False):
         """ Randomly rotates vertices and nodes by performing an Euler rotation. The three angles are choosen randomly
             from the given angle_range. """
         # switch limits if lower limit is larger
@@ -295,6 +295,10 @@ class HybridCloud(PointCloud):
             self._vertices = r.apply(self._vertices)
         if len(self._nodes) > 0:
             self._nodes = r.apply(self._nodes)
+        if random_flip:
+            flip_axes = (-1)**np.random.randint(0, 2, self._vertices.shape[1])
+            self._vertices *= flip_axes
+            self._nodes *= flip_axes
 
     def move(self, vector: np.ndarray):
         """ Moves vertices and nodes by adding the given vector """

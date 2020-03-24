@@ -9,6 +9,7 @@ import pickle
 import numpy as np
 from tqdm import tqdm
 from typing import Dict
+import logging
 from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
@@ -373,9 +374,9 @@ class PointCloud(object):
         else:
             self._vertices = self._vertices * factor
 
-    def rotate_randomly(self, angle_range: tuple = (-180, 180)):
-        """ Randomly rotates vertices by performing an Euler rotation. The three angles are choosen randomly
-            from the given angle_range. """
+    def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = False):
+        """ Randomly rotates vertices by performing an Euler rotation. The three angles are chosen randomly
+            from the given angle_range. If `random_flip` is True, flips axes independently around the origin. """
         # switch limits if lower limit is larger
         if angle_range[0] > angle_range[1]:
             angle_range = (angle_range[1], angle_range[0])
@@ -384,22 +385,67 @@ class PointCloud(object):
         r = Rot.from_euler('xyz', angles, degrees=True)
         if len(self._vertices) > 0:
             self._vertices = r.apply(self._vertices)
+        if random_flip:
+            flip_axes = (-1)**np.random.randint(0, 2, self._vertices.shape[1])
+            self._vertices *= flip_axes
 
     def move(self, vector: np.ndarray):
         """ Moves vertices by adding the given vector """
         self._vertices = self._vertices + vector
 
-    def add_noise(self, limits: tuple = (-1, 1)):
-        """ Adds some random variation (amplitude given by the limits parameter) to vertices. """
-        # switch limits if lower limit is larger
-        if limits[0] > limits[1]:
-            limits = (limits[1], limits[0])
-        # do nothing if limits are the same
-        if limits[0] == limits[1]:
-            return
+    def add_noise(self, limits: tuple = (-1, 1), distr: str = 'uniform'):
+        """
+        Apply additive noise (drawn from `distr` and scaled by `distr_scale`) to vertices.
 
-        variation = np.random.random(self._vertices.shape) * (limits[1] - limits[0]) + limits[0]
+        Args:
+            limits: Range of the noise values. Tuple is used as lower and upper bounds for ``distr='uniform'``
+                or only the entry at index 1 is used as standard deviation if ``distr='normal'``. Note that the
+                s.d. used to generate the vertex noise (i.i.d) is fixed by drawing a global value from the given normal
+                distribution. This will lead to different noise levels within the given s.d. range (limits[1]).
+            distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
+
+        Returns:
+
+        """
+        if distr.lower() == 'normal':
+            if abs(limits[0]) != abs(limits[1]):
+                logging.warning(f'Lower ({limits[0]}) and upper ({limits[1]}) limits differ but chosen '
+                                f'noise source was set to "normal". Using upper limit to scale standard '
+                                f'normal values.')
+            fixed_sd = np.random.standard_normal(1) * limits[1]
+            variation = np.random.standard_normal(self._vertices.shape) * fixed_sd
+        elif distr.lower() == 'uniform':
+            # switch limits if lower limit is larger
+            if limits[0] > limits[1]:
+                limits = (limits[1], limits[0])
+            # do nothing if limits are the same
+            if limits[0] == limits[1]:
+                return
+            variation = np.random.random(self._vertices.shape) * (limits[1] - limits[0]) + limits[0]
+        else:
+            raise ValueError(f'Given value "{distr}" for noise distribution not available.')
         self._vertices = self._vertices + variation
+
+    def mult_noise(self, distr_scale: float = 0.05, distr: str = 'uniform'):
+        """
+        Vertices will be multiplied with the factor (1+X), where X is drawn from the
+        given distribution `distr` scaled by `distr_scale`.
+
+        Args:
+            distr_scale: Scale factor applied to the noise distribution values (i.e. s.d. for ``distr='normal'``) or
+                lower and upper bound (``distr='uniform'``).
+            distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
+
+        Returns:
+
+        """
+        if distr.lower() == 'normal':
+            variation = 1 + np.random.standard_normal(1)[0] * distr_scale
+        elif distr.lower() == 'uniform':
+            variation = 1 + np.random.random(1) * 2 * distr_scale - distr_scale
+        else:
+            raise ValueError(f'Given value "{distr}" for noise distribution not available.')
+        self._vertices = self._vertices * variation
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
