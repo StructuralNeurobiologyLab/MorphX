@@ -67,7 +67,7 @@ class PointCloud(object):
                 raise ValueError("Feature array must have same length as vertices array.")
             self._features = features
 
-        if types is not None:
+        if types is not None and len(types) != 0:
             if vertices is None or len(types) != len(vertices):
                 raise ValueError("Type array must have same length as vertices array.")
             self._types = types
