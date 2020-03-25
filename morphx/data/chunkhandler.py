@@ -238,21 +238,22 @@ class ChunkHandler:
         if hybrid_only and self._data_type == 'ce':
             obj = obj.hc
         attr_dict = {'vertex_num': len(obj.vertices), 'node_num': len(obj.nodes),
+                     'types': list(np.unique(obj.types, return_counts=True)),
                      'labels': list(np.unique(obj.labels, return_counts=True)), 'length': self.get_obj_length(name)}
         return attr_dict
 
     def get_set_info(self, hybrid_only: bool = False):
-        total_attr_dict = {'vertex_num': 0, 'node_num': 0, 'labels': None, 'length': 0}
+        total_attr_dict = {'vertex_num': 0, 'node_num': 0, 'types': [np.array([]), np.array([])],
+                           'labels': [np.array([]), np.array([])], 'length': 0}
         for name in self.obj_names:
             attr_dict = self.get_obj_info(name, hybrid_only)
+            total_attr_dict[name] = attr_dict
             total_attr_dict['vertex_num'] += attr_dict['vertex_num']
             total_attr_dict['node_num'] += attr_dict['node_num']
             total_attr_dict['length'] += attr_dict['length']
-            if total_attr_dict['labels'] is None:
-                total_attr_dict['labels'] = attr_dict['labels']
-            else:
-                labels = attr_dict['labels']
-                total_labels = total_attr_dict['labels']
+            for key in ['labels', 'types']:
+                labels = attr_dict[key]
+                total_labels = total_attr_dict[key]
                 for source_ix, label in enumerate(labels[0]):
                     if label in total_labels[0]:
                         # add label counts of current obj to total
@@ -260,8 +261,9 @@ class ChunkHandler:
                         total_labels[1][target_ix] += labels[1][source_ix]
                     else:
                         # append label and label counts
-                        total_labels[0] = np.append[total_labels[0], int(label)]
-                        total_labels[1] = np.append[total_labels[1], int(labels[1][source_ix])]
+                        total_labels[0] = np.append(total_labels[0], int(label))
+                        total_labels[1] = np.append(total_labels[1], int(labels[1][source_ix]))
+                assert total_attr_dict['labels'][1].sum() == total_attr_dict['vertex_num']
         return total_attr_dict
 
     def _adapt_obj(self, obj: Union[CloudEnsemble, HybridCloud]) -> Union[CloudEnsemble, HybridCloud]:

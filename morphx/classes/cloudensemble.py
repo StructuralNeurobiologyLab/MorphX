@@ -66,6 +66,10 @@ class CloudEnsemble(object):
         return self.flattened.labels
 
     @property
+    def types(self) -> np.ndarray:
+        return self.hc.types
+
+    @property
     def no_pred(self) -> List[str]:
         return self._no_pred
 

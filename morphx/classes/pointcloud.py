@@ -70,7 +70,9 @@ class PointCloud(object):
         if types is not None:
             if vertices is None or len(types) != len(vertices):
                 raise ValueError("Type array must have same length as vertices array.")
-        self._types = types
+            self._types = types
+        else:
+            self._types = np.zeros(0)
         self._encoding = encoding
         self._obj_bounds = obj_bounds
         self._predictions = predictions
