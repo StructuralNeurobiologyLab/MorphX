@@ -7,7 +7,7 @@ from morphx.processing import clouds
 
 @pytest.mark.skip(reason="WIP")
 def test_chunkhandler_sanity():
-    wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
+    wd = os.path.abspath(os.path.dirname(__file__) + '/../data/') + '/'
     radius = 20000
     npoints = 5000
     cl = ChunkHandler(wd, radius, npoints)
@@ -27,7 +27,7 @@ def test_chunkhandler_sanity():
 
 @pytest.mark.skip(reason="WIP")
 def test_transformations():
-    wd = os.path.abspath(os.path.dirname(__file__) + '/../example_data/') + '/'
+    wd = os.path.abspath(os.path.dirname(__file__) + '/../data/') + '/'
     radius = 20000
     npoints = 5000
     transforms = clouds.Compose([clouds.Normalization(radius), clouds.Center()])

@@ -19,7 +19,7 @@ test_dir = os.path.dirname(__file__)
 
 def test_hybridcloud_load():
     # TODO: maybe decouple from other tests.
-    dir_ex = os.path.abspath(f'{test_dir}/../example_data')
+    dir_ex = os.path.abspath(f'{test_dir}/../data')
     _, vertices = read_mesh_from_ply(f'{dir_ex}/example_mesh.ply')
     nodes, edges = load_skeleton_nx_pkl(f'{dir_ex}/example_skel.pkl')
     hc = HybridCloud(vertices=vertices, nodes=nodes, edges=edges)
