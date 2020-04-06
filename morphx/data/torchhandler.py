@@ -110,6 +110,10 @@ class TorchHandler(data.Dataset):
     def sample_num(self):
         return self._sample_num
 
+    @property
+    def num_classes(self):
+        return self._nclasses
+
     def get_hybrid_length(self, name: str):
         return self._ch.get_obj_length(name)
 

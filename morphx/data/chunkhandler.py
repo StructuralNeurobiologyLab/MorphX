@@ -235,8 +235,6 @@ class ChunkHandler:
 
     def get_obj_info(self, name: str, hybrid_only: bool = False):
         obj = self._adapt_obj(objects.load_obj(self._data_type, self._data_path + name + '.pkl'))
-        if hybrid_only and self._data_type == 'ce':
-            obj = obj.hc
         attr_dict = {'vertex_num': len(obj.vertices), 'node_num': len(obj.nodes),
                      'types': list(np.unique(obj.types, return_counts=True)),
                      'labels': list(np.unique(obj.labels, return_counts=True)), 'length': self.get_obj_length(name)}
