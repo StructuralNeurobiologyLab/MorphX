@@ -18,7 +18,7 @@ test_dir = os.path.dirname(__file__)
 
 def test_hybridmesh_load():
     # TODO: maybe decouple from other tests.
-    dir_ex = os.path.abspath(f'{test_dir}/../example_data')
+    dir_ex = os.path.abspath(f'{test_dir}/../data')
     faces, vertices = read_mesh_from_ply(f'{dir_ex}/example_mesh.ply')
     nodes, edges = load_skeleton_nx_pkl(f'{dir_ex}/example_skel.pkl')
     hm = HybridMesh(nodes=nodes, edges=edges, vertices=vertices,
