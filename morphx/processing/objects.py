@@ -57,7 +57,7 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
 
 # -------------------------------------- BFS ALGORITHMS -------------------------------------- #
 
-def bfs_vertices_diameter(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
+def density_splitting(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
         -> np.ndarray:
     """ Traverses the skeleton nodes. For each node, all nodes within 'radius' are sorted according to their distance.
         Then the nodes are added to the result as long as vertex number is below threshold.
@@ -274,7 +274,7 @@ def bfs_vertices_euclid(hc: Union[HybridCloud, CloudEnsemble], source: int, vert
     return np.array(bfs_result)
 
 
-def bfs_euclid_diameter(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float, radius: int = 1000) -> np.ndarray:
+def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float, radius: int = 1000) -> np.ndarray:
     """ Performs a BFS on a graph until maximum euclidian distance for each path is reached. The
         graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
 

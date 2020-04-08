@@ -113,21 +113,21 @@ def test_bfs_vertices_diameter():
                                         [-2, 1, 0], [-2, 1, 0], [-3, 1, 0]]))
 
     expected = [0, 1, 2, 4, 8]
-    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 0, 9, 1)
+    chosen = morphx.processing.objects.density_splitting(hc, 0, 9, 1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [0, 1, 2]
-    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 0, 6, 2)
+    chosen = morphx.processing.objects.density_splitting(hc, 0, 6, 2)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:
         assert item in expected
 
     expected = [1, 2, 5]
-    chosen = morphx.processing.objects.bfs_vertices_diameter(hc, 2, 6, 1)
+    chosen = morphx.processing.objects.density_splitting(hc, 2, 6, 1)
     print(chosen)
     assert len(chosen) == len(expected)
     for item in chosen:

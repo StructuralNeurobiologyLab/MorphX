@@ -305,6 +305,21 @@ class HybridCloud(PointCloud):
         self._vertices = self._vertices + vector
         self._nodes = self._nodes + vector
 
+    def shear(self, limits: tuple = (-1, 1)):
+        """
+        Shears vertices and nodes by applying a transformation matrix
+        [[1, s_xy, s_xz], [s_yx, 1, s_yz], [s_zx, s_zy, 1]], where the factors
+        s_ij are drawn from a uniform distribution.
+
+        Args:
+            limits: Range of the interval for the factors s_ij. Tuple defines lower
+                and upper bound of the uniform distribution.
+        """
+        transform = np.random.random((3, 3)) * (limits[1] - limits[0]) + limits[0]
+        np.fill_diagonal(transform, 1)
+        self._vertices.dot(transform)
+        self._nodes.dot(transform)
+
     # -------------------------------------- HYBRID I/O ------------------------------------------- #
 
     def get_attr_dict(self):
