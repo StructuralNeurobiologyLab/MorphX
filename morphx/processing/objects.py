@@ -57,142 +57,107 @@ def load_obj(data_type: str, file: str) -> Union[HybridMesh, HybridCloud, PointC
 
 # -------------------------------------- BFS ALGORITHMS -------------------------------------- #
 
-def density_splitting(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
+def density_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, radius: int = 1000) \
         -> np.ndarray:
-    """ Traverses the skeleton nodes. For each node, all nodes within 'radius' are sorted according to their distance.
-        Then the nodes are added to the result as long as vertex number is below threshold.
+    """ Traverses the skeleton with a BFS. For each node, all nodes within 'radius' are sorted according to their
+        distance. Then these nodes are added to the resulting node array as long as the total number of corresponding
+        vertices is still below vertex_max.
+
+    Args:
+        obj: MorphX object which contains the skeleton.
+        source: The index of the node to start with.
+        vertex_max: The vertex threshold after which the BFS is stopped.
+        radius: Workaround to be independent from the skeleton microstructure. All nodes within this radius get sorted
+            according to their distance and are then added to the result.
 
     Returns:
         Index array which contains indices of nodes in the hc node array which are part of the bfs result.
     """
     source = int(source)
     chosen = []
-    idx_nodes = np.arange(len(hc.nodes))
+    idx_nodes = np.arange(len(obj.nodes))
     visited = [source]
-    dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[source], axis=1) <= radius]
+    dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[source], axis=1) <= radius]
     vertex_num = 0
     # sort nodes within 'radius' by their distance
-    tree = cKDTree(hc.nodes[dia_nodes])
-    dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+    tree = cKDTree(obj.nodes[dia_nodes])
+    dist, ind = tree.query(obj.nodes[source], k=len(dia_nodes))
     if isinstance(ind, int):
         ind = [ind]
     for ix in ind:
         node = dia_nodes[ix]
         # add nodes as long as number of corresponding vertices is still below the threshold
-        if vertex_num + len(hc.verts2node[node]) <= vertex_max:
+        if vertex_num + len(obj.verts2node[node]) <= vertex_max:
             chosen.append(node)
-            vertex_num += len(hc.verts2node[node])
+            vertex_num += len(obj.verts2node[node])
         else:
             return np.array(chosen)
     # traverse all nodes
-    neighbors = hc.graph().neighbors(source)
+    neighbors = obj.graph().neighbors(source)
     de = deque([i for i in neighbors])
     while de:
         curr = de.pop()
         # visited is node list for traversing the graph
         if curr not in visited:
             visited.append(curr)
-            dia_nodes = idx_nodes[np.linalg.norm(hc.nodes - hc.nodes[curr], axis=1) <= radius]
-            tree = cKDTree(hc.nodes[dia_nodes])
-            dist, ind = tree.query(hc.nodes[source], k=len(dia_nodes))
+            dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[curr], axis=1) <= radius]
+            tree = cKDTree(obj.nodes[dia_nodes])
+            dist, ind = tree.query(obj.nodes[source], k=len(dia_nodes))
             if isinstance(ind, int):
                 ind = [ind]
             for ix in ind:
                 node = dia_nodes[ix]
                 # chosen is node list for gathering all valid nodes
                 if node not in chosen:
-                    if vertex_num + len(hc.verts2node[node]) <= vertex_max:
+                    if vertex_num + len(obj.verts2node[node]) <= vertex_max:
                         chosen.append(node)
-                        vertex_num += len(hc.verts2node[node])
+                        vertex_num += len(obj.verts2node[node])
                     else:
                         return np.array(chosen)
-            neighbors = hc.graph().neighbors(curr)
+            neighbors = obj.graph().neighbors(curr)
             de.extendleft([i for i in neighbors])
     return np.array(chosen)
 
 
-def bfs_base_points_density(hc: Union[HybridCloud, CloudEnsemble], vertex_max: int, source: int = -1) -> np.ndarray:
-    """ Extracts base points which have an approximate number of vertices between them.
+def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
+                      radius: int = 1000) -> np.ndarray:
+    """ Traverses the skeleton with a BFS. For each node, all neighboring nodes within 'radius' get added to the
+        resulting array if their distance to the 'source' node is below 'max_dist'.
 
     Args:
-        hc: the HybridCloud with the graph and vertices.
-        vertex_max: the approximate number of vertices which should be between two base points
-            (corresponding to the nodes between them)
-        source: the starting point.
-    """
-    # after context nodes the number of vertices between the current and the starting node is checked
-    # if vertex number is higher than threshold the node gets added as a base point (doing this context-
-    # wise speeds up the process in contrast to doing it node-wise)
-    context = 20
-    if source == -1:
-        source = np.random.randint(hc.graph().number_of_nodes())
-    chosen = [source]
-    visited = [source]
-    neighbors = hc.graph().neighbors(source)
-    de = deque([(i, [source], 0) for i in neighbors])
-    while de:
-        curr, preds, verts_num = de.pop()
-        if curr not in visited:
-            visited.append(curr)
-            # sum up all corresponding vertices after each 'context' nodes
-            if len(preds) >= context:
-                for node in preds:
-                    verts_num += len(hc.verts2node[node])
-                if verts_num > vertex_max:
-                    # include this node only if there are enough vertices between this one and all nodes
-                    # which were already chosen
-                    include = True
-                    for chosen_node in reversed(chosen):
-                        if np.linalg.norm(hc.nodes[curr] - hc.nodes[chosen_node]) < 5000:
-                            include = False
-                        # if not enough_vertices(hc, vertex_max, curr, chosen_node):
-                        #     include = False
-                        #     break
-                    if include:
-                        chosen.append(curr)
-                        verts_num = 0
-                # reset the context to process the next 'context' nodes. The number of vertices
-                # is still the old one unless the node was added as a base point
-                preds = []
-            preds.append(curr)
-            neighbors = hc.graph().neighbors(curr)
-            de.extendleft([(i, preds, verts_num) for i in neighbors])
-    return np.array(chosen)
-
-
-def enough_vertices(hc: Union[HybridCloud, CloudEnsemble], vertex_max: int, source: int, goal: int) -> bool:
-    """ Checks if number of vertices corresponding to the skeleton nodes between the source and the
-        nearest node in chosen is below a certain threshold. Can be used to ensure a minimum distance
-        between base points.
-
-    Args:
-        hc: the HybridCloud with the graph and vertices
-        vertex_max: the threshold from the description
-        source: the starting point
-        goal: a list of nodes from which the nearest node to the source is decisive
+        obj: MorphX object which contains the skeleton.
+        source: The index of the node to start with.
+        max_dist: The maximum distance which limits the BFS.
+        radius: Workaround to be independent from the skeleton microstructure. Radius of sphere around each node
+            in which all nodes should get processed.
 
     Returns:
-        True if there are enough vertices between the source and the next node in chosen, False
-        otherwise
+        np.ndarray with nodes sorted recording to the result of the limited BFS
     """
-    visited = [source]
-    vertex_num = len(hc.verts2node[source])
-    neighbors = hc.graph().neighbors(source)
-    de = deque([(i, vertex_num) for i in neighbors])
+    idx_nodes = np.arange(len(obj.nodes))
+    visited = []
+    chosen = []
+    de = deque([source])
+    neighbors = obj.graph().neighbors(source)
+    de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
     while de:
-        curr, vertex_num = de.pop()
+        curr = de.pop()
         if curr not in visited:
             visited.append(curr)
-            vertex_num += len(hc.verts2node[curr])
-            # if goal node was reached, but not enough vertices are in between, return False
-            if curr == goal and vertex_num < vertex_max:
-                return False
-            # if there are enough vertices and goal has not been or has just been reached, return True
-            if vertex_num > vertex_max:
-                return True
-            neighbors = hc.graph().neighbors(curr)
-            de.extendleft([(i, vertex_num) for i in neighbors])
-    return True
+            # get all nodes within radius and check if condition is satisfied
+            dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[curr], axis=1) <= radius]
+            tree = cKDTree(obj.nodes[dia_nodes])
+            dist, ind = tree.query(obj.nodes[curr], k=len(dia_nodes))
+            if isinstance(ind, int):
+                ind = [ind]
+            for ix in ind:
+                node = dia_nodes[ix]
+                if node not in chosen:
+                    if np.linalg.norm(obj.nodes[source] - obj.nodes[node]) <= max_dist:
+                        chosen.append(node)
+            neighbors = obj.graph().neighbors(curr)
+            de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
+    return np.array(chosen)
 
 
 def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int) -> np.ndarray:
@@ -223,91 +188,3 @@ def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max:
                 return np.array(visited)
 
     return np.array(visited)
-
-
-def bfs_vertices_euclid(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int, euclid: int,
-                        cutoff: int = 20) -> np.ndarray:
-    """ Starting from the source, a bfs is performed until 'context' consecutive nodes have a distance > 'euclid'
-        from the source. The resulting node list is then iterated until the maximum number of vertices is reached.
-        This gets all nodes within a certain radius in the order they would appear when traversing the skeleton.
-
-    Args:
-        hc: The HybridCloud with the graph, nodes and vertices on which the BFS should be performed
-        source: The source node from which the BFS should start.
-        vertex_max: The maximum number of vertices which should be included in the chunk
-        euclid: All nodes within this radius of the source are iterated
-        cutoff: BFS gets performed until 'context' consecutive nodes have a distance > 'euclid' from
-            the source
-
-    Returns:
-        np.ndarray with nodes which were extracted during the bfs
-    """
-    g = hc.graph()
-    source_pos = g.nodes[source]['position']
-    # run bfs in order to get node context on which following k-nearest neighbor search is faster
-    visited = [source]
-    node_extract = [source]
-    neighbors = g.neighbors(source)
-    de = deque([(i, [i]) for i in neighbors])
-    while de:
-        curr, out_preds = de.pop()
-        if curr not in visited:
-            visited.append(curr)
-            if np.linalg.norm(source_pos - g.nodes[curr]['position']) <= euclid:
-                node_extract.append(curr)
-                out_preds = []
-            # don't add neighbors if previous 'context' nodes are outside of euclidian sphere
-            if len(out_preds) < cutoff:
-                neighbors = g.neighbors(curr)
-                for i in neighbors:
-                    if i not in visited:
-                        new_out_preds = out_preds.copy()
-                        new_out_preds.append(i)
-                        de.extendleft([(i, new_out_preds)])
-    bfs_result = []
-    vertex_num = 0
-    ix = 0
-    while vertex_num <= vertex_max and ix < len(node_extract):
-        vertex_num += len(hc.verts2node[node_extract[ix]])
-        bfs_result.append(node_extract[ix])
-        ix += 1
-    return np.array(bfs_result)
-
-
-def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float, radius: int = 1000) -> np.ndarray:
-    """ Performs a BFS on a graph until maximum euclidian distance for each path is reached. The
-        graph nodes must contain the attribute 'position' as a numpy array with x,y,z position.
-
-    Args:
-        obj: HybridCloud or CloudEnsemble on which the bfs should be performed.
-        source: The source node from which the BFS should start.
-        max_dist: The maximum distance which should limit the BFS.
-        radius: radius of sphere around each node in which all nodes should get processed.
-
-    Returns:
-        np.ndarray with nodes sorted recording to the result of the limited BFS
-    """
-    idx_nodes = np.arange(len(obj.nodes))
-    visited = []
-    chosen = []
-    de = deque([source])
-    neighbors = obj.graph().neighbors(source)
-    de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
-    while de:
-        curr = de.pop()
-        if curr not in visited:
-            visited.append(curr)
-            # get all nodes within radius and check if condition is satisfied
-            dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[curr], axis=1) <= radius]
-            tree = cKDTree(obj.nodes[dia_nodes])
-            dist, ind = tree.query(obj.nodes[curr], k=len(dia_nodes))
-            if isinstance(ind, int):
-                ind = [ind]
-            for ix in ind:
-                node = dia_nodes[ix]
-                if node not in chosen:
-                    if np.linalg.norm(obj.nodes[source] - obj.nodes[node]) <= max_dist:
-                        chosen.append(node)
-            neighbors = obj.graph().neighbors(curr)
-            de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
-    return np.array(chosen)

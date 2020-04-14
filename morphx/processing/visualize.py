@@ -261,18 +261,8 @@ def build_pcd(cloud_list: list, random_seed: int) -> o3d.geometry.PointCloud:
         labels = labels.reshape(len(labels))
         label_num = int(max(np.unique(labels)) + 1)
 
-        # generate colors
-        if label_num == 7:
-            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
-                               [133, 1, 1], [107, 114, 219], [4, 52, 124]]) / 255
-        elif label_num == 8:
-            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
-                               [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78]]) / 255
-        elif label_num == 9:
-            colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
-                               [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78],
-                               [46, 41, 78]]) / 255
-        elif label_num == 10:
+        # generate colors (either fixed or randomly)
+        if label_num <= 10:
             colors = np.array([[122, 174, 183], [197, 129, 104], [87, 200, 50], [137, 58, 252],
                                [133, 1, 1], [107, 114, 219], [4, 52, 124], [46, 41, 78],
                                [46, 41, 78], [46, 41, 78]]) / 255

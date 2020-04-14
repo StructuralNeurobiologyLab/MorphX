@@ -38,9 +38,3 @@ def test_ensemble2pointcloud():
     assert len(result.encoding) == len(encoding)
     for key in result.encoding:
         assert result.encoding[key] == encoding[key]
-
-
-if __name__ == '__main__':
-    start = time.time()
-    test_ensemble2pointcloud()
-    print('Finished after', time.time() - start)

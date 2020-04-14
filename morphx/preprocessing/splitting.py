@@ -10,9 +10,7 @@ import glob
 import pickle
 import numpy as np
 from tqdm import tqdm
-
-import morphx.processing.objects
-from morphx.processing import ensembles, objects, graphs
+from morphx.processing import ensembles, objects
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,

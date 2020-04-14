@@ -70,7 +70,7 @@ class HybridCloud(PointCloud):
         return self._edges
 
     @property
-    def verts2node(self) -> dict:
+    def verts2node(self) -> Optional[dict]:
         """ Creates python dict with indices of skel_nodes as keys and lists of vertex
         indices which have their key node as nearest skeleton node.
 
@@ -229,44 +229,21 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1) -> np.ndarray:
+    def base_points(self, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local
             contexts.
 
         Args:
-            density_mode: flag for (de)activating density mode.
             threshold: the minimum distance between points in the result of the BFS.
             source: the starting point of the BFS.
 
         Returns:
               Array with resulting nodes from a BFS where all nodes have a minimum distance of min_dist to each other.
         """
-        from morphx.processing import graphs, objects
+        from morphx.processing import graphs
         if self._base_points is None:
-            if density_mode:
-                self._base_points = objects.bfs_base_points_density(self, threshold, source=source)
-            else:
-                self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
+            self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points
-
-    def filter_traverser(self):
-        """ Removes all nodes from `:py:func:~traverser` which have no vertices to which they are the nearest node.
-        Used for making sure that label filtered clouds can be traversed without processing overhead for nodes without
-        vertices.
-
-        Returns:
-            Filtered traverser array.
-        """
-        # TODO: This could remove potentially useful nodes => Improve and include better criteria for removal
-        f_traverser = []
-        mapping = self.verts2node
-        for node in self.base_points():
-            # get only those nodes which are the nearest neighbors to some vertices
-            if len(mapping[node]) != 0:
-                f_traverser.append(node)
-        f_traverser = np.array(f_traverser)
-        self._base_points = f_traverser
-        return f_traverser
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 

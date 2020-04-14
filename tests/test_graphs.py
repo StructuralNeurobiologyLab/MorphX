@@ -76,25 +76,6 @@ def test_radius():
         assert item in expected
 
 
-# TEST LOCAL BFS DIST #
-@pytest.mark.skip(reason="WIP")
-def test_local_sanity():
-    g = nx.Graph()
-    nodes = np.arange(12)
-    expected = [5, 4, 0, 6, 10, 7, 9, 8]
-    g.add_nodes_from(nodes)
-    pos = [np.array([0, 0, 0]), np.array([-0.5, 0, 0]), np.array([-1, 0, 0]), np.array([-0.5, 0, 0]),
-           np.array([0.5, 0, 0]), np.array([1, 0, 0]), np.array([1.5, 0, 0]), np.array([1.5, 0, 0]),
-           np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2, 0, 0]), np.array([2.5, 0, 0])]
-    for i in range(12):
-        g.nodes[i]['position'] = pos[i]
-    g.add_edges_from([(0, 1), (1, 2), (0, 3), (0, 4), (4, 5), (5, 6), (5, 7), (7, 8), (7, 9), (6, 10), (10, 11)])
-    chosen = nodes[morphx.processing.objects.context_splitting(g, 5, 1)]
-    assert len(chosen) == len(expected)
-    for item in chosen:
-        assert item in expected
-
-
 # TEST LOCAL BFS NUM #
 def test_local_num_sanity():
     g = nx.Graph()
@@ -135,13 +116,3 @@ def test_bfs_iterative():
     assert len(chunks) == len(expected)
     for chunk in chunks:
         assert chunk in expected
-
-
-if __name__ == '__main__':
-    start = time.time()
-    test_global_sanity()
-    test_radius()
-    test_local_sanity()
-    test_local_num_sanity()
-    test_bfs_iterative()
-    print('Finished after', time.time() - start)
