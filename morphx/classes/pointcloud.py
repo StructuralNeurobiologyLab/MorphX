@@ -199,7 +199,7 @@ class PointCloud(object):
 
         Args:
             mappings: List of tuples with original labels and target labels. E.g. [(1, 2), (3, 2)] means that
-              the labels 1 and 3 will get replaced by 3.
+              the labels 1 and 3 will get replaced by 2.
         """
         for mapping in mappings:
             self._labels[self._labels == mapping[0]] = mapping[1]

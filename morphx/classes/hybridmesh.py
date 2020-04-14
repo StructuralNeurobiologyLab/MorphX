@@ -61,7 +61,7 @@ class HybridMesh(HybridCloud):
             return None
         if self._faces2node is None:
             self._faces2node = dict()
-            for node_ix, vert_ixs in tqdm(self.verts2node.items()):
+            for node_ix, vert_ixs in self.verts2node.items():
                 if len(vert_ixs) == 0:
                     self._faces2node[node_ix] = []
                     continue
