@@ -350,28 +350,17 @@ class RandomRotate(Transformation):
 
 
 class Center(Transformation):
-    def __init__(self):
-        self._centroid = None
-
     def __call__(self, pc: PointCloud):
         """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
             get centered as well but are not taken into account for centroid calculation. Operates in-place for the
             given PointCloud
         """
-        self._centroid = np.mean(pc.vertices, axis=0)
-        pc.move(-self._centroid)
-
-    @property
-    def centroid(self):
-        return self._centroid
+        centroid = np.mean(pc.vertices, axis=0)
+        pc.move(-centroid)
 
     @property
     def augmentation(self):
         return False
-
-    @property
-    def attributes(self):
-        return 1
 
 
 class RandomVariation(Transformation):
@@ -398,8 +387,7 @@ class RandomVariation(Transformation):
 
     @property
     def attributes(self):
-        # TODO: add self.noise_distr
-        return self.limits
+        return self.limits, self.noise_distr
 
 
 class RandomScale(Transformation):
@@ -428,6 +416,22 @@ class RandomScale(Transformation):
     @property
     def attributes(self):
         return self.distr_scale, self.noise_distr
+
+
+class RandomShear(Transformation):
+    def __init__(self, limits: tuple = (-1, 1)):
+        self.limits = limits
+
+    def __call__(self, pc: PointCloud):
+        pc.shear(limits=self.limits)
+
+    @property
+    def augmentation(self):
+        return True
+
+    @property
+    def attributes(self):
+        return self.limits
 
 
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #

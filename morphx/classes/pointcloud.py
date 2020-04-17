@@ -199,7 +199,7 @@ class PointCloud(object):
 
         Args:
             mappings: List of tuples with original labels and target labels. E.g. [(1, 2), (3, 2)] means that
-              the labels 1 and 3 will get replaced by 3.
+              the labels 1 and 3 will get replaced by 2.
         """
         for mapping in mappings:
             self._labels[self._labels == mapping[0]] = mapping[1]
@@ -437,9 +437,6 @@ class PointCloud(object):
             distr_scale: Scale factor applied to the noise distribution values (i.e. s.d. for ``distr='normal'``) or
                 lower and upper bound (``distr='uniform'``).
             distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
-
-        Returns:
-
         """
         if distr.lower() == 'normal':
             variation = 1 + np.random.standard_normal(1)[0] * distr_scale
@@ -448,6 +445,19 @@ class PointCloud(object):
         else:
             raise ValueError(f'Given value "{distr}" for noise distribution not available.')
         self._vertices = self._vertices * variation
+
+    def shear(self, limits: tuple = (-1, 1)):
+        """
+        Shears the vertices by applying a transformation matrix [[1, s_xy, s_xz], [s_yx, 1, s_yz], [s_zx, s_zy, 1]],
+        where the factors s_ij are drawn from a uniform distribution.
+
+        Args:
+            limits: Range of the interval for the factors s_ij. Tuple defines lower and upper bound of the uniform
+                distribution.
+        """
+        transform = np.random.random((3, 3)) * (limits[1] - limits[0]) + limits[0]
+        np.fill_diagonal(transform, 1)
+        self._vertices = self._vertices.dot(transform)
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 

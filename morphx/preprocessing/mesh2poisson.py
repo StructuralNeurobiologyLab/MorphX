@@ -103,7 +103,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
             chunk = np.array(chunk)
             # At the first iteration the face2node mapping must be done
             if skel2node_mapping:
-                print("Mapping faces to node for further processing. This might take a few minutes...")
+                print("Mapping faces to node for further processing. This might take a while...")
                 skel2node_mapping = False
             extract = hybrids.extract_mesh_subset(hm, chunk)
             if len(hm.faces) == 0:
@@ -131,7 +131,3 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
         result = HybridCloud(nodes=hm.nodes, edges=hm.edges, vertices=total.vertices, labels=total.labels,
                              encoding=hm.encoding, no_pred=hm.no_pred)
     return result
-
-
-if __name__ == '__main__':
-    poissonize_dataset('/u/jklimesch/thesis/gt/20_03_18/', '/u/jklimesch/thesis/gt/20_03_18/poisson/', 1500)

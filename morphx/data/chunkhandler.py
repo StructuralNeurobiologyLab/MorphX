@@ -30,7 +30,6 @@ class ChunkHandler:
         during inference when predictions of chunk are generated and should be inserted into the
         original object.
     """
-
     def __init__(self,
                  data_path: str,
                  sample_num: int,
@@ -43,7 +42,8 @@ class ChunkHandler:
                  data_type: str = 'ce',
                  obj_feats: dict = None,
                  label_mappings: List[Tuple[int, int]] = None,
-                 hybrid_mode: bool = False):
+                 hybrid_mode: bool = False,
+                 splitting_redundancy: int = 1):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -63,32 +63,31 @@ class ChunkHandler:
                 with 'hc'.
             label_mappings: list of labels which should get replaced by other labels. E.g. [(1, 2), (3, 2)]
                 means that the labels 1 and 3 will get replaced by 3.
+            splitting_redundancy: indicates how many times each skeleton node is included in different contexts.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
             os.makedirs(self._data_path)
         if not os.path.exists(self._data_path + 'splitted/'):
             os.makedirs(self._data_path + 'splitted/')
-        if not os.path.exists(self._data_path + 'splitted/base_points/'):
-            os.makedirs(self._data_path + 'splitted/base_points/')
         self._splitfile = ''
         # Load chunks or split dataset into chunks if it was not done already
         if density_mode:
             if bio_density is None or tech_density is None:
                 raise ValueError("Density mode requires bio_density and tech_density")
-            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}.pkl'
+            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}.pkl'
         else:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
-            self._splitfile = f'{self._data_path}splitted/s{chunk_size}.pkl'
+            self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}.pkl'
         self._splitted_objs = None
         if os.path.exists(self._splitfile):
             with open(self._splitfile, 'rb') as f:
                 self._splitted_objs = pickle.load(f)
             f.close()
         splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
-                        tech_density=tech_density, density_mode=density_mode, chunk_size=chunk_size,
-                        splitted_hcs=self._splitted_objs)
+                        tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
+                        splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy)
         with open(self._splitfile, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()
@@ -235,8 +234,6 @@ class ChunkHandler:
 
     def get_obj_info(self, name: str, hybrid_only: bool = False):
         obj = self._adapt_obj(objects.load_obj(self._data_type, self._data_path + name + '.pkl'))
-        if hybrid_only and self._data_type == 'ce':
-            obj = obj.hc
         attr_dict = {'vertex_num': len(obj.vertices), 'node_num': len(obj.nodes),
                      'types': list(np.unique(obj.types, return_counts=True)),
                      'labels': list(np.unique(obj.labels, return_counts=True)), 'length': self.get_obj_length(name)}

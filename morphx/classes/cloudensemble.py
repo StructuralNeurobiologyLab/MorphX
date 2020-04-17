@@ -83,6 +83,9 @@ class CloudEnsemble(object):
 
     @property
     def flattened(self):
+        """ Transforms the CloudEnsemble to a PointCloud where the object information is saved in the
+            obj_bounds method.
+        """
         if self._flattened is None:
             # avoids cyclic import
             from morphx.processing import ensembles
@@ -110,12 +113,6 @@ class CloudEnsemble(object):
             self._pred_num = self.get_pred_num()
         return self._pred_num
 
-    def base_points(self, density_mode: bool = True, threshold: int = 0, source: int = -1) -> np.ndarray:
-        if isinstance(self.flattened, HybridCloud):
-            return self.flattened.base_points(density_mode=density_mode, threshold=threshold, source=source)
-        else:
-            return np.ndarray([])
-
     def graph(self, simple=False) -> nx.Graph:
         if self._hc is None:
             return nx.Graph()
@@ -129,6 +126,8 @@ class CloudEnsemble(object):
             return self._clouds[cloud_name]
         except KeyError:
             return None
+
+    # -------------------------------------- SETTERS ------------------------------------------- #
 
     def add_cloud(self, cloud: PointCloud, cloud_name: str):
         self._clouds[cloud_name] = cloud
