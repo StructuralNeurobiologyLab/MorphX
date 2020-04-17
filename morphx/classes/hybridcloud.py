@@ -153,7 +153,7 @@ class HybridCloud(PointCloud):
             vertl = self._pred_labels
         else:
             vertl = self._labels
-        if vertl is None:
+        if vertl is None or len(vertl) == 0:
             return None
         else:
             nodel = np.zeros((len(self._nodes), 1), dtype=int)

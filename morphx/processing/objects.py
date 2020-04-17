@@ -205,7 +205,7 @@ def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max:
         vertex_max: The maximum number of vertices after which the BFS should stop.
 
     Returns:
-        np.ndarray with nodes sorted recording to the result of the limited BFS
+        np.ndarray with nodes sorted according to the result of the limited BFS
     """
     visited = [source]
     vertex_num = len(hc.verts2node[source])
