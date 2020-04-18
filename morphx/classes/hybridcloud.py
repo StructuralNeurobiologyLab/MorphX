@@ -7,6 +7,7 @@
 
 import warnings
 import numpy as np
+import logging
 import networkx as nx
 from typing import Optional
 from scipy.spatial import cKDTree
@@ -281,6 +282,47 @@ class HybridCloud(PointCloud):
         """ Moves vertices and nodes by adding the given vector """
         self._vertices = self._vertices + vector
         self._nodes = self._nodes + vector
+
+    def add_noise(self, limits: tuple = (-1, 1), distr: str = 'uniform',
+                  include_nodes=True):
+        """
+        Apply additive noise (drawn from `distr` and scaled by `distr_scale`) to vertices.
+
+        Args:
+            limits: Range of the noise values. Tuple is used as lower and upper bounds for ``distr='uniform'``
+                or only the entry at index 1 is used as standard deviation if ``distr='normal'``. Note that the
+                s.d. used to generate the vertex noise (i.i.d) is fixed by drawing a global value from the given normal
+                distribution. This will lead to different noise levels within the given s.d. range (limits[1]).
+            distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
+            include_nodes: If True, noise will be applied to nodes.
+
+        Returns:
+
+        """
+        if distr.lower() == 'normal':
+            if abs(limits[0]) != abs(limits[1]):
+                logging.warning(f'Lower ({limits[0]}) and upper ({limits[1]}) limits differ but chosen '
+                                f'noise source was set to "normal". Using upper limit to scale standard '
+                                f'normal values.')
+            fixed_sd = np.random.standard_normal(1) * limits[1]
+            variation = np.random.standard_normal(self._vertices.shape) * fixed_sd
+            variation_nodes = np.random.standard_normal(self._nodes.shape) * fixed_sd
+        elif distr.lower() == 'uniform':
+            # switch limits if lower limit is larger
+            if limits[0] > limits[1]:
+                limits = (limits[1], limits[0])
+            # do nothing if limits are the same
+            if limits[0] == limits[1]:
+                return
+            variation = np.random.random(self._vertices.shape) * (limits[1] - limits[0]) + limits[0]
+            variation_nodes = np.random.random(self._nodes.shape) * (limits[1] - limits[0]) + limits[0]
+        else:
+            raise ValueError(f'Given value "{distr}" for noise distribution not available.')
+        self._vertices = self._vertices + variation
+        if include_nodes:
+            self._nodes += variation_nodes
+
+    # mult_noise of PointCloud generalizes to HybridCloud
 
     def shear(self, limits: tuple = (-1, 1)):
         """
