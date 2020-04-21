@@ -32,6 +32,7 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointClo
         HybridCloud with the same ordering as vertices (enables "global" look-up).
     """
     idcs = []
+    local_bfs = np.sort(local_bfs)
     for i in local_bfs:
         idcs.extend(hybrid.verts2node[i])
     verts = hybrid.vertices[idcs]
@@ -45,13 +46,14 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointClo
     g = hybrid.graph(simple=True)
     sub_g = g.subgraph(local_bfs)
     relabel_dc = {n: ii for ii, n in enumerate(sub_g.nodes)}
-    nx.relabel.relabel_nodes(sub_g, relabel_dc)
+    sub_g = nx.relabel.relabel_nodes(sub_g, relabel_dc)
     edges = np.array(sub_g.edges)
     nodes = hybrid.nodes[local_bfs]
-    return HybridCloud(nodes=nodes, edges=edges, node_labels=node_labels,
-                       vertices=verts, labels=labels, features=feats,
-                       no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds,
-                       encoding=hybrid.encoding), np.array(idcs)
+    hc = HybridCloud(nodes=nodes, edges=edges, node_labels=node_labels,
+                   vertices=verts, labels=labels, features=feats,
+                   no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds,
+                   encoding=hybrid.encoding)
+    return hc, np.array(idcs)
 
 
 def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
@@ -114,7 +116,7 @@ def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
         g = hm.graph(simple=True)
         sub_g = g.subgraph(node_ids)
         relabel_dc = {n: ii for ii, n in enumerate(sub_g.nodes)}
-        nx.relabel.relabel_nodes(sub_g, relabel_dc)
+        sub_g = nx.relabel.relabel_nodes(sub_g, relabel_dc)
         nodes = hm.nodes[node_ids]
         edges = np.array(sub_g.edges)
     hm = HybridMesh(nodes=nodes, node_labels=node_labels, edges=edges,

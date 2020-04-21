@@ -399,7 +399,7 @@ class PointCloud(object):
             variation = 1 + np.random.random(1) * 2 * distr_scale - distr_scale
         else:
             raise ValueError(f'Given value "{distr}" for noise distribution not available.')
-        self._vertices = self._vertices * variation
+        self.scale(variation)
 
     def shear(self, limits: tuple = (-1, 1)):
         """
