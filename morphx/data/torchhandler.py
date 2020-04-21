@@ -122,7 +122,7 @@ class TorchHandler(data.Dataset):
         return self._ch.get_obj_length(name)
 
     def get_obj_info(self, name: str, hybrid_only: bool = False):
-        return self._ch.get_obj_info(name, hybrid_only)
+        return self._ch.get_obj_info(name)
 
-    def get_set_info(self, hybrid_only: bool = False):
-        return self._ch.get_set_info(hybrid_only)
+    def get_set_info(self):
+        return self._ch.get_set_info()

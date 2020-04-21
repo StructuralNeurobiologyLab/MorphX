@@ -34,25 +34,30 @@ class HybridCloud(PointCloud):
             node_labels: Node label array (ith label corresponds to ith node) with same dimenstions as nodes.
         """
         super().__init__(*args, **kwargs)
-        if nodes is not None and nodes.shape[1] != 3:
+        if nodes is None:
+            nodes = np.zeros((0, 3))
+        if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
 
-        if nodes is None:
-            self._edges = None
-            self._node_labels = None
-        else:
-            if edges is not None and edges.max() > len(nodes):
-                raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
-            self._edges = edges.astype(int)
+        if edges is None:
+            edges = np.zeros((0, 2))
+        if len(edges) != 0 and edges.max() > len(nodes):
+            raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
+        self._edges = edges.astype(int)
 
-            self._node_labels = None
-            if node_labels is not None:
-                if len(node_labels) != len(nodes):
-                    raise ValueError("Node label array must have same length as nodes array.")
-                self._node_labels = node_labels.reshape(len(node_labels), 1)
+        if node_labels is None:
+            node_labels = np.zeros((0, 1))
+        if len(node_labels) != 0 and len(node_labels) != len(nodes):
+            raise ValueError("Node label array must have same length as nodes array.")
+        self._node_labels = node_labels.reshape(len(node_labels), 1).astype(int)
 
-        self._pred_node_labels = pred_node_labels
+        if pred_node_labels is None:
+            pred_node_labels = np.zeros((0, 1))
+        if len(pred_node_labels) != 0 and len(pred_node_labels) != len(nodes):
+            raise ValueError("Predicted node label array must have same length as nodes array")
+        self._pred_node_labels = pred_node_labels.reshape(len(pred_node_labels), 1).astype(int)
+
         self._verts2node = None
         if verts2node is not None:
             self._verts2node = verts2node
@@ -77,7 +82,7 @@ class HybridCloud(PointCloud):
         Returns:
             Dict with mapping information
         """
-        if self._nodes is None:
+        if len(self._nodes) == 0:
             return None
         if self._verts2node is None:
             tree = cKDTree(self.nodes)
@@ -90,13 +95,13 @@ class HybridCloud(PointCloud):
 
     @property
     def node_labels(self):
-        if self._node_labels is None:
+        if len(self._node_labels) == 0:
             self._node_labels = self.vertl2nodel(pred=False)
         return self._node_labels
 
     @property
     def pred_node_labels(self):
-        if self._pred_node_labels is None:
+        if len(self._pred_node_labels) == 0:
             self._pred_node_labels = self.vertl2nodel(pred=True)
         return self._pred_node_labels
 
@@ -142,7 +147,7 @@ class HybridCloud(PointCloud):
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._pred_node_labels = new_labels
 
-    def vertl2nodel(self, pred: bool = True) -> Optional[np.ndarray]:
+    def vertl2nodel(self, pred: bool = True) -> np.ndarray:
         """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
          the corresponding vertices is performed and the most frequent label is transferred to the node.
          Returns:
@@ -153,8 +158,8 @@ class HybridCloud(PointCloud):
             vertl = self._pred_labels
         else:
             vertl = self._labels
-        if vertl is None:
-            return None
+        if len(vertl) == 0:
+            return np.zeros((0, 1))
         else:
             nodel = np.zeros((len(self._nodes), 1), dtype=int)
             nodel[:] = -1
@@ -184,7 +189,7 @@ class HybridCloud(PointCloud):
 
     def prednodel2predvertl(self):
         """ Uses the verts2node dict to map labels from nodes onto vertices. """
-        if self._pred_node_labels is None:
+        if len(self._pred_node_labels) == 0:
             return
         else:
             for ix in range(len(self._nodes)):
@@ -192,7 +197,7 @@ class HybridCloud(PointCloud):
                 self._pred_labels[verts_idcs] = self._pred_node_labels[ix]
 
     def nodel2vertl(self):
-        if self._node_labels is None:
+        if len(self._node_labels) == 0:
             return
         else:
             for ix in range(len(self._nodes)):

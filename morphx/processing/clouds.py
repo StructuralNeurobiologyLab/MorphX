@@ -551,3 +551,96 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     else:
         return HybridCloud(nodes, edges, vertices=t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
                            encoding=encoding, no_pred=no_pred)
+
+
+def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: bool = False) -> PointCloud:
+    """ Merges multiple PointClouds. HybridClouds or HybridMeshes are handeld as PointClouds, possible
+        skeletons or meshes are ignored. The encoding is set to None if the clouds contain contradicting
+        encodings.
+
+        This will replace merge_clouds.
+
+    Args:
+        clouds: List of PointClouds which should get merged.
+        names: List of names for all PointClouds in clouds. Each name must be unique. If preserve_obj_bounds
+            is False, the resulting PointCloud contains object boundaries keyed by the respective names.
+        preserve_obj_bounds: Flag for preserving existing object boundaries. The existing keys are updated
+            with the respective cloud name. 'obj1' in a cloud with name 'cloud1' becomes to 'cloud1_obj1'.
+            If there are no existing object boundaries, the key for the cloud's boundaries is its name.
+    """
+    # check inputs
+    if names is not None and len(names) != len(clouds):
+        raise ValueError("Name list for merging must have same length as cloud list.")
+    if preserve_obj_bounds and names is None:
+        raise ValueError("Name list is required for preserving the object bounds.")
+    for name in names:
+        if names.count(name) > 1:
+            raise ValueError("All names in the name list must be unique.")
+    # prepare new properties
+    new_size = 0
+    for pc in clouds:
+        new_size += len(pc.vertices)
+    new_verts = np.zeros((new_size, 3))
+    new_labels = np.zeros((new_size, 1))
+    new_pred_labels = np.zeros((new_size, 1))
+    new_features = np.zeros((new_size, 1))
+    new_types = np.zeros((new_size, 1))
+    offset = 0
+    new_encoding = {}
+    new_predictions = {}
+    new_no_pred = []
+    if names is None:
+        new_obj_bounds = None
+    else:
+        new_obj_bounds = {}
+    for ix, pc in enumerate(clouds):
+        new_verts[offset:offset + len(pc.vertices)] = pc.vertices
+        new_labels[offset:offset + len(pc.vertices)] = pc.labels
+        new_pred_labels[offset:offset + len(pc.vertices)] = pc.pred_labels
+        new_features[offset:offset + len(pc.vertices)] = pc.features
+        new_types[offset:offset + len(pc.vertices)] = pc.types
+        # create new object bounds
+        if names is not None:
+            if not preserve_obj_bounds:
+                # new object boundaries are keyed by the respective name
+                new_obj_bounds[names[ix]] = np.array([offset, offset + len(pc.vertices)])
+            else:
+                if pc.obj_bounds is None:
+                    # with no existing object boundaries, the boundaries for the total cloud are keyed
+                    # by the respective name
+                    new_obj_bounds[names[ix]] = np.array([offset, offset + len(pc.vertices)])
+                else:
+                    for key in pc.obj_bounds:
+                        # existing boundary keys are updated by the cloud name, e.g. 'obj1' -> 'cloud1_obj1'
+                        new_key = names[ix] + '_' + key
+                        new_obj_bounds[new_key] = pc.obj_bounds[key] + offset
+        # create new encoding
+        if new_encoding is not None:
+            if pc.encoding is not None:
+                for key in pc.encoding:
+                    if key in new_encoding:
+                        # encoding is set to None if there are contradicting entries
+                        if pc.encoding[key] != new_encoding[key]:
+                            new_encoding = None
+                            break
+                    else:
+                        new_encoding[key] = pc.encoding[key]
+        # create new predictions
+        if pc.predictions is not None:
+            for key in pc.predictions:
+                if key in new_predictions:
+                    new_predictions[key].extend(pc.predictions[key])
+                else:
+                    new_predictions[key] = pc.predictions[key]
+        # create new no_pred
+        if pc.no_pred is not None:
+            for item in pc.no_pred:
+                if item not in new_no_pred:
+                    new_no_pred.append(item)
+    if len(new_no_pred) == 0:
+        new_no_pred = None
+    if len(new_predictions) == 0:
+        new_predictions = None
+    return PointCloud(vertices=new_verts, labels=new_labels, pred_labels=new_pred_labels, features=new_features,
+                      types=new_types, encoding=new_encoding, obj_bounds=new_obj_bounds, predictions=new_predictions,
+                      no_pred=new_no_pred)

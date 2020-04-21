@@ -129,5 +129,5 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
                 intermediate = None
         total = clouds.merge_clouds([total, intermediate])
         result = HybridCloud(nodes=hm.nodes, edges=hm.edges, vertices=total.vertices, labels=total.labels,
-                             encoding=hm.encoding, no_pred=hm.no_pred)
+                             encoding=hm.encoding, no_pred=hm.no_pred, types=hm.types)
     return result
