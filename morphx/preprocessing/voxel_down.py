@@ -16,7 +16,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 
 
-def voxel_down_dataset(input_path: str, output_path: str):
+def voxel_down_dataset(input_path: str, output_path: str, voxel_hybrid: int, voxel_clouds: int):
     files = glob.glob(input_path + '*.pkl')
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
@@ -27,25 +27,25 @@ def voxel_down_dataset(input_path: str, output_path: str):
         name = file[slashs[-1] + 1:-4]
 
         ce = ensembles.ensemble_from_pkl(file)
-        ce = voxel_down(ce)
+        ce = voxel_down(ce, voxel_hybrid, voxel_clouds)
         ce.save2pkl(output_path + name + '.pkl')
 
 
-def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
-    voxel_size = 500
+def voxel_down(ce: CloudEnsemble, voxel_hybrid: int, voxel_clouds: int) -> CloudEnsemble:
     hc = ce.hc
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
-    pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound())
+    pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_hybrid, pcd.get_min_bound(), pcd.get_max_bound())
     idcs = np.max(idcs, axis=1)
     new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=hc.labels[idcs],
-                         features=hc.labels[idcs], encoding=hc.encoding, node_labels=hc.node_labels, no_pred=hc.no_pred)
+                         types=hc.types[idcs], features=hc.labels[idcs], encoding=hc.encoding,
+                         node_labels=hc.node_labels, no_pred=hc.no_pred)
     new_clouds = {}
     for key in ce.clouds:
         pc = ce.clouds[key]
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(ce.clouds[key].vertices)
-        pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size, pcd.get_min_bound(), pcd.get_max_bound())
+        pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_clouds, pcd.get_min_bound(), pcd.get_max_bound())
         idcs = np.max(idcs, axis=1)
         new_pc = PointCloud(np.asarray(pcd.points), labels=pc.labels[idcs], encoding=pc.encoding, no_pred=pc.no_pred)
         new_clouds[key] = new_pc
@@ -54,5 +54,5 @@ def voxel_down(ce: CloudEnsemble) -> CloudEnsemble:
 
 
 if __name__ == '__main__':
-    voxel_down_dataset('/u/jklimesch/thesis/gt/gt_meshsets/raw/',
-                    '/u/jklimesch/thesis/gt/gt_meshsets/voxeled_test/')
+    voxel_down_dataset('/u/jklimesch/thesis/gt/cmn/train/raw/',
+                       '/u/jklimesch/thesis/gt/cmn/train/voxeled/')

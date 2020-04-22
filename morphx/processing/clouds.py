@@ -486,6 +486,7 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
     t_verts = np.zeros((total_verts, 3))
     t_labels = np.zeros((total_verts, 1))
     t_features = np.zeros((total_verts, feats_dim))
+    t_types = np.zeros((total_verts, 1))
     nodes = np.zeros((total_nodes, 3))
     edges = np.zeros((total_edges, 2))
     offset = 0
@@ -510,6 +511,10 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
             t_features[offset:offset+len(cloud.features)] = cloud.features
         else:
             t_features[offset:offset+len(cloud.features)] = -1
+        if len(cloud.types) != 0:
+            t_types[offset:offset+len(cloud.vertices)] = cloud.types
+        else:
+            t_types[offset:offset+len(cloud.vertices)] = -1
 
         # TODO: Handle similar keys from different clouds and handle obj_bounds
         #  which don't span the entire vertex array
@@ -536,6 +541,8 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
         obj_bounds = None
     if len(encoding) == 0:
         encoding = None
+    if np.all(t_types == -1):
+        t_types = None
     if np.all(t_labels == -1):
         t_labels = None
     if np.all(t_features == -1):
@@ -547,10 +554,10 @@ def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]
 
     if nodes is None:
         return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,
-                          no_pred=no_pred)
+                          no_pred=no_pred, types=t_types)
     else:
         return HybridCloud(nodes, edges, vertices=t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds,
-                           encoding=encoding, no_pred=no_pred)
+                           encoding=encoding, no_pred=no_pred, types=t_types)
 
 
 def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: bool = False) -> PointCloud:

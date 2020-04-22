@@ -192,6 +192,8 @@ class HybridCloud(PointCloud):
         """ Uses the verts2node dict to map labels from nodes onto vertices. """
         if len(self._pred_node_labels) == 0:
             return
+        if len(self._pred_labels) == 0:
+            self._pred_labels = np.ones((len(self._vertices), 1)) * -1
         else:
             for ix in range(len(self._nodes)):
                 verts_idcs = self.verts2node[ix]
@@ -200,10 +202,11 @@ class HybridCloud(PointCloud):
     def nodel2vertl(self):
         if len(self._node_labels) == 0:
             return
-        else:
-            for ix in range(len(self._nodes)):
-                verts_idcs = self.verts2node[ix]
-                self._labels[verts_idcs] = self._node_labels[ix]
+        if len(self._labels) == 0:
+            self._labels = np.ones((len(self._vertices), 1)) * -1
+        for ix in range(len(self._nodes)):
+            verts_idcs = self.verts2node[ix]
+            self._labels[verts_idcs] = self._node_labels[ix]
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the

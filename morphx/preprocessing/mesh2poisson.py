@@ -17,7 +17,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.pointcloud import PointCloud
 
 
-def poissonize_dataset(input_path: str, output_path: str, tech_density: int):
+def poissonize_dataset(input_path: str, output_path: str, tech_density: int, obj_factor: float):
     """ Converts all objects, saved as pickle files at input_path, into poisson disk sampled HybridClouds and
         saves them at output_path with the same names.
 
@@ -44,7 +44,7 @@ def poissonize_dataset(input_path: str, output_path: str, tech_density: int):
             hm = ce.hc
         if not isinstance(hm, HybridMesh) or hm.faces is None:
             raise ValueError("Poisson sampling requires existing faces.")
-        result = hybridmesh2poisson(hm, tech_density)
+        result = hybridmesh2poisson(hm, tech_density, obj_factor)
         if ce is None:
             result.save2pkl(output_path + name + '_poisson.pkl')
         else:
@@ -53,11 +53,13 @@ def poissonize_dataset(input_path: str, output_path: str, tech_density: int):
             for key in ce.clouds:
                 cloud = ce.clouds[key]
                 print(f"\nProcessing {key}")
-                ce.clouds[key] = hybridmesh2poisson(cloud, tech_density)
+                ce.clouds[key] = hybridmesh2poisson(cloud, tech_density, obj_factor)
                 ce.save2pkl(output_path + name + '_poisson.pkl')
+        ce.reset_ensemble()
+        ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
-def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
+def hybridmesh2poisson(hm: HybridMesh, tech_density: int, obj_factor: float) -> PointCloud:
     """ If there is a skeleton, it gets split into chunks of approximately equal size. For each chunk
         the corresponding mesh piece gets extracted and gets sampled according to its area. If there
         is no skeleton, the mesh is split into multiple parts, depending on its area. Each part is
@@ -65,9 +67,10 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
 
     Args:
         hm: HybridMesh which should be transformed into a HybridCloud with poisson disk sampled points.
-        tech_density: poisson sampling density in point/um²
+        tech_density: poisson sampling density in point/um². With tech_density = -1, the number of sampled points
+            equals the number of vertices in the given HybridMesh.
     """
-    if hm.nodes is None:
+    if len(hm.nodes) == 0:
         offset = 0
         mesh = trimesh.Trimesh(vertices=hm.vertices, faces=hm.faces)
         area = mesh.area * 1e-06
@@ -83,15 +86,19 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
             else:
                 chunk_faces = hm.faces[offset:offset + floor(len(hm.faces) // chunk_number)]
                 offset += floor(len(hm.faces) // chunk_number)
-            chunk_hm = HybridMesh(vertices=hm.vertices, faces=chunk_faces, labels=hm.labels)
+            chunk_hm = HybridMesh(vertices=hm.vertices, faces=chunk_faces, labels=hm.labels, types=hm.types)
             mesh = trimesh.Trimesh(vertices=chunk_hm.vertices, faces=chunk_hm.faces)
             area = mesh.area * 1e-06
-            pc = meshes.sample_mesh_poisson_disk(chunk_hm, tech_density * area)
+            if tech_density == -1:
+                pc = meshes.sample_mesh_poisson_disk(chunk_hm, len(chunk_hm.vertices))
+            else:
+                pc = meshes.sample_mesh_poisson_disk(chunk_hm, tech_density * area * obj_factor)
             if total is None:
                 total = pc
             else:
                 total = clouds.merge_clouds([total, pc])
-        result = PointCloud(vertices=total.vertices, labels=total.labels, encoding=hm.encoding, no_pred=hm.no_pred)
+        result = PointCloud(vertices=total.vertices, labels=total.labels, encoding=hm.encoding, no_pred=hm.no_pred,
+                            types=total.types)
     else:
         total = None
         intermediate = None
@@ -114,7 +121,10 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
             if area == 0:
                 continue
             else:
-                pc = meshes.sample_mesh_poisson_disk(extract, tech_density * area)
+                if tech_density == -1:
+                    pc = meshes.sample_mesh_poisson_disk(extract, len(extract.vertices))
+                else:
+                    pc = meshes.sample_mesh_poisson_disk(extract, tech_density * area)
             if intermediate is None:
                 intermediate = pc
             else:
@@ -129,5 +139,5 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int) -> PointCloud:
                 intermediate = None
         total = clouds.merge_clouds([total, intermediate])
         result = HybridCloud(nodes=hm.nodes, edges=hm.edges, vertices=total.vertices, labels=total.labels,
-                             encoding=hm.encoding, no_pred=hm.no_pred, types=hm.types)
+                             encoding=hm.encoding, no_pred=hm.no_pred, types=total.types)
     return result

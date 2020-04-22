@@ -32,10 +32,14 @@ def sample_mesh_poisson_disk(hm: HybridMesh, sample_num: int) -> PointCloud:
 
     # map labels from input cloud to sample
     labels = None
-    if hm.labels is not None:
-        tree = cKDTree(hm.vertices)
-        dist, ind = tree.query(s_vertices, k=1)
-        labels = hm.labels[ind]
+    types = None
 
-    result = PointCloud(vertices=s_vertices.reshape(-1, 3), labels=labels)
+    tree = cKDTree(hm.vertices)
+    dist, ind = tree.query(s_vertices, k=1)
+    if len(hm.labels) > 0:
+        labels = hm.labels[ind]
+    if len(hm.types) > 0:
+        types = hm.types[ind]
+
+    result = PointCloud(vertices=s_vertices.reshape(-1, 3), labels=labels, types=types)
     return result
