@@ -10,6 +10,50 @@ import numpy as np
 from collections import defaultdict, deque
 
 
+def bfs_base_points_euclid(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
+    """ Performs a BFS on a weighted graph. Only nodes with a minimum euclidian distance get added
+        to the result. The graph nodes must contain the attribute 'position' as a numpy array with
+        x,y,z position.
+
+    Args:
+        g: The weighted networkx graph on which the BFS should be performed. Nodes must have a position attribute
+         with their xyz positions as a numpy array, e.g. g.nodes[0]['position'] = np.array([1,2,3])
+        source: The source node from which the BFS should start. Default is -1 which stands for a random node
+        min_dist: The minimum distance between nodes in the BFS result.
+
+    Returns:
+        np.ndarray with nodes sorted recording to the result of the filtered BFS
+    """
+    if source == -1:
+        source = np.random.randint(g.number_of_nodes())
+    visited = [source]
+    chosen = [source]
+    # add all neighbors with respective weights
+    neighbors = g.neighbors(source)
+    de = deque([(i, 0) for i in neighbors])
+    while de:
+        curr, buddy = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            # only nodes with minimum distance to other chosen nodes get added
+            buddy_pos = g.nodes[chosen[buddy]]['position']
+            pos = g.nodes[curr]['position']
+            if np.linalg.norm(buddy_pos - pos) >= min_dist:
+                clear = True
+                for node in chosen:
+                    if np.linalg.norm(pos - g.nodes[node]['position']) < min_dist:
+                        clear = False
+                        break
+                if clear:
+                    buddy = len(chosen)
+                    chosen.append(curr)
+            # add all neighbors with their weights added to the current weight
+            neighbors = g.neighbors(curr)
+            de.extendleft([(i, buddy) for i in neighbors if i not in visited])
+    # return only chosen nodes
+    return np.array(chosen)
+
+
 def global_bfs_dist(g: nx.Graph, min_dist: float, source=-1, euclidian=False) -> np.ndarray:
     """ Performs a BFS on a weighted graph. Only nodes with a minimum distance to other added nodes in their
     neighborhood get added to the final BFS result. This way, the graph can be split into subsets of approximately equal

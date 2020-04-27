@@ -71,7 +71,7 @@ class HybridCloud(PointCloud):
         return self._nodes
 
     @property
-    def node_labels(self) -> np.ndarray:
+    def merger_node_labels(self) -> np.ndarray:
         return self._node_labels
 
     def set_nodes(self, nodes) -> None:
