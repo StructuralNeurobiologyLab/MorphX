@@ -31,11 +31,15 @@ def voxel_down_dataset(input_path: str, output_path: str, voxel_hybrid: int, vox
         ce.save2pkl(output_path + name + '.pkl')
 
 
-def voxel_down(ce: CloudEnsemble, voxel_hybrid: int, voxel_clouds: int) -> CloudEnsemble:
+def voxel_down(ce: CloudEnsemble, voxel_size: float = 500) -> CloudEnsemble:
+    if type(voxel_size) is not dict:
+        voxel_size = dict(hybrid=voxel_size)
+        for k in ce.clouds:
+            voxel_size[k] = voxel_size['hybrid']
     hc = ce.hc
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
-    pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_hybrid, pcd.get_min_bound(), pcd.get_max_bound())
+    pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size['hybrid'], pcd.get_min_bound(), pcd.get_max_bound())
     idcs = np.max(idcs, axis=1)
     new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=hc.labels[idcs],
                          types=hc.types[idcs], features=hc.labels[idcs], encoding=hc.encoding,
@@ -45,7 +49,7 @@ def voxel_down(ce: CloudEnsemble, voxel_hybrid: int, voxel_clouds: int) -> Cloud
         pc = ce.clouds[key]
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(ce.clouds[key].vertices)
-        pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_clouds, pcd.get_min_bound(), pcd.get_max_bound())
+        pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size[k], pcd.get_min_bound(), pcd.get_max_bound())
         idcs = np.max(idcs, axis=1)
         new_pc = PointCloud(np.asarray(pcd.points), labels=pc.labels[idcs], encoding=pc.encoding, no_pred=pc.no_pred)
         new_clouds[key] = new_pc

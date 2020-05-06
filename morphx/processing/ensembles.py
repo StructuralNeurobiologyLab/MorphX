@@ -9,7 +9,7 @@ import os
 import pickle
 import numpy as np
 from math import ceil
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
@@ -62,7 +62,7 @@ def sample_ensemble(ensemble: CloudEnsemble, vertex_number: int, random_seed: Op
 # -------------------------------------- ENSEMBLE CONVERSION -------------------------------------- #
 
 
-def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[PointCloud]:
+def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[Union[PointCloud, HybridCloud]]:
     """ Merges vertices and labels from all clouds in the ensemble into a single PointCloud with the respective
         object boundary information saved in obj_bounds. There can only be one HybridCloud per CloudEnsemble, if
         there is one, the nodes and edges get transferred as well.

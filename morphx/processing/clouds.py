@@ -437,8 +437,8 @@ class RandomShear(Transformation):
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
 
 
-def merge_clouds(clouds: List[PointCloud], names: Optional[List[Union[str, int]]] = None,
-                 ignore_hybrids: bool = False) -> Optional[PointCloud]:
+def merge_clouds(clouds: List[Union[PointCloud, HybridCloud]], names: Optional[List[Union[str, int]]] = None,
+                 ignore_hybrids: bool = False) -> Optional[Union[PointCloud, HybridCloud]]:
     """ Merges the PointCloud objects in the given list. If the names list is given, the object boundary information
         is saved in the obj_bounds dict. Vertices of PointClouds without label / feature get the label /feature -1.
         If no PointCloud has labels / features, then the label /feature array of the merged PointCloud is empty.
