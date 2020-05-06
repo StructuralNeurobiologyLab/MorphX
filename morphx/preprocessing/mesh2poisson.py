@@ -56,6 +56,7 @@ def poissonize_dataset(input_path: str, output_path: str, tech_density: int, obj
                 ce.clouds[key] = hybridmesh2poisson(cloud, tech_density, obj_factor)
                 ce.save2pkl(output_path + name + '_poisson.pkl')
         ce.reset_ensemble()
+        ce.hc.set_verts2node(None)
         ce.save2pkl(output_path + name + '_poisson.pkl')
 
 
@@ -102,7 +103,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int, obj_factor: float) -> 
     else:
         total = None
         intermediate = None
-        context_size = 10
+        context_size = 5
         skel2node_mapping = True
         counter = 0
         chunks = graphs.bfs_iterative(hm.graph(), 0, context_size)

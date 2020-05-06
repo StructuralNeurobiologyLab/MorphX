@@ -171,13 +171,13 @@ class PointCloud(object):
         if labels is None or len(labels) != len(self.vertices):
             raise ValueError("Label array must have same length as vertex array.")
         else:
-            self._labels = labels
+            self._labels = labels.reshape(len(labels), 1)
 
     def set_pred_labels(self, pred_labels: np.ndarray):
         if pred_labels is None or len(pred_labels) != len(self.vertices):
             raise ValueError("Pred label array must have same length as vertex array.")
         else:
-            self._pred_labels = pred_labels
+            self._pred_labels = pred_labels.reshape(len(pred_labels), 1)
 
     def set_features(self, features: np.ndarray):
         if features is None or len(features) != len(self.vertices):
@@ -189,7 +189,7 @@ class PointCloud(object):
         if types is None or len(types) != len(self.vertices):
             raise ValueError("Type array must have same length as vertex array.")
         else:
-            self._types = types
+            self._types = types.reshape(len(types), 1)
 
     def set_encoding(self, encoding: dict):
         self._encoding = encoding

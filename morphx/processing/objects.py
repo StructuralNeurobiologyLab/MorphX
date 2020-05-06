@@ -6,9 +6,11 @@
 # Authors: Jonathan Klimesch
 
 import numpy as np
+import random
+import networkx as nx
 from collections import deque
 from morphx.data import basics
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -188,3 +190,64 @@ def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max:
                 return np.array(visited)
 
     return np.array(visited)
+
+
+def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[np.ndarray]:
+    """ Works for graphs which have one central component (labeled with center_l) and multiple subgraphs
+        emerging from that component. This method splits such graphs into the central component and subgraphs.
+        Each component can thereby contain small label variations, each subgraph is purely labeled by the most
+        dominating label in that subgraph.
+
+        Procedure:
+        1. Reduce graph to nodes which contain consecutive nodes of only one label.
+        2. Find the largest central component in that reduced graph (by number of vertices).
+        3. Split the graph into subgraphs by removing the central component and taking the remaining connected
+           components.
+        4. Label all subgraphs according to the dominating vertex labels within them.
+
+        Example:
+        1-1-2-1-2-2-2-3-1-3 with center_l = 2
+        1. Reduce to 1-2-1-2-3-1-3
+        2. Three consecutive nodes of 2 have largest number of vertices
+        3. Split into: 1-2-1  2  3-1-3
+        4. Relabel: 1-1-1  2  3-3-3  (assuming the 1 and 3 labels have the dominating number of vertices)
+
+    Args:
+        obj: The MorphX object which contains the graph and the corresponding vertices
+        center_l: The label of the central component
+
+    Returns:
+        List of subgraphs as node arrays.
+    """
+    source = obj.nodes[random.randrange(len(obj.nodes))]
+
+
+def label_components(obj: Union[HybridCloud, CloudEnsemble], source: int) -> dict:
+    """ Reduces graph of given object to nodes which contain consecutive nodes of only one label.
+
+    Args:
+        obj: MorphX object which contains the skeleton and node_labels
+        source: The id of the node where the BFS should start.
+
+    Returns:
+        Dict of lists of consecutive nodes with only one label, keyed by the index of a new, representative node.
+    """
+    visited = [source]
+    reduced = {0: [source]}
+    neighbors = obj.graph().neighbors(source)
+    de = deque([(i, 0, obj.node_labels[source]) for i in neighbors])
+    while de:
+        curr, r_node, prev = de.pop()
+        if curr not in visited:
+            visited.append(curr)
+            curr_l = obj.node_labels[curr]
+            # label transition => create new reduced node
+            if curr_l != prev:
+                r_node += 1
+                while r_node in reduced:
+                    r_node += 1
+                reduced[r_node] = []
+            reduced[r_node].append(curr)
+            neighbors = obj.graph().neighbors(curr)
+            de.extendleft([(i, r_node, curr_l) for i in neighbors if i not in visited])
+    return reduced
