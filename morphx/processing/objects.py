@@ -15,6 +15,7 @@ from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 from morphx.processing import hybrids, ensembles, clouds
+import networkx as nx
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -127,7 +128,7 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
     Args:
         obj: MorphX object which contains the skeleton.
         source: The index of the node to start with.
-        max_dist: The maximum distance which limits the BFS.
+        max_dist: The maximum (Euclidean) distance (in nm) between the two most distance nodes, which limits the BFS.
         radius: Workaround to be independent from the skeleton microstructure. Radius of sphere around each node
             in which all nodes should get processed.
 
@@ -158,6 +159,29 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
             neighbors = obj.graph().neighbors(curr)
             de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
     return np.array(chosen)
+
+
+def context_splitting_v2(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
+                         radius: int = 1000) -> np.ndarray:
+    node_ixs = np.arange(len(obj.nodes)).tolist()
+    g = nx.Graph()
+    g.add_edges_from(obj.edges)
+
+    # remove nodes outside max radius
+    kdt = cKDTree(obj.nodes)
+    ixs = np.concatenate(kdt.query_ball_point([obj.nodes[source]], max_dist)).tolist()
+    diff = set(node_ixs).difference(set(ixs))
+    # fails if there is a node without edge!
+    for ix in diff:
+        g.remove_node(ix)
+
+    # add edges within 1µm
+    kdt = cKDTree(obj.nodes[ixs])
+    pairs = kdt.query_pairs(radius)
+    # remap to subset of indices
+    g.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
+
+    return np.array(list(nx.node_connected_component(g, source)))
 
 
 def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int) -> np.ndarray:
