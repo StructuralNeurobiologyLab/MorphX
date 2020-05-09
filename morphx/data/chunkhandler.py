@@ -43,7 +43,8 @@ class ChunkHandler:
                  obj_feats: dict = None,
                  label_mappings: List[Tuple[int, int]] = None,
                  hybrid_mode: bool = False,
-                 splitting_redundancy: int = 1):
+                 splitting_redundancy: int = 1,
+                 label_remove: List[int] = None):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -64,6 +65,7 @@ class ChunkHandler:
             label_mappings: list of labels which should get replaced by other labels. E.g. [(1, 2), (3, 2)]
                 means that the labels 1 and 3 will get replaced by 3.
             splitting_redundancy: indicates how many times each skeleton node is included in different contexts.
+            label_remove: List of labels indicating which nodes should be removed from the dataset.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -87,7 +89,7 @@ class ChunkHandler:
             f.close()
         splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
                         tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
-                        splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy)
+                        splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy, label_remove=label_remove)
         with open(self._splitfile, 'rb') as f:
             self._splitted_objs = pickle.load(f)
         f.close()

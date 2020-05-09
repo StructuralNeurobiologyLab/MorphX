@@ -127,6 +127,11 @@ class CloudEnsemble(object):
         except KeyError:
             return None
 
+    def remove_nodes(self, labels: List[int], update_verts2node: bool = False):
+        self._hc.remove_nodes(labels, update_verts2node)
+        if update_verts2node:
+            self._verts2node = None
+
     # -------------------------------------- SETTERS ------------------------------------------- #
 
     def add_cloud(self, cloud: PointCloud, cloud_name: str):

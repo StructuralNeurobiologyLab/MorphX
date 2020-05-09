@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import logging
 import networkx as nx
-from typing import Optional
+from typing import Optional, List
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -237,6 +237,33 @@ class HybridCloud(PointCloud):
             return self._simple_graph
         else:
             return self._weighted_graph
+
+    def remove_nodes(self, labels: List[int], update_verts2node: bool = False):
+        """ Removes all nodes with labels present in the given labels list. Also removes
+            all corresponding edges and node_labels and resets the graphs. Verts2node
+            mapping is reset if indicated by the flag.
+
+        Args:
+            labels: List of labels to indicate which nodes should get removed.
+            update_verts2node: Flag for updating the verts2node mapping after removing the
+                nodes.
+        """
+        if len(self._node_labels) == 0:
+            return
+        mask = np.isin(self._node_labels, labels).reshape(-1)
+        rnodes = np.arange(len(self._nodes))[mask]
+        # remove edges
+        for rnode in rnodes:
+            self._edges = self._edges[np.all(self._edges != rnode, axis=1)]
+        # remove nodes
+        self._nodes = self._nodes[np.logical_not(mask)]
+        # remove labels
+        self._node_labels = self._node_labels[np.logical_not(mask)]
+        # reset graphs
+        self._simple_graph = None
+        self._weighted_graph = None
+        if update_verts2node:
+            self._verts2node = None
 
     def base_points(self, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local

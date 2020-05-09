@@ -10,11 +10,13 @@ import glob
 import pickle
 import numpy as np
 from tqdm import tqdm
+from typing import List
 from morphx.processing import ensembles, objects
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
-          density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1):
+          density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1,
+          label_remove: List[int] = None):
     """
     Splits HybridClouds given as pickle files at data_path into multiple subgraphs and saves that chunking information
     in the new folder 'splitted' as a pickled dict. The dict has filenames of the HybridClouds as keys and lists of
@@ -38,6 +40,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         redundancy: Indicates how many iterations of base nodes should get used. 1 means, that base nodes get randomly
             drawn from the remaining nodes until all nodes have been included in at least one subgraph. redundancy = n
             means, that base nodes get randomly drawn until all nodes have been included in subgraphs at least n times.
+        label_remove: List of labels indicating which nodes should get removed
     """
     # check validity of method call
     if density_splitting:
@@ -62,6 +65,10 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             continue
         print(f"No splitting information found for {name}. Splitting it now...")
         obj = ensembles.ensemble_from_pkl(file)
+        # remove labels
+        import ipdb
+        ipdb.set_trace()
+        obj.remove_nodes(labels=label_remove)
         base_points = []
         subgraphs = []
         for i in range(redundancy):
