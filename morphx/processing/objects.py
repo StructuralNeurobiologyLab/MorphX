@@ -10,14 +10,13 @@ import random
 import networkx as nx
 from collections import deque
 from morphx.data import basics
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Dict
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
-from morphx.processing import hybrids, ensembles, clouds
-import networkx as nx
+from morphx.processing import hybrids, ensembles, clouds, graphs
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -216,7 +215,7 @@ def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max:
     return np.array(visited)
 
 
-def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[np.ndarray]:
+def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[List]:
     """ Works for graphs which have one central component (labeled with center_l) and multiple subgraphs
         emerging from that component. This method splits such graphs into the central component and subgraphs.
         Each component can thereby contain small label variations, each subgraph is purely labeled by the most
@@ -224,7 +223,7 @@ def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[n
 
         Procedure:
         1. Reduce graph to nodes which contain consecutive nodes of only one label.
-        2. Find the largest central component in that reduced graph (by number of vertices).
+        2. Find the central component in that reduced graph.
         3. Split the graph into subgraphs by removing the central component and taking the remaining connected
            components.
         4. Label all subgraphs according to the dominating vertex labels within them.
@@ -232,7 +231,7 @@ def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[n
         Example:
         1-1-2-1-2-2-2-3-1-3 with center_l = 2
         1. Reduce to 1-2-1-2-3-1-3
-        2. Three consecutive nodes of 2 have largest number of vertices
+        2. Calculate central component by graphs:
         3. Split into: 1-2-1  2  3-1-3
         4. Relabel: 1-1-1  2  3-3-3  (assuming the 1 and 3 labels have the dominating number of vertices)
 
@@ -243,10 +242,47 @@ def label_split(obj: Union[HybridCloud, CloudEnsemble], center_l: int) -> List[n
     Returns:
         List of subgraphs as node arrays.
     """
+    if isinstance(obj, CloudEnsemble):
+        obj = obj.hc
     source = obj.nodes[random.randrange(len(obj.nodes))]
+    nodes, edges, labels = reduce2label_components(obj, source)
+    red_g = nx.Graph()
+    red_g.add_nodes_from([(i, dict(label=labels[i], size=len(nodes[i]))) for i in list(nodes.keys())])
+    red_g.add_edges_from(edges)
+    subgraphs = graphs.extract_label_subgraphs(red_g, center_l)
+    # for each subgraph, get the number of vertices with the specific label and subtract the number of vertices
+    # where the label would have to change
+    subgraphs_score = []
+    for subgraph in subgraphs:
+        center_l_verts = 0
+        re_verts = 0
+        for node in subgraph:
+            vert_num = 0
+            sub_nodes = nodes[node]
+            for sub_node in sub_nodes:
+                vert_num += len(obj.verts2node[sub_node])
+            if labels[node] == center_l:
+                center_l_verts += vert_num
+            else:
+                re_verts += vert_num
+        subgraphs_score.append(center_l_verts-re_verts)
+    center_ix = subgraphs_score.index(max(subgraphs_score))
+    center = subgraphs[center_ix]
+    # remove central component
+    for node in center:
+        red_g.remove_node(node)
+    # get connected components and gather all original nodes (and not the one from the reduced graph)
+    ccs = nx.connected_components(red_g)
+    result_ccs = []
+    for cc in ccs:
+        result_cc = []
+        for node in cc:
+            result_cc.extend(nodes[node])
+        result_ccs.append(result_cc)
+    return result_ccs
 
 
-def label_components(obj: Union[HybridCloud, CloudEnsemble], source: int) -> dict:
+def reduce2label_components(obj: Union[HybridCloud, CloudEnsemble], source: int) -> Tuple[Dict, List, Dict]:
     """ Reduces graph of given object to nodes which contain consecutive nodes of only one label.
 
     Args:
@@ -254,10 +290,14 @@ def label_components(obj: Union[HybridCloud, CloudEnsemble], source: int) -> dic
         source: The id of the node where the BFS should start.
 
     Returns:
-        Dict of lists of consecutive nodes with only one label, keyed by the index of a new, representative node.
+        Tuple. First element is a dict of lists of consecutive nodes with only one label, keyed by
+        the index of a new, representative node. Second element is a list of edges of the representative
+        nodes. Third element is a dict of labels keyed by the representative nodes.
     """
     visited = [source]
-    reduced = {0: [source]}
+    nodes = {0: [source]}
+    labels = {0: obj.node_labels[source]}
+    edges = []
     neighbors = obj.graph().neighbors(source)
     de = deque([(i, 0, obj.node_labels[source]) for i in neighbors])
     while de:
@@ -268,10 +308,12 @@ def label_components(obj: Union[HybridCloud, CloudEnsemble], source: int) -> dic
             # label transition => create new reduced node
             if curr_l != prev:
                 r_node += 1
-                while r_node in reduced:
+                while r_node in nodes:
                     r_node += 1
-                reduced[r_node] = []
-            reduced[r_node].append(curr)
+                nodes[r_node] = []
+                labels[r_node] = curr_l
+                edges.append((r_node-1, r_node))
+            nodes[r_node].append(curr)
             neighbors = obj.graph().neighbors(curr)
             de.extendleft([(i, r_node, curr_l) for i in neighbors if i not in visited])
-    return reduced
+    return nodes, edges, labels
