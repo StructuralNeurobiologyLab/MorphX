@@ -238,32 +238,27 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def remove_nodes(self, labels: List[int], update_verts2node: bool = False):
-        """ Removes all nodes with labels present in the given labels list. Also removes
-            all corresponding edges and node_labels and resets the graphs. Verts2node
-            mapping is reset if indicated by the flag.
+    def split_graph(self, labels: List[int], threshold: int = 20):
+        """ Removes all nodes with labels present in the given labels list from the graph.
 
         Args:
             labels: List of labels to indicate which nodes should get removed.
-            update_verts2node: Flag for updating the verts2node mapping after removing the
-                nodes.
+            threshold: Connected components where number of nodes is below this threshold get removed.
         """
-        if len(self._node_labels) == 0:
+        # generate node labels by mapping vertex labels to nodes
+        if len(self.node_labels) == 0:
             return
         mask = np.isin(self._node_labels, labels).reshape(-1)
         rnodes = np.arange(len(self._nodes))[mask]
-        # remove edges
+        graph = self.graph()
+        # change graph
         for rnode in rnodes:
-            self._edges = self._edges[np.all(self._edges != rnode, axis=1)]
-        # remove nodes
-        self._nodes = self._nodes[np.logical_not(mask)]
-        # remove labels
-        self._node_labels = self._node_labels[np.logical_not(mask)]
-        # reset graphs
-        self._simple_graph = None
-        self._weighted_graph = None
-        if update_verts2node:
-            self._verts2node = None
+            graph.remove_node(rnode)
+        # filter small outliers
+        for cc in list(nx.connected_components(graph)):
+            if len(cc) < threshold:
+                for node in cc:
+                    graph.remove_node(node)
 
     def base_points(self, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local

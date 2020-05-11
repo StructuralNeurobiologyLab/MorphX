@@ -65,7 +65,8 @@ class ChunkHandler:
             label_mappings: list of labels which should get replaced by other labels. E.g. [(1, 2), (3, 2)]
                 means that the labels 1 and 3 will get replaced by 3.
             splitting_redundancy: indicates how many times each skeleton node is included in different contexts.
-            label_remove: List of labels indicating which nodes should be removed from the dataset.
+            label_remove: List of labels indicating which nodes should be removed from the dataset. This is
+                is independent from the label_mappings, as the label removal is done during splitting.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -77,11 +78,11 @@ class ChunkHandler:
         if density_mode:
             if bio_density is None or tech_density is None:
                 raise ValueError("Density mode requires bio_density and tech_density")
-            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}.pkl'
+            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}_lr{label_remove}.pkl'
         else:
             if chunk_size is None:
                 raise ValueError("Context mode requires chunk_size.")
-            self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}.pkl'
+            self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
         self._splitted_objs = None
         if os.path.exists(self._splitfile):
             with open(self._splitfile, 'rb') as f:

@@ -66,18 +66,17 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         print(f"No splitting information found for {name}. Splitting it now...")
         obj = ensembles.ensemble_from_pkl(file)
         # remove labels
-        import ipdb
-        ipdb.set_trace()
-        obj.remove_nodes(labels=label_remove)
+        obj.split_graph(labels=label_remove)
+        nodes = np.array(obj.graph().nodes)
         base_points = []
         subgraphs = []
         for i in range(redundancy):
             # prepare mask for filtering subgraph nodes
-            mask = np.ones(len(obj.nodes), dtype=bool)
+            mask = np.ones(len(nodes), dtype=bool)
             # existing base nodes should not get chosen as a base node again
-            mask[base_points] = False
+            mask[np.isin(nodes, base_points)] = False
             # identify remaining nodes
-            remaining_nodes = np.arange(len(obj.nodes))[mask]
+            remaining_nodes = nodes[mask]
             while len(remaining_nodes) != 0:
                 # choose random base node from the remaining nodes
                 choice = np.random.choice(remaining_nodes, 1)
@@ -89,8 +88,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                     subgraph = objects.context_splitting(obj, choice[0], chunk_size)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
-                mask[subgraph] = False
-                remaining_nodes = np.arange(len(obj.nodes))[mask]
+                mask[np.isin(nodes, subgraph)] = False
+                remaining_nodes = nodes[mask]
         # save base points for later viewing in corresponding
         base_points = np.array(base_points)
         slashs = [pos for pos, char in enumerate(filename) if char == '/']
