@@ -102,6 +102,7 @@ class ChunkHandler:
         self._obj_feats = obj_feats
         self._label_mappings = label_mappings
         self._hybrid_mode = hybrid_mode
+        self._label_remove = label_remove
 
         # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
@@ -207,7 +208,7 @@ class ChunkHandler:
 
         # Return sample and indices from where sample points were taken
         if self._specific:
-            return sample, ixs
+            return sample, ixs, len(subset.vertices)
         else:
             return sample
 
@@ -278,6 +279,8 @@ class ChunkHandler:
         # transform to HybridCloud:
         if self._hybrid_mode and isinstance(obj, CloudEnsemble):
             obj = obj.hc
+        # remove nodes of given labels
+        obj.remove_nodes(self._label_remove)
         # change features
         if self._obj_feats is not None:
             if isinstance(obj, CloudEnsemble):

@@ -127,8 +127,16 @@ class CloudEnsemble(object):
         except KeyError:
             return None
 
-    def split_graph(self, labels: List[int]):
-        self._hc.split_graph(labels)
+    def remove_nodes(self, labels: List[int]):
+        _ = self.flattened
+        mapping = self._hc.remove_nodes(labels)
+        new_verts2node = {}
+        for key in self.verts2node:
+            if key in mapping:
+                new_verts2node[mapping[key]] = self.verts2node[key]
+        self._flattened = None
+        self._verts2node = new_verts2node
+        self.flattened.set_verts2node(new_verts2node)
 
     # -------------------------------------- SETTERS ------------------------------------------- #
 

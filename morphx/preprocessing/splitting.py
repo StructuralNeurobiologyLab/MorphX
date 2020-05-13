@@ -66,7 +66,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         print(f"No splitting information found for {name}. Splitting it now...")
         obj = ensembles.ensemble_from_pkl(file)
         # remove labels
-        obj.split_graph(labels=label_remove)
+        obj.remove_nodes(labels=label_remove)
         nodes = np.array(obj.graph().nodes)
         base_points = []
         subgraphs = []

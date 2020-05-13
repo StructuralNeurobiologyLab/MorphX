@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import logging
 import networkx as nx
-from typing import Optional, List
+from typing import Optional, List, Dict
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -238,16 +238,19 @@ class HybridCloud(PointCloud):
         else:
             return self._weighted_graph
 
-    def split_graph(self, labels: List[int], threshold: int = 20):
-        """ Removes all nodes with labels present in the given labels list from the graph.
+    def remove_nodes(self, labels: List[int], threshold: int = 20) -> Dict:
+        """ Removes all nodes with labels present in the given labels list. This method also updates the
+            verts2node mapping accordingly. Vertices which belong to removed nodes don't appear in the
+            verts2node mapping.
 
         Args:
             labels: List of labels to indicate which nodes should get removed.
             threshold: Connected components where number of nodes is below this threshold get removed.
         """
+        _ = self.verts2node
         # generate node labels by mapping vertex labels to nodes
         if len(self.node_labels) == 0:
-            return
+            return {}
         mask = np.isin(self._node_labels, labels).reshape(-1)
         rnodes = np.arange(len(self._nodes))[mask]
         graph = self.graph()
@@ -259,6 +262,23 @@ class HybridCloud(PointCloud):
             if len(cc) < threshold:
                 for node in cc:
                     graph.remove_node(node)
+        # change corresponding arrays
+        self._nodes = self._nodes[np.array(graph.nodes)]
+        self._node_labels = self._node_labels[np.array(graph.nodes)]
+        self._pred_node_labels = np.zeros((0, 1))
+        # relabel nodes to consecutive numbers and update edges of HybridCloud
+        mapping = {i: x for x, i in enumerate(graph.nodes)}
+        graph = nx.relabel_nodes(graph, mapping)
+        self._edges = np.array(graph.edges)
+        self._simple_graph = None
+        self._weighted_graph = None
+        # Update verts2node array
+        new_verts2node = {}
+        for key in self.verts2node:
+            if key in mapping:
+                new_verts2node[mapping[key]] = self.verts2node[key]
+        self._verts2node = new_verts2node
+        return mapping
 
     def base_points(self, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local
