@@ -10,7 +10,7 @@ import random
 import networkx as nx
 from collections import deque
 from morphx.data import basics
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List, Dict, Optional
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -163,7 +163,7 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
 
 
 def context_splitting_v2(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
-                         radius: int = 1000) -> np.ndarray:
+                         radius: Optional[int] = None) -> np.ndarray:
     node_ixs = np.arange(len(obj.nodes)).tolist()
     g = nx.Graph()
     g.add_edges_from(obj.edges)
@@ -176,11 +176,12 @@ def context_splitting_v2(obj: Union[HybridCloud, CloudEnsemble], source: int, ma
     for ix in diff:
         g.remove_node(ix)
 
-    # add edges within 1µm
-    kdt = cKDTree(obj.nodes[ixs])
-    pairs = kdt.query_pairs(radius)
-    # remap to subset of indices
-    g.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
+    if radius is not None:
+        # add edges within 1µm
+        kdt = cKDTree(obj.nodes[ixs])
+        pairs = kdt.query_pairs(radius)
+        # remap to subset of indices
+        g.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
 
     return np.array(list(nx.node_connected_component(g, source)))
 
