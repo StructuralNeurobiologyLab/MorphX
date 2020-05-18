@@ -91,7 +91,7 @@ def hybridmesh2poisson(hm: HybridMesh, tech_density: int, obj_factor: float) -> 
             mesh = trimesh.Trimesh(vertices=chunk_hm.vertices, faces=chunk_hm.faces)
             area = mesh.area * 1e-06
             if tech_density == -1:
-                pc = meshes.sample_mesh_poisson_disk(chunk_hm, len(chunk_hm.vertices))
+                pc = meshes.sample_mesh_poisson_disk(chunk_hm, int(len(chunk_hm.vertices) * obj_factor))
             else:
                 pc = meshes.sample_mesh_poisson_disk(chunk_hm, tech_density * area * obj_factor)
             if total is None:

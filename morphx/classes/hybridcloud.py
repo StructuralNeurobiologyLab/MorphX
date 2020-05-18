@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import logging
 import networkx as nx
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -227,12 +227,15 @@ class HybridCloud(PointCloud):
                 graph.add_edges_from(self.edges)
                 self._simple_graph = graph
             else:
-                edge_coords = self.nodes[self.edges]
-                weights = np.linalg.norm(edge_coords[:, 0] - edge_coords[:, 1], axis=1)
-                graph.add_weighted_edges_from(
-                    [(self.edges[i][0], self.edges[i][1], weights[i]) for
-                     i in range(len(weights))])
-                self._weighted_graph = graph
+                if len(self._nodes) == 0:
+                    self._weighted_graph = graph
+                else:
+                    edge_coords = self.nodes[self.edges]
+                    weights = np.linalg.norm(edge_coords[:, 0] - edge_coords[:, 1], axis=1)
+                    graph.add_weighted_edges_from(
+                        [(self.edges[i][0], self.edges[i][1], weights[i]) for
+                         i in range(len(weights))])
+                    self._weighted_graph = graph
         if simple:
             return self._simple_graph
         else:
@@ -247,6 +250,8 @@ class HybridCloud(PointCloud):
             labels: List of labels to indicate which nodes should get removed.
             threshold: Connected components where number of nodes is below this threshold get removed.
         """
+        if len(labels) == 0:
+            return {}
         _ = self.verts2node
         # generate node labels by mapping vertex labels to nodes
         if len(self.node_labels) == 0:
@@ -263,9 +268,18 @@ class HybridCloud(PointCloud):
                 for node in cc:
                     graph.remove_node(node)
         # change corresponding arrays
+        self._pred_node_labels = np.zeros((0, 1))
+        if len(graph.nodes) == 0:
+            # no nodes are left
+            self._nodes = np.zeros((0, 3))
+            self._node_labels = np.zeros((0, 1))
+            self._verts2node = {}
+            self._edges = np.zeros((0, 2))
+            self._simple_graph = None
+            self._weighted_graph = None
+            return {}
         self._nodes = self._nodes[np.array(graph.nodes)]
         self._node_labels = self._node_labels[np.array(graph.nodes)]
-        self._pred_node_labels = np.zeros((0, 1))
         # relabel nodes to consecutive numbers and update edges of HybridCloud
         mapping = {i: x for x, i in enumerate(graph.nodes)}
         graph = nx.relabel_nodes(graph, mapping)
@@ -295,6 +309,19 @@ class HybridCloud(PointCloud):
         if self._base_points is None:
             self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points
+
+    def map_labels(self, mappings: List[Tuple[int, int]]):
+        """ In-place method for changing labels of vertices and nodes. Encoding gets updated.
+
+        Args:
+            mappings: List of tuples with original labels and target labels. E.g. [(1, 2), (3, 2)] means that
+              the labels 1 and 3 will get replaced by 2.
+        """
+        for mapping in mappings:
+            self._labels[self._labels == mapping[0]] = mapping[1]
+            self._node_labels[self._node_labels == mapping[0]] = mapping[1]
+            if self._encoding is not None and mapping[0] in self._encoding:
+                self._encoding.pop(mapping[0], None)
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 

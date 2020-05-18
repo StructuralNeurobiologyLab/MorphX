@@ -128,6 +128,8 @@ class CloudEnsemble(object):
             return None
 
     def remove_nodes(self, labels: List[int]):
+        if len(labels) == 0:
+            return
         _ = self.flattened
         mapping = self._hc.remove_nodes(labels)
         new_verts2node = {}
@@ -137,6 +139,13 @@ class CloudEnsemble(object):
         self._flattened = None
         self._verts2node = new_verts2node
         self.flattened.set_verts2node(new_verts2node)
+
+    def map_labels(self, label_mappings: List):
+        self._hc.map_labels(label_mappings)
+        for key in self.clouds:
+            cloud = self.get_cloud(key)
+            cloud.map_labels(label_mappings)
+        self._flattened.map_labels(label_mappings)
 
     # -------------------------------------- SETTERS ------------------------------------------- #
 
@@ -155,6 +164,7 @@ class CloudEnsemble(object):
         self.reset_ensemble()
 
     def reset_ensemble(self):
+        self._flattened = None
         self._verts2node = None
 
     def add_no_pred(self, obj_names: List[str]):

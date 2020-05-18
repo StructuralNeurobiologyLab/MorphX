@@ -113,7 +113,7 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray) -> Tuple[PointClo
     else:
         obj_bounds = None
     if len(idcs) == 0:
-        return PointCloud(vertices=np.array([])), np.array([])
+        return PointCloud(), idcs
     if len(ensemble.flattened.features) == 0:
         features = None
     else:

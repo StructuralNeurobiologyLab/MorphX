@@ -34,13 +34,14 @@ class TorchHandler(data.Dataset):
                  label_mappings: List[Tuple[int, int]] = None,
                  hybrid_mode: bool = False,
                  splitting_redundancy: int = 1,
-                 label_remove: List[int] = None):
+                 label_remove: List[int] = None,
+                 sampling: bool = True):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
                                 specific=specific, data_type=data_type, obj_feats=obj_feats,
                                 label_mappings=label_mappings, hybrid_mode=hybrid_mode,
-                                splitting_redundancy=splitting_redundancy, label_remove=label_remove)
+                                splitting_redundancy=splitting_redundancy, label_remove=label_remove, sampling=sampling)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
@@ -69,6 +70,7 @@ class TorchHandler(data.Dataset):
                 if sample is not None:
                     if len(sample.vertices) == 0:
                         sample = None
+                item += 1
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))

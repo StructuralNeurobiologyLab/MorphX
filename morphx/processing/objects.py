@@ -75,28 +75,12 @@ def density_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, verte
     Returns:
         Index array which contains indices of nodes in the hc node array which are part of the bfs result.
     """
-    source = int(source)
     chosen = []
     idx_nodes = np.arange(len(obj.nodes))
-    visited = [source]
-    dia_nodes = idx_nodes[np.linalg.norm(obj.nodes - obj.nodes[source], axis=1) <= radius]
+    visited = []
     vertex_num = 0
-    # sort nodes within 'radius' by their distance
-    tree = cKDTree(obj.nodes[dia_nodes])
-    dist, ind = tree.query(obj.nodes[source], k=len(dia_nodes))
-    if isinstance(ind, int):
-        ind = [ind]
-    for ix in ind:
-        node = dia_nodes[ix]
-        # add nodes as long as number of corresponding vertices is still below the threshold
-        if vertex_num + len(obj.verts2node[node]) <= vertex_max:
-            chosen.append(node)
-            vertex_num += len(obj.verts2node[node])
-        else:
-            return np.array(chosen)
     # traverse all nodes
-    neighbors = obj.graph().neighbors(source)
-    de = deque([i for i in neighbors])
+    de = deque([int(source)])
     while de:
         curr = de.pop()
         # visited is node list for traversing the graph
@@ -140,8 +124,6 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
     visited = []
     chosen = []
     de = deque([source])
-    neighbors = obj.graph().neighbors(source)
-    de.extendleft([i for i in neighbors if np.linalg.norm(obj.nodes[source] - obj.nodes[i]) <= max_dist])
     while de:
         curr = de.pop()
         if curr not in visited:

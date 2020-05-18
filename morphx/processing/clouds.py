@@ -552,7 +552,7 @@ def merge_clouds(clouds: List[Union[PointCloud, HybridCloud]], names: Optional[L
     if np.all(edges == 0):
         edges = None
 
-    if nodes is None:
+    if ignore_hybrids:
         return PointCloud(t_verts, labels=t_labels, features=t_features, obj_bounds=obj_bounds, encoding=encoding,
                           no_pred=no_pred, types=t_types)
     else:

@@ -255,13 +255,9 @@ class PointCloud(object):
         self._pred_labels[:] = -1
         if self._predictions is None or len(self._predictions) == 0:
             return self._pred_labels
-        for key in self._predictions.keys():
-            preds = np.array(self._predictions[key])
-            if mv:
-                u_preds, counts = np.unique(preds, return_counts=True)
-                self._pred_labels[key] = u_preds[np.argmax(counts)]
-            else:
-                self._pred_labels[key] = preds[0]
+        for item in self._predictions:
+            u_preds, counts = np.unique(np.array(self._predictions[item]), return_counts=True)
+            self._pred_labels[item] = u_preds[np.argmax(counts)]
         if self._encoding is not None and -1 in self._pred_labels:
             self._encoding['no_pred'] = -1
         return self._pred_labels.astype(int)
