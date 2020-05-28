@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='MorphX',
@@ -9,6 +9,7 @@ setup(
     download_url='https://github.com/StructuralNeurobiologyLab/MorphX.git',
     author='Jonathan Klimesch, Philipp Schubert',
     author_email='jklimesch@neuro.mpg.de',
+    packages=find_packages(),
     classifiers=[
         'Development Status :: 1 - Planning',
         'License :: OSI Approved :: GPL-2.0 License',
