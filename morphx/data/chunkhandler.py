@@ -6,6 +6,7 @@
 # Authors: Jonathan Klimesch
 
 import os
+import re
 import glob
 import pickle
 import random
@@ -45,7 +46,8 @@ class ChunkHandler:
                  hybrid_mode: bool = False,
                  splitting_redundancy: int = 1,
                  label_remove: List[int] = None,
-                 sampling: bool = True):
+                 sampling: bool = True,
+                 force_split: bool = False):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -86,10 +88,20 @@ class ChunkHandler:
                 raise ValueError("Context mode requires chunk_size.")
             self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
         self._splitted_objs = None
-        if os.path.exists(self._splitfile):
-            with open(self._splitfile, 'rb') as f:
-                self._splitted_objs = pickle.load(f)
-            f.close()
+        orig_splitfile = self._splitfile
+        while os.path.exists(self._splitfile):
+            if not force_split:
+                with open(self._splitfile, 'rb') as f:
+                    self._splitted_objs = pickle.load(f)
+                f.close()
+                break
+            else:
+                version = re.findall(r"v(\d+).", self._splitfile)
+                if len(version) == 0:
+                    self._splitfile = self._splitfile[:-4] + '_v1.pkl'
+                else:
+                    version = int(version[0])
+                    self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
         splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
                         tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
                         splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy, label_remove=label_remove)
@@ -183,6 +195,7 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_obj[item[1]]
                 sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
+                subset_verts = len(sample.vertices)
                 if self._sampling:
                     sample, ixs = clouds.sample_cloud(sample, self._sample_num)
             else:
@@ -197,6 +210,7 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_obj_chunks[next_item[1]]
             sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
+            subset_verts = len(sample.vertices)
             if self._sampling:
                 sample, ixs = clouds.sample_cloud(sample, self._sample_num)
 

@@ -96,12 +96,14 @@ class HybridCloud(PointCloud):
 
     @property
     def node_labels(self):
+        """ Generates node labels from vertex labels if node label array is empty. """
         if len(self._node_labels) == 0:
             self._node_labels = self.vertl2nodel(pred=False)
         return self._node_labels
 
     @property
     def pred_node_labels(self):
+        """ Generates node predictions from vertex predicitons if node prediction array is empty. """
         if len(self._pred_node_labels) == 0:
             self._pred_node_labels = self.vertl2nodel(pred=True)
         return self._pred_node_labels

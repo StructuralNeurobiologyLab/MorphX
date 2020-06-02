@@ -211,7 +211,7 @@ def filter_objects(cloud: PointCloud, objects: list) -> PointCloud:
         new_vertices[offset:offset+obj_size] = cloud.vertices[bounds[0]:bounds[1]]
         if cloud.labels is not None:
             new_labels[offset:offset+obj_size] = cloud.labels[bounds[0]:bounds[1]]
-        new_obj_bounds[obj] = [offset, offset+obj_size]
+        new_obj_bounds[obj] = np.array([offset, offset+obj_size])
 
     return PointCloud(new_vertices, labels=new_labels, encoding=cloud.encoding, obj_bounds=new_obj_bounds)
 
@@ -561,37 +561,53 @@ def merge_clouds(clouds: List[Union[PointCloud, HybridCloud]], names: Optional[L
 
 
 def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: bool = False) -> PointCloud:
-    """ Merges multiple PointClouds. HybridClouds or HybridMeshes are handeld as PointClouds, possible
+    """ Merges multiple PointClouds. HybridClouds or HybridMeshes are handled as PointClouds, possible
         skeletons or meshes are ignored. The encoding is set to None if the clouds contain contradicting
-        encodings.
-
-        This will replace merge_clouds.
+        encodings. If names is given, the no_pred lists of all clouds get merged and the names extended by
+        the name of the cloud (e.g. if there are 2 clouds and names = ['pc1', 'pc2'] where pc1 has
+        no_pred = ['obj1'] and pc2 has also no_pred = ['obj1'], then the no_pred list of the merged cloud
+        would be: ['pc1_obj1', 'pc2_obj1'].
 
     Args:
         clouds: List of PointClouds which should get merged.
         names: List of names for all PointClouds in clouds. Each name must be unique. If preserve_obj_bounds
             is False, the resulting PointCloud contains object boundaries keyed by the respective names.
         preserve_obj_bounds: Flag for preserving existing object boundaries. The existing keys are updated
-            with the respective cloud name. 'obj1' in a cloud with name 'cloud1' becomes to 'cloud1_obj1'.
+            with the respective cloud name. 'obj1' in a cloud with name 'cloud1' becomes 'cloud1_obj1'.
             If there are no existing object boundaries, the key for the cloud's boundaries is its name.
     """
     # check inputs
-    if names is not None and len(names) != len(clouds):
-        raise ValueError("Name list for merging must have same length as cloud list.")
+    if names is not None:
+        for name in names:
+            if names.count(name) > 1:
+                raise ValueError("All names in the name list must be unique.")
+        if len(names) != len(clouds):
+            raise ValueError("Name list for merging must have same length as cloud list.")
     if preserve_obj_bounds and names is None:
         raise ValueError("Name list is required for preserving the object bounds.")
-    for name in names:
-        if names.count(name) > 1:
-            raise ValueError("All names in the name list must be unique.")
-    # prepare new properties
+    # prepare new data arrays
     new_size = 0
     for pc in clouds:
         new_size += len(pc.vertices)
+    labels_size = new_size
+    pred_labels_size = new_size
+    features_size = new_size
+    types_size = new_size
+    # if any given cloud has an empty field, this field will also be empty in the merged cloud
+    for pc in clouds:
+        if len(pc.labels) == 0:
+            labels_size = 0
+        if len(pc.pred_labels) == 0:
+            pred_labels_size = 0
+        if len(pc.features) == 0:
+            features_size = 0
+        if len(pc.types) == 0:
+            types_size = 0
     new_verts = np.zeros((new_size, 3))
-    new_labels = np.zeros((new_size, 1))
-    new_pred_labels = np.zeros((new_size, 1))
-    new_features = np.zeros((new_size, 1))
-    new_types = np.zeros((new_size, 1))
+    new_labels = np.zeros((labels_size, 1))
+    new_pred_labels = np.zeros((pred_labels_size, 1))
+    new_features = np.zeros((features_size, 1))
+    new_types = np.zeros((types_size, 1))
     offset = 0
     new_encoding = {}
     new_predictions = {}
@@ -602,10 +618,14 @@ def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: boo
         new_obj_bounds = {}
     for ix, pc in enumerate(clouds):
         new_verts[offset:offset + len(pc.vertices)] = pc.vertices
-        new_labels[offset:offset + len(pc.vertices)] = pc.labels
-        new_pred_labels[offset:offset + len(pc.vertices)] = pc.pred_labels
-        new_features[offset:offset + len(pc.vertices)] = pc.features
-        new_types[offset:offset + len(pc.vertices)] = pc.types
+        if labels_size != 0:
+            new_labels[offset:offset + len(pc.vertices)] = pc.labels
+        if pred_labels_size != 0:
+            new_pred_labels[offset:offset + len(pc.vertices)] = pc.pred_labels
+        if features_size != 0:
+            new_features[offset:offset + len(pc.vertices)] = pc.features
+        if types_size != 0:
+            new_types[offset:offset + len(pc.vertices)] = pc.types
         # create new object bounds
         if names is not None:
             if not preserve_obj_bounds:
@@ -635,15 +655,14 @@ def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: boo
         # create new predictions
         if pc.predictions is not None:
             for key in pc.predictions:
-                if key in new_predictions:
-                    new_predictions[key].extend(pc.predictions[key])
-                else:
-                    new_predictions[key] = pc.predictions[key]
-        # create new no_pred
-        if pc.no_pred is not None:
-            for item in pc.no_pred:
-                if item not in new_no_pred:
-                    new_no_pred.append(item)
+                new_predictions[key + offset] = pc.predictions[key]
+        if names is not None:
+            # create new no_pred (merges all no_preds)
+            if pc.no_pred is not None:
+                for item in pc.no_pred:
+                    if item not in new_no_pred:
+                        new_no_pred.append(names[ix] + '_' + item)
+        offset += len(pc.vertices)
     if len(new_no_pred) == 0:
         new_no_pred = None
     if len(new_predictions) == 0:
@@ -651,3 +670,24 @@ def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: boo
     return PointCloud(vertices=new_verts, labels=new_labels, pred_labels=new_pred_labels, features=new_features,
                       types=new_types, encoding=new_encoding, obj_bounds=new_obj_bounds, predictions=new_predictions,
                       no_pred=new_no_pred)
+
+
+def merge_hybrid(hc: HybridCloud, clouds: List[PointCloud], hc_name: str = None, names: List = None,
+                 preserve_obj_bounds: bool = False) -> HybridCloud:
+    """ Merges a list of PointCloud objects with a single HybridCloud using the merge_clouds method.
+        See merge_clouds method for more information.
+
+    Args:
+        hc: The single HybridCloud.
+        clouds: The list of PointCloud objects.
+        hc_name: The name of the HybridCloud.
+        names: The names of the clouds in clouds.
+        preserve_obj_bounds: see merge_clouds method.
+    """
+    clouds.append(hc)
+    names.append(hc_name)
+    pc = merge(clouds, names, preserve_obj_bounds=preserve_obj_bounds)
+    return HybridCloud(nodes=hc.nodes, edges=hc.edges, vertices=pc.vertices, labels=pc.labels,
+                       pred_labels=pc.pred_labels, features=pc.features, types=pc.types, encoding=pc.encoding,
+                       obj_bounds=pc.obj_bounds, predictions=pc.predictions, no_pred=pc.no_pred,
+                       node_labels=hc.node_labels, pred_node_labels=hc.pred_node_labels)

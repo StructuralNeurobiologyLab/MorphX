@@ -41,6 +41,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             drawn from the remaining nodes until all nodes have been included in at least one subgraph. redundancy = n
             means, that base nodes get randomly drawn until all nodes have been included in subgraphs at least n times.
         label_remove: List of labels indicating which nodes should get removed
+        force_split: Force new splitting even if there are existing split files.
     """
     # check validity of method call
     if density_splitting:
