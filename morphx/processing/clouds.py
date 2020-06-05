@@ -16,8 +16,8 @@ from morphx.classes.hybridcloud import HybridCloud
 
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
 
-
-def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
+def sample_cloud(pc: PointCloud, vertex_number: int, random_seed: int = None,
+                    jitter: int = 0) -> Tuple[PointCloud, np.ndarray]:
     """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
     vertices. If the requested number of points is larger than the given subset, the subset gets enriched with slightly
     augmented points before sampling.
@@ -26,65 +26,47 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[
         pc: MorphX PointCloud object which should be sampled.
         vertex_number: The number of points which should make up the sample point cloud.
         random_seed: Possibility for making the sampling deterministic.
+        jitter: Add small jitter to possible duplicate points due to oversampling. A jitter of
+            np.random.random((deficit, 3))*jitter is added to the duplicate points.
 
     Returns:
         PointCloud with sampled points (and labels) and indices of the original vertices where samples are from.
     """
-    cloud = pc.vertices
-    labels = pc.labels
-
-    if len(cloud) == 0:
+    if len(pc.vertices) == 0:
         return pc, np.array([])
-
     if random_seed is not None:
         np.random.seed(random_seed)
-
-    dim = cloud.shape[1]
-    sample = np.zeros((vertex_number, dim))
-    if len(labels) != 0:
-        sample_l = np.zeros((vertex_number, 1))
-    else:
-        sample_l = None
-    if len(pc.features) != 0:
-        sample_f = np.zeros((vertex_number, pc.features.shape[1]))
-    else:
-        sample_f = None
-
-    # How much additional augmented points must be generated in order to reach the requested number of samples
-    deficit = vertex_number - len(cloud)
-
-    vert_ixs = np.arange(len(cloud))
+    samplel = None
+    samplef = None
+    samplet = None
+    samplepl = None
+    vert_ixs = np.arange(len(pc.vertices))
     np.random.shuffle(vert_ixs)
-    sample[:min(len(cloud), vertex_number)] = cloud[vert_ixs[:vertex_number]]
-
-    # Save vertex index of each sample point for later mapping
-    sample_ixs = np.ones(vertex_number)
-    sample_ixs[:min(len(cloud), vertex_number)] = vert_ixs[:vertex_number]
-
-    if len(labels) != 0:
-        sample_l[:min(len(cloud), vertex_number)] = labels[vert_ixs[:vertex_number]]
+    # cache vertex indices of sample for later mapping
+    sample_ixs = np.zeros(vertex_number, dtype=int)
+    sample_ixs[:min(len(pc.vertices), vertex_number)] = vert_ixs[:vertex_number]
+    # add duplicate points in case of oversampling
+    deficit = max(0, vertex_number - len(pc.vertices))
+    offset = len(pc.vertices)
+    # while loop and replace=False ensures uniform oversampling
+    while deficit != 0:
+        next_compensation = min(len(vert_ixs), deficit)
+        sample_ixs[offset:offset+next_compensation] = np.random.choice(vert_ixs, next_compensation, replace=False)
+        deficit -= next_compensation
+        offset += next_compensation
+    samplev = pc.vertices[sample_ixs].astype(float)
+    if len(pc.labels) != 0:
+        samplel = pc.labels[sample_ixs]
     if len(pc.features) != 0:
-        sample_f[:min(len(cloud), vertex_number)] = pc.features[vert_ixs[:vertex_number]]
-
-    if deficit > 0:
-        # deficit could be bigger than cloudsize
-        offset = len(cloud)
-        for it in range(ceil(deficit/len(cloud))):
-            # add augmented points to reach requested number of samples
-            compensation = min(len(cloud), len(sample)-offset)
-            np.random.shuffle(vert_ixs)
-            sample[offset:offset+compensation] = cloud[vert_ixs[:compensation]]
-            # Save vertex indices of additional points
-            sample_ixs[offset:offset+compensation] = vert_ixs[:compensation]
-            if len(labels) != 0:
-                sample_l[offset:offset+compensation] = labels[vert_ixs[:compensation]]
-            if len(pc.features) != 0:
-                sample_f[offset:offset+compensation] = pc.features[vert_ixs[:compensation]]
-            offset += compensation
-
-        sample[len(cloud):] += np.random.random(sample[len(cloud)].shape)
-
-    return PointCloud(sample, labels=sample_l, features=sample_f, encoding=pc.encoding, no_pred=pc.no_pred), sample_ixs
+        samplef = pc.features[sample_ixs]
+    if len(pc.types) != 0:
+        samplet = pc.types[sample_ixs]
+    if len(pc.pred_labels) != 0:
+        samplepl = pc.pred_labels[sample_ixs]
+    # add jitter to duplicate points
+    samplev[len(pc.vertices):] += np.random.random((max(0, vertex_number - len(pc.vertices)), 3))*jitter
+    return PointCloud(vertices=samplev, labels=samplel, features=samplef, types=samplet, pred_labels=samplepl,
+                      encoding=pc.encoding, no_pred=pc.no_pred), sample_ixs
 
 
 def sample_objectwise(pc: PointCloud, vertex_number: int, random_seed=None) -> Tuple[PointCloud, np.ndarray]:
