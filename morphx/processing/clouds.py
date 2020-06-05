@@ -594,11 +594,14 @@ def merge(clouds: List[PointCloud], names: List = None, preserve_obj_bounds: boo
     features_size = new_size
     types_size = new_size
     # if any given cloud has an empty field, this field will also be empty in the merged cloud
+    feat_dim = clouds[0].features.shape[1]
     for pc in clouds:
         if len(pc.labels) == 0:
             labels_size = 0
         if len(pc.pred_labels) == 0:
             pred_labels_size = 0
+        if pc.features.shape[1] != feat_dim:
+            raise ValueError("Feature dimensions cannot differ.")
         if len(pc.features) == 0:
             features_size = 0
         if len(pc.types) == 0:
