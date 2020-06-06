@@ -350,13 +350,37 @@ class RandomRotate(Transformation):
 
 
 class Center(Transformation):
+    center_loc = None
+
+    def __init__(self, center_loc: Optional[Union[float, np.ndarray]] = None, distr: str = 'const'):
+        """
+
+        Args:
+            center_loc: Location of center.
+            distr: Distribution used. If 'const': Center_loc will be used as is. If scalar used for every dimension.
+                If 'uniform' sample randomly between zero and `center_loc`, all dimensions of `center_loc` will be
+                multiplied with independently drawn values between 0 and 1.
+        """
+        if center_loc is None:
+            center_loc = np.zeros(3)
+        elif np.isscalar(center_loc):
+            center_loc = [center_loc] * 3
+        self.center_loc = np.array(center_loc).squeeze()
+        self.distr = distr
+
     def __call__(self, pc: PointCloud):
         """ Centers the given PointCloud only with respect to vertices. If the PointCloud is an HybridCloud, the nodes
             get centered as well but are not taken into account for centroid calculation. Operates in-place for the
             given PointCloud
         """
         centroid = np.mean(pc.vertices, axis=0)
-        pc.move(-centroid)
+        if self.distr == 'const':
+            offset = self.center_loc
+        elif self.distr == 'uniform':
+            offset = ((np.random.random(min(1, len(self.center_loc))) - 0.5) * 2 * self.center_loc).squeeze()
+        else:
+            raise ValueError(f'Given distr value is not implemented.')
+        pc.move(-centroid + offset)
 
     @property
     def augmentation(self):
