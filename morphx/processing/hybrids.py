@@ -47,12 +47,12 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointClo
     sub_g = g.subgraph(local_bfs)
     relabel_dc = {n: ii for ii, n in enumerate(sub_g.nodes)}
     sub_g = nx.relabel.relabel_nodes(sub_g, relabel_dc)
-    edges = np.array(sub_g.edges)
+    edges = np.array(list(sub_g.edges))
     nodes = hybrid.nodes[local_bfs]
     hc = HybridCloud(nodes=nodes, edges=edges, node_labels=node_labels,
-                   vertices=verts, labels=labels, features=feats,
-                   no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds,
-                   encoding=hybrid.encoding)
+                     vertices=verts, labels=labels, features=feats,
+                     no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds,
+                     encoding=hybrid.encoding)
     return hc, np.array(idcs)
 
 
@@ -118,7 +118,7 @@ def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
         relabel_dc = {n: ii for ii, n in enumerate(sub_g.nodes)}
         sub_g = nx.relabel.relabel_nodes(sub_g, relabel_dc)
         nodes = hm.nodes[node_ids]
-        edges = np.array(sub_g.edges)
+        edges = np.array(list(sub_g.edges))
     hm = HybridMesh(nodes=nodes, node_labels=node_labels, edges=edges,
                     vertices=vertices, faces=faces, normals=normals, labels=labels,
                     features=features, encoding=hm.encoding)

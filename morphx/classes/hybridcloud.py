@@ -32,18 +32,18 @@ class HybridCloud(PointCloud):
             edges: Edge list with indices of nodes in skel_nodes with shape (n, 2).
             verts2node: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
-            node_labels: Node label array (ith label corresponds to ith node) with same dimenstions as nodes.
+            node_labels: Node label array (ith label corresponds to ith node) with same dimensions as nodes.
         """
         super().__init__(*args, **kwargs)
         if nodes is not None and nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
         self._nodes = nodes
 
-        if nodes is None:
+        if nodes is None or len(nodes) == 0:
             self._edges = None
             self._node_labels = None
         else:
-            if edges is not None and edges.max() > len(nodes):
+            if edges is not None and len(edges) > 0 and edges.max() > len(nodes):
                 raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
             self._edges = edges.astype(int)
 
