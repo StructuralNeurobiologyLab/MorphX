@@ -32,7 +32,7 @@ class HybridCloud(PointCloud):
             edges: Edge list with indices of nodes in skel_nodes with shape (n, 2).
             verts2node: Dict structure that maps mesh vertices to skeleton nodes. Keys are skeleton node indices,
                 values are lists of mesh vertex indices.
-            node_labels: Node label array (ith label corresponds to ith node) with same dimenstions as nodes.
+            node_labels: Node label array (ith label corresponds to ith node) with same dimensions as nodes.
         """
         super().__init__(*args, **kwargs)
         if nodes is None:

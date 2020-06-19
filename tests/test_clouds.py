@@ -163,3 +163,8 @@ def test_sampling():
         assert np.all(pc.features[mask] == sample.features[i])
         assert len(sample.types) == 0
         assert np.all(pc.pred_labels[mask] == sample.pred_labels[i])
+
+
+if __name__ == '__main__':
+    test_sampling()
+

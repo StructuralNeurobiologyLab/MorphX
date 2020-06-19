@@ -10,7 +10,7 @@ import random
 import networkx as nx
 from collections import deque
 from morphx.data import basics
-from typing import Union, Tuple, List, Dict, Optional
+from typing import Union, Tuple, Optional, Iterable, List, Dict
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
@@ -144,13 +144,26 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
     return np.array(chosen)
 
 
-def context_splitting_v2(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
-                         radius: Optional[int] = None) -> np.ndarray:
+def context_splitting_kdt(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
+                          radius: Optional[int] = None) -> np.ndarray:
+    """ Performs a query ball search (via kd-tree) to find the connected sub-graph within `max_dist` starting at the
+    source node in the obj's weighted graph.
+
+    Args:
+        obj: The HybridCloud/CloudEnsemble with the graph, nodes and vertices.
+        source: The source node.
+        max_dist: The maximum distance to the source node (Euclidean distance, i.e. not along the graph!).
+        radius: Optionally add edges between nodes within `radius`.
+
+    Returns:
+        The nodes within the requested context for every source node - same ordering as `sources`.
+    """
     node_ixs = np.arange(len(obj.nodes)).tolist()
     g = nx.Graph()
     g.add_edges_from(obj.edges)
 
     # remove nodes outside max radius
+    # TODO: use sg = nx.subgraph(g, ixs) instead of pruning the original graph with a loop..
     kdt = cKDTree(obj.nodes)
     ixs = np.concatenate(kdt.query_ball_point([obj.nodes[source]], max_dist)).tolist()
     diff = set(node_ixs).difference(set(ixs))
@@ -166,6 +179,59 @@ def context_splitting_v2(obj: Union[HybridCloud, CloudEnsemble], source: int, ma
         g.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
 
     return np.array(list(nx.node_connected_component(g, source)))
+
+
+def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: Iterable[int], max_dist: float,
+                               radius: Optional[int] = None) -> List[np.ndarray]:
+    """ Performs a query ball search (via kd-tree) to find the connected sub-graph within `max_dist` starting at the
+    source node in the obj's weighted graph.
+
+    Args:
+        obj: The HybridCloud/CloudEnsemble with the graph, nodes and vertices.
+        sources: The source nodes.
+        max_dist: The maximum distance to the source node (Euclidean distance, i.e. not along the graph!).
+        radius: Optionally add edges between nodes within `radius`.
+
+    Returns:
+        The nodes within the requested context for every source node - same ordering as `sources`.
+    """
+    g = nx.Graph()
+    g.add_edges_from(obj.edges)
+
+    ctxs = []
+
+    kdt = cKDTree(obj.nodes)
+    # TODO: use query_ball_tree if sources is large
+    ixs_nn = kdt.query_ball_point(obj.nodes[sources], max_dist)
+    for source, ixs in zip(sources, ixs_nn):
+        # remove nodes outside max_dist
+        sg = nx.subgraph(g, ixs)
+        if radius is not None:
+            # add edges within 1µm
+            kdt = cKDTree(obj.nodes[ixs])
+            pairs = kdt.query_pairs(radius)
+            # remap to subset of indices
+            sg.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
+        ctxs.append(np.array(list(nx.node_connected_component(sg, source))))
+    return ctxs
+
+
+def context_splitting_graph_many(obj: Union[HybridCloud, CloudEnsemble], sources: Iterable[int],
+                                 max_dist: float) -> List[list]:
+    """ Performs a dijkstra shortest paths on the obj's weighted graph to retrieve the skeleton nodes within `max_dist`
+    for every source node ID in `sources`.
+
+    Args:
+        obj: The HybridCloud/CloudEnsemble with the graph, nodes and vertices.
+        sources: The source nodes.
+        max_dist: The maximum distance to the source node (along the graph).
+
+    Returns:
+        The nodes within the requested context for every source node - same ordering as `sources`.
+    """
+    g = obj.graph()
+    paths = nx.all_pairs_dijkstra_path(g, weight='weight', cutoff=max_dist)
+    return [list(paths[s].keys()) for s in sources]
 
 
 def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int) -> np.ndarray:
