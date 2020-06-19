@@ -216,12 +216,13 @@ def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: 
     g.add_edges_from(obj.edges)
 
     ctxs = []
-    # remove nodes outside max radius
-    kdt = cKDTree(obj.nodes)
-    for source in sources:
-        ixs = np.concatenate(kdt.query_ball_point([obj.nodes[source]], max_dist)).tolist()
-        sg = nx.subgraph(g, ixs)
 
+    kdt = cKDTree(obj.nodes)
+    # TODO: use query_ball_tree if sources is large
+    ixs_nn = kdt.query_ball_point(obj.nodes[sources], max_dist)
+    for source, ixs in zip(sources, ixs_nn):
+        # remove nodes outside max_dist
+        sg = nx.subgraph(g, ixs)
         if radius is not None:
             # add edges within 1µm
             kdt = cKDTree(obj.nodes[ixs])
@@ -233,7 +234,7 @@ def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: 
 
 
 def context_splitting_graph_many(obj: Union[HybridCloud, CloudEnsemble], sources: Iterable[int],
-                           max_dist: float) -> List[list]:
+                                 max_dist: float) -> List[list]:
     """ Performs a dijkstra shortest paths on the obj's weighted graph to retrieve the skeleton nodes within `max_dist`
     for every source node ID in `sources`.
 
