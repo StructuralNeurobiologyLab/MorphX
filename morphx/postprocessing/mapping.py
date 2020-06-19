@@ -87,7 +87,8 @@ class PredictionMapper:
 
     def load_prediction(self, name: str):
         self._curr_obj = objects.load_obj(self._datatype, f'{self._data_path}{name}.pkl')
-        self._curr_obj.remove_nodes(self._label_remove)
+        if self._label_remove is not None:
+            self._curr_obj.remove_nodes(self._label_remove)
         self._curr_name = name
         if os.path.exists(f'{self._save_path}{name}_preds.pkl'):
             preds = basics.load_pkl(f'{self._save_path}{name}_preds.pkl')

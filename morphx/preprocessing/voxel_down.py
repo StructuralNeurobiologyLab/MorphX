@@ -42,8 +42,17 @@ def voxel_down(ce: CloudEnsemble, voxel_size: Union[dict, int] = 500) -> CloudEn
     pcd.points = o3d.utility.Vector3dVector(hc.vertices)
     pcd, idcs = pcd.voxel_down_sample_and_trace(voxel_size['hc'], pcd.get_min_bound(), pcd.get_max_bound())
     idcs = np.max(idcs, axis=1)
-    new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=hc.labels[idcs],
-                         types=hc.types[idcs], features=hc.labels[idcs], encoding=hc.encoding,
+    new_labels = None
+    new_types = None
+    new_features = None
+    if len(hc.labels) != 0:
+        new_labels = hc.labels[idcs]
+    if len(hc.types) != 0:
+        new_types = hc.types[idcs]
+    if len(hc.features) != 0:
+        new_features = hc.features[idcs]
+    new_hc = HybridCloud(hc.nodes, hc.edges, vertices=np.asarray(pcd.points), labels=new_labels,
+                         types=new_types, features=new_features, encoding=hc.encoding,
                          node_labels=hc.node_labels, no_pred=hc.no_pred)
     new_clouds = {}
     for key in ce.clouds:

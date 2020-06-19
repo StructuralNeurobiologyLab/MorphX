@@ -67,7 +67,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         print(f"No splitting information found for {name}. Splitting it now...")
         obj = ensembles.ensemble_from_pkl(file)
         # remove labels
-        obj.remove_nodes(labels=label_remove)
+        if label_remove is not None:
+            obj.remove_nodes(labels=label_remove)
         nodes = np.array(obj.graph().nodes)
         base_points = []
         subgraphs = []
@@ -86,7 +87,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                 if density_splitting:
                     subgraph = objects.density_splitting(obj, choice[0], vert_num)
                 else:
-                    subgraph = objects.context_splitting(obj, choice[0], chunk_size)
+                    subgraph = objects.context_splitting_v2(obj, choice[0], chunk_size, radius=1000)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
                 mask[np.isin(nodes, subgraph)] = False

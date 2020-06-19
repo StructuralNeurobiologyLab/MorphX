@@ -316,7 +316,8 @@ class ChunkHandler:
                 feats[:] = self._obj_feats['hc']
                 obj.set_features(feats)
         # remove nodes of given labels
-        obj.remove_nodes(self._label_remove)
+        if self._label_remove is not None:
+            obj.remove_nodes(self._label_remove)
         # change labels
         if self._label_mappings is not None:
             obj.map_labels(self._label_mappings)
