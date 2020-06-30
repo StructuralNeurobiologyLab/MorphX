@@ -87,7 +87,7 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                 if density_splitting:
                     subgraph = objects.density_splitting(obj, choice[0], vert_num)
                 else:
-                    subgraph = objects.context_splitting_v2(obj, choice[0], chunk_size, radius=1000)
+                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size, radius=1000)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
                 mask[np.isin(nodes, subgraph)] = False

@@ -17,10 +17,12 @@ from morphx.classes.hybridcloud import HybridCloud
 # -------------------------------------- CLOUD SAMPLING ------------------------------------------- #
 
 def sample_cloud(pc: PointCloud, vertex_number: int, random_seed: int = None,
-                    jitter: int = 0) -> Tuple[PointCloud, np.ndarray]:
+                    jitter: int = 0, padding: int = None) -> Tuple[PointCloud, np.ndarray]:
     """ Creates a (pseudo)random sample point cloud with a specific number of points from the given subset of mesh
     vertices. If the requested number of points is larger than the given subset, the subset gets enriched with slightly
-    augmented points before sampling.
+    augmented points before sampling if padding is None. If padding is not None, points with padding as coordinates are
+    added to the resulting sample. These padded points have all properties (e.g. features, labels) from the point at
+    pc.vertices[0].
 
     Args:
         pc: MorphX PointCloud object which should be sampled.
@@ -28,6 +30,7 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed: int = None,
         random_seed: Possibility for making the sampling deterministic.
         jitter: Add small jitter to possible duplicate points due to oversampling. A jitter of
             np.random.random((deficit, 3))*jitter is added to the duplicate points.
+        padding: If not None, any point deficit in the input point cloud is compensated by points with this padding.
 
     Returns:
         PointCloud with sampled points (and labels) and indices of the original vertices where samples are from.
@@ -45,16 +48,21 @@ def sample_cloud(pc: PointCloud, vertex_number: int, random_seed: int = None,
     # cache vertex indices of sample for later mapping
     sample_ixs = np.zeros(vertex_number, dtype=int)
     sample_ixs[:min(len(pc.vertices), vertex_number)] = vert_ixs[:vertex_number]
-    # add duplicate points in case of oversampling
-    deficit = max(0, vertex_number - len(pc.vertices))
-    offset = len(pc.vertices)
-    # while loop and replace=False ensures uniform oversampling
-    while deficit != 0:
-        next_compensation = min(len(vert_ixs), deficit)
-        sample_ixs[offset:offset+next_compensation] = np.random.choice(vert_ixs, next_compensation, replace=False)
-        deficit -= next_compensation
-        offset += next_compensation
-    samplev = pc.vertices[sample_ixs].astype(float)
+    if padding is None:
+        # add augmented points in case of deficit
+        deficit = max(0, vertex_number - len(pc.vertices))
+        offset = len(pc.vertices)
+        # while loop and replace=False ensures uniform oversampling
+        while deficit != 0:
+            next_compensation = min(len(vert_ixs), deficit)
+            sample_ixs[offset:offset+next_compensation] = np.random.choice(vert_ixs, next_compensation, replace=False)
+            deficit -= next_compensation
+            offset += next_compensation
+        samplev = pc.vertices[sample_ixs].astype(float)
+    else:
+        # add padded points in case of deficit
+        samplev = np.ones((vertex_number, 3)) * padding
+        samplev[:len(pc.vertices)] = pc.vertices[sample_ixs[:len(pc.vertices)]]
     if len(pc.labels) != 0:
         samplel = pc.labels[sample_ixs]
     if len(pc.features) != 0:

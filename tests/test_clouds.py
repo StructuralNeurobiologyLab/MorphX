@@ -164,6 +164,15 @@ def test_sampling():
         assert len(sample.types) == 0
         assert np.all(pc.pred_labels[mask] == sample.pred_labels[i])
 
+    sample, idcs = clouds.sample_cloud(pc, 40, padding=1000)
+    assert len(sample.vertices) == 40
+    for i in range(30):
+        assert np.all(np.array([1000., 1000., 1000.]) == sample.vertices[i+10])
+        assert np.all(pc.labels[0] == sample.labels[i+10])
+        assert np.all(pc.features[0] == sample.features[i+10])
+        assert len(sample.types) == 0
+        assert np.all(pc.pred_labels[0] == sample.pred_labels[i+10])
+
 
 if __name__ == '__main__':
     test_sampling()
