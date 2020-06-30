@@ -47,7 +47,8 @@ class ChunkHandler:
                  splitting_redundancy: int = 1,
                  label_remove: List[int] = None,
                  sampling: bool = True,
-                 force_split: bool = False):
+                 force_split: bool = False,
+                 padding: int = None):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -118,6 +119,7 @@ class ChunkHandler:
         self._hybrid_mode = hybrid_mode
         self._label_remove = label_remove
         self._sampling = sampling
+        self._padding = padding
 
         # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
@@ -195,9 +197,9 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_obj[item[1]]
                 sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-                subset_verts = len(sample.vertices)
+                self._transform(sample)
                 if self._sampling:
-                    sample, ixs = clouds.sample_cloud(sample, self._sample_num)
+                    sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
             else:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
                                  'chunk index within that cloud.')
@@ -210,13 +212,17 @@ class ChunkHandler:
             # random points of these vertices (sample)
             local_bfs = curr_obj_chunks[next_item[1]]
             sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-            subset_verts = len(sample.vertices)
+            self._transform(sample)
             if self._sampling:
-                sample, ixs = clouds.sample_cloud(sample, self._sample_num)
+                sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
 
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:
-            self._transform(sample)
+            # Return sample and indices from where sample points were taken
+            if self._specific:
+                return sample, ixs
+            else:
+                return sample
         else:
             # Return None if sample is empty, in specific mode return np.empty(0) for idcs to differ from non-existing
             # chunk
@@ -224,12 +230,6 @@ class ChunkHandler:
                 return None, np.empty(0)
             else:
                 return None
-
-        # Return sample and indices from where sample points were taken
-        if self._specific:
-            return sample, ixs
-        else:
-            return sample
 
     @property
     def obj_names(self):

@@ -36,18 +36,20 @@ class TorchHandler(data.Dataset):
                  splitting_redundancy: int = 1,
                  label_remove: List[int] = None,
                  sampling: bool = True,
-                 force_split: bool = False):
+                 force_split: bool = False,
+                 padding: int = None):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
                                 specific=specific, data_type=data_type, obj_feats=obj_feats,
                                 label_mappings=label_mappings, hybrid_mode=hybrid_mode,
                                 splitting_redundancy=splitting_redundancy, label_remove=label_remove, sampling=sampling,
-                                force_split=force_split)
+                                force_split=force_split, padding=padding)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
         self._feat_dim = feat_dim
+        self._padding = padding
 
     def __len__(self):
         return len(self._ch)
@@ -93,7 +95,11 @@ class TorchHandler(data.Dataset):
                 no_pred_labels.append(sample.encoding[name])
 
         # build mask for all indices which should not be used for loss calculation
-        idcs = torch.from_numpy(np.isin(sample.labels, no_pred_labels).reshape(-1))
+        idcs = np.isin(sample.labels, no_pred_labels).reshape(-1)
+        if self._padding is not None:
+            # Mark points which were added as padding for later removal / for ignoring them during loss calculation
+            idcs = np.logical_or(idcs, np.all(sample.vertices == self._padding, axis=1))
+        idcs = torch.from_numpy(idcs)
         o_mask = torch.ones(len(sample.vertices), self._nclasses, dtype=torch.bool)
         l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
         o_mask[idcs] = False
