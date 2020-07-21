@@ -106,3 +106,4 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         with open(filename, 'wb') as f:
             pickle.dump(splitted_hcs, f)
         f.close()
+    return splitted_hcs

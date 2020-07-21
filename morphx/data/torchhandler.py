@@ -37,14 +37,17 @@ class TorchHandler(data.Dataset):
                  label_remove: List[int] = None,
                  sampling: bool = True,
                  force_split: bool = False,
-                 padding: int = None):
+                 padding: int = None,
+                 split_on_demand: bool = False,
+                 split_jitter: int = 0):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
                                 specific=specific, data_type=data_type, obj_feats=obj_feats,
                                 label_mappings=label_mappings, hybrid_mode=hybrid_mode,
                                 splitting_redundancy=splitting_redundancy, label_remove=label_remove, sampling=sampling,
-                                force_split=force_split, padding=padding)
+                                force_split=force_split, padding=padding, split_on_demand=split_on_demand,
+                                split_jitter=split_jitter)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num

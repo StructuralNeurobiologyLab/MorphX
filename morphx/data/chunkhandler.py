@@ -48,7 +48,10 @@ class ChunkHandler:
                  label_remove: List[int] = None,
                  sampling: bool = True,
                  force_split: bool = False,
-                 padding: int = None):
+                 padding: int = None,
+                 verbose: bool = False,
+                 split_on_demand: bool = False,
+                 split_jitter: int = 0):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
@@ -72,6 +75,11 @@ class ChunkHandler:
             label_remove: List of labels indicating which nodes should be removed from the dataset. This is
                 is independent from the label_mappings, as the label removal is done during splitting.
             sampling: Flag for random sampling from the extracted subsets.
+            force_split: Split dataset again even if splitting information exists.
+            padding: add padded points if a subset contains less points than there should be sampled.
+            verbose: Return additional information about size of subsets.
+            split_on_demand: Do not generate splitting information in advance, but rather generate chunks on the fly.
+            split_jitter: Used only if split_on_demand = True. Adds jitter to the context size of the generated chunks.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -90,6 +98,8 @@ class ChunkHandler:
             self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
         self._splitted_objs = None
         orig_splitfile = self._splitfile
+        if split_on_demand:
+            force_split = True
         while os.path.exists(self._splitfile):
             if not force_split:
                 with open(self._splitfile, 'rb') as f:
@@ -120,6 +130,14 @@ class ChunkHandler:
         self._label_remove = label_remove
         self._sampling = sampling
         self._padding = padding
+        self._verbose = verbose
+        self._split_on_demand = split_on_demand
+        self._bio_density = bio_density
+        self._tech_density = tech_density
+        self._density_mode = density_mode
+        self._chunk_size = chunk_size
+        self._splitting_redundancy = splitting_redundancy
+        self._split_jitter = split_jitter
 
         # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
@@ -159,10 +177,7 @@ class ChunkHandler:
             else:
                 size = len(self._splitted_objs[self._curr_name])
         else:
-            # Size of entire dataset
-            size = 0
-            for name in self._obj_names:
-                size += len(self._splitted_objs[name])
+            size = len(self._chunk_list)
         return size
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
@@ -178,6 +193,7 @@ class ChunkHandler:
                 requested object and the index of the chunk within that object. E.g. if chunk
                 5 from object in pickle file object.pkl is requested, this would be ('object', 5).
         """
+        vert_num = None
         if self._specific:
             # Get specific item (e.g. chunk 5 of object 1)
             if isinstance(item, tuple):
@@ -197,6 +213,8 @@ class ChunkHandler:
                 # draw random points of these vertices (sample)
                 local_bfs = splitted_obj[item[1]]
                 sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
+                if self._verbose:
+                    vert_num = len(sample.vertices)
                 self._transform(sample)
                 if self._sampling:
                     sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
@@ -204,14 +222,28 @@ class ChunkHandler:
                 raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
                                  'chunk index within that cloud.')
         else:
+            if self._split_on_demand and item == len(self)-1:
+                # generate new chunks each epoch
+                jitter = random.randint(0, self._split_jitter)
+                self._splitted_objs = splitting.split(self._data_path, self._splitfile, bio_density=self._bio_density,
+                                                      capacity=self._sample_num, tech_density=self._tech_density,
+                                                      density_splitting=self._density_mode,
+                                                      chunk_size=self._chunk_size + jitter,
+                                                      splitted_hcs=None, redundancy=self._splitting_redundancy,
+                                                      label_remove=self._label_remove)
+                # chunk list stays the same as it only refers to indices and the size should stay the same
+                random.shuffle(self._chunk_list)
             next_item = self._chunk_list[item]
             curr_obj_chunks = self._splitted_objs[next_item[0]]
             self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
 
             # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and draw
             # random points of these vertices (sample)
-            local_bfs = curr_obj_chunks[next_item[1]]
+            next_ix = next_item[1] % len(curr_obj_chunks)
+            local_bfs = curr_obj_chunks[next_ix]
             sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
+            if self._verbose:
+                vert_num = len(sample.vertices)
             self._transform(sample)
             if self._sampling:
                 sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
@@ -219,14 +251,18 @@ class ChunkHandler:
         # Apply transformations (e.g. Composition of Rotation and Normalization)
         if len(sample.vertices) > 0:
             # Return sample and indices from where sample points were taken
-            if self._specific:
+            if self._verbose:
+                return sample, ixs, vert_num
+            elif self._specific:
                 return sample, ixs
             else:
                 return sample
         else:
             # Return None if sample is empty, in specific mode return np.empty(0) for idcs to differ from non-existing
             # chunk
-            if self._specific:
+            if self._verbose:
+                return None, np.empty(0), 0
+            elif self._specific:
                 return None, np.empty(0)
             else:
                 return None
