@@ -440,6 +440,56 @@ class RandomShear(Transformation):
         return self.limits
 
 
+class ElasticTransform(Transformation):
+    def __init__(self, res: tuple = (20, 20, 20), sigma: Union[float, Tuple[float, float]] = 4,
+                 alpha: Union[float, Tuple[float, float]] = 10, prob: float = 0.5):
+        """
+        Performs an elastic transform on the pointcloud as described in [Simard2003] Simard, Steinkraus and Platt,
+        "Best Practices for Convolutional Neural Networks applied to Visual Document Analysis", in Proc. of the
+        International Conference on Document Analysis and Recognition, 2003.
+
+        If parameters are given as tuples, the parameters of the augmentations will be chosen randomly from the
+        ranges defined by these tuples.
+
+        Args:
+            res: Tuple which indicates resolution of base grid in x, y, z direction.
+            sigma: Standard deviation of gaussian blurr which is applied to the random displacements.
+            alpha: Scaling factor to adjust the strength of the augmentation.
+            prob: Probability with which augmentation will be applied.
+        """
+        self.res = res
+        randomize = False
+        if type(sigma) == tuple or type(alpha) == tuple:
+            randomize = True
+        if randomize:
+            if type(sigma) == float:
+                sigma = (sigma, sigma)
+            if type(alpha) == float:
+                alpha = (alpha, alpha)
+        self.sigma = sigma
+        self.alpha = alpha
+        self.prob = prob
+        self.randomize = randomize
+
+    def __call__(self, pc: PointCloud):
+        if np.random.random() < self.prob:
+            if self.randomize:
+                sigma = np.random.rand() * (self.sigma[1]-self.sigma[0]) + self.sigma[0]
+                alpha = np.random.rand() * (self.alpha[1]-self.alpha[0]) + self.alpha[0]
+            else:
+                sigma = self.sigma
+                alpha = self.alpha
+            pc.elastic(self.res, sigma, alpha)
+
+    @property
+    def augmentation(self):
+        return True
+
+    @property
+    def attributes(self):
+        return self.res, self.sigma, self.alpha, self.prob
+
+
 # -------------------------------------- DIVERSE HELPERS ------------------------------------------- #
 
 

@@ -14,6 +14,8 @@ from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
+from scipy.interpolate import interpn
+from scipy.ndimage import gaussian_filter
 
 
 class PointCloud(object):
@@ -458,6 +460,34 @@ class PointCloud(object):
         transform = np.random.random((3, 3)) * (limits[1] - limits[0]) + limits[0]
         np.fill_diagonal(transform, 1)
         self._vertices = self._vertices.dot(transform)
+
+    def elastic(self, res: tuple = (20, 20, 20), sigma: float = 4, alpha: float = 10):
+        """
+        Performs an elastic transform on the pointcloud as described in [Simard2003] Simard, Steinkraus and Platt,
+        "Best Practices for Convolutional Neural Networks applied to Visual Document Analysis", in Proc. of the
+        International Conference on Document Analysis and Recognition, 2003.
+
+        Args:
+            res: Tuple which indicates resolution of base grid in x, y, z direction.
+            sigma: Standard deviation of gaussian blurr which is applied to the random displacements.
+            alpha: Scaling factor to adjust the strength of the augmentation.
+        """
+        max_bound = np.max(self.vertices, axis=0)
+        min_bound = np.min(self.vertices, axis=0)
+        max_bound += max_bound / 4
+        min_bound -= np.abs(min_bound) / 4
+        grid_displcs = []
+        for i in range(3):
+            grid_displcs.append(gaussian_filter((np.random.rand(*res) * 2 - 1), sigma, mode="constant", cval=0) * alpha)
+        x = np.linspace(min_bound[0], max_bound[0], res[0])
+        y = np.linspace(min_bound[1], max_bound[1], res[1])
+        z = np.linspace(min_bound[2], max_bound[2], res[2])
+        grid = (x, y, z)
+        displcs = []
+        for grid_displc in grid_displcs:
+            displcs.append(interpn(grid, grid_displc, self.vertices).reshape(-1, 1))
+        displcs = np.hstack(displcs)
+        self._vertices += displcs
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
