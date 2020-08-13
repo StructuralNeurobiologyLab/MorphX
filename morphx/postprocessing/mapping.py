@@ -12,18 +12,20 @@ from typing import List
 from morphx.data import basics
 from morphx.processing import objects
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 
 
 class PredictionMapper:
     def __init__(self, data_path: str, save_path: str, splitfile: str, datatype: str = 'ce',
-                 label_remove: List[int] = None):
+                 label_remove: List[int] = None, hybrid_mode: bool = False):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
             save_path: Location where mapped predictions from specific mode should be saved.
             datatype: Type of data encoded in string. 'ce' for CloudEnsembles, 'hc' for HybridClouds.
-            splitfile: File with splitting information for the dataset of interest
+            splitfile: File with splitting information for the dataset of interest.
+            hybrid_mode: Flag for dropping all substructures except the actual mesh.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -43,6 +45,7 @@ class PredictionMapper:
         self._curr_obj = None
         self._curr_name = None
         self._label_remove = label_remove
+        self._hybrid_mode = hybrid_mode
 
     @property
     def save_path(self):
@@ -87,6 +90,8 @@ class PredictionMapper:
 
     def load_prediction(self, name: str):
         self._curr_obj = objects.load_obj(self._datatype, f'{self._data_path}{name}.pkl')
+        if self._hybrid_mode and isinstance(self._curr_obj, CloudEnsemble):
+            self._curr_obj = self._curr_obj.hc
         if self._label_remove is not None:
             self._curr_obj.remove_nodes(self._label_remove)
         self._curr_name = name

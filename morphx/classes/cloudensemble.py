@@ -141,13 +141,13 @@ class CloudEnsemble(object):
         self.flattened.set_verts2node(new_verts2node)
 
     def map_labels(self, label_mappings: List):
+        self.flattened.map_labels(label_mappings)
         self._hc.map_labels(label_mappings)
         for key in self.clouds:
             cloud = self.get_cloud(key)
             if cloud is None:
                 pass
             cloud.map_labels(label_mappings)
-        self.flattened.map_labels(label_mappings)
 
     # -------------------------------------- SETTERS ------------------------------------------- #
 

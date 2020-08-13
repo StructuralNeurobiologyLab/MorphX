@@ -8,15 +8,17 @@
 import os
 import glob
 import pickle
+import random
 import numpy as np
 from tqdm import tqdm
 from typing import List
+import open3d as o3d
 from morphx.processing import ensembles, objects
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
           density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1,
-          label_remove: List[int] = None):
+          label_remove: List[int] = None, split_jitter: int = 0):
     """
     Splits HybridClouds given as pickle files at data_path into multiple subgraphs and saves that chunking information
     in the new folder 'splitted' as a pickled dict. The dict has filenames of the HybridClouds as keys and lists of
@@ -40,8 +42,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         redundancy: Indicates how many iterations of base nodes should get used. 1 means, that base nodes get randomly
             drawn from the remaining nodes until all nodes have been included in at least one subgraph. redundancy = n
             means, that base nodes get randomly drawn until all nodes have been included in subgraphs at least n times.
-        label_remove: List of labels indicating which nodes should get removed
-        force_split: Force new splitting even if there are existing split files.
+        label_remove: List of labels indicating which nodes should get removed.
+        split_jitter: Adds jitter to the context size of the generated chunks.
     """
     # check validity of method call
     if density_splitting:
@@ -87,7 +89,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                 if density_splitting:
                     subgraph = objects.density_splitting(obj, choice[0], vert_num)
                 else:
-                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size, radius=1000)
+                    jitter = random.randint(0, split_jitter)
+                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size + jitter, radius=1000)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
                 mask[np.isin(nodes, subgraph)] = False

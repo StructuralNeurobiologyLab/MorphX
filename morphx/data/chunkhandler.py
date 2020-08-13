@@ -16,6 +16,7 @@ from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
+from syconn.reps.super_segmentation import SuperSegmentationDataset
 
 
 class ChunkHandler:
@@ -32,7 +33,7 @@ class ChunkHandler:
         original object.
     """
     def __init__(self,
-                 data_path: str,
+                 data: Union[str, SuperSegmentationDataset],
                  sample_num: int,
                  density_mode: bool = True,
                  bio_density: float = None,
@@ -54,7 +55,7 @@ class ChunkHandler:
                  split_jitter: int = 0):
         """
         Args:
-            data_path: Path to objects saved as pickle files. Existing chunking information would
+            data: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
             sample_num: Number of vertices which should be sampled from the surface of each chunk.
                 Should be equal to the capacity of the given network architecture.
@@ -81,44 +82,48 @@ class ChunkHandler:
             split_on_demand: Do not generate splitting information in advance, but rather generate chunks on the fly.
             split_jitter: Used only if split_on_demand = True. Adds jitter to the context size of the generated chunks.
         """
-        self._data_path = os.path.expanduser(data_path)
-        if not os.path.exists(self._data_path):
-            os.makedirs(self._data_path)
-        if not os.path.exists(self._data_path + 'splitted/'):
-            os.makedirs(self._data_path + 'splitted/')
-        self._splitfile = ''
-        # Load chunks or split dataset into chunks if it was not done already
-        if density_mode:
-            if bio_density is None or tech_density is None:
-                raise ValueError("Density mode requires bio_density and tech_density")
-            self._splitfile = f'{self._data_path}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}_lr{label_remove}.pkl'
+        if type(data) == SuperSegmentationDataset:
+            self._data = data
         else:
-            if chunk_size is None:
-                raise ValueError("Context mode requires chunk_size.")
-            self._splitfile = f'{self._data_path}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
-        self._splitted_objs = None
-        orig_splitfile = self._splitfile
-        if split_on_demand:
-            force_split = True
-        while os.path.exists(self._splitfile):
-            if not force_split:
-                with open(self._splitfile, 'rb') as f:
-                    self._splitted_objs = pickle.load(f)
-                f.close()
-                break
+            self._data = os.path.expanduser(data)
+            if not os.path.exists(self._data):
+                os.makedirs(self._data)
+            if not os.path.exists(self._data + 'splitted/'):
+                os.makedirs(self._data + 'splitted/')
+            self._splitfile = ''
+            # Load chunks or split dataset into chunks if it was not done already
+            if density_mode:
+                if bio_density is None or tech_density is None:
+                    raise ValueError("Density mode requires bio_density and tech_density")
+                self._splitfile = f'{self._data}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}_lr{label_remove}.pkl'
             else:
-                version = re.findall(r"v(\d+).", self._splitfile)
-                if len(version) == 0:
-                    self._splitfile = self._splitfile[:-4] + '_v1.pkl'
+                if chunk_size is None:
+                    raise ValueError("Context mode requires chunk_size.")
+                self._splitfile = f'{self._data}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
+            self._splitted_objs = None
+            orig_splitfile = self._splitfile
+            if split_on_demand:
+                force_split = True
+            while os.path.exists(self._splitfile):
+                if not force_split:
+                    with open(self._splitfile, 'rb') as f:
+                        self._splitted_objs = pickle.load(f)
+                    f.close()
+                    break
                 else:
-                    version = int(version[0])
-                    self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
-        splitting.split(data_path, self._splitfile, bio_density=bio_density, capacity=sample_num,
-                        tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
-                        splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy, label_remove=label_remove)
-        with open(self._splitfile, 'rb') as f:
-            self._splitted_objs = pickle.load(f)
-        f.close()
+                    version = re.findall(r"v(\d+).", self._splitfile)
+                    if len(version) == 0:
+                        self._splitfile = self._splitfile[:-4] + '_v1.pkl'
+                    else:
+                        version = int(version[0])
+                        self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
+            splitting.split(data, self._splitfile, bio_density=bio_density, capacity=sample_num,
+                            tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
+                            splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy, label_remove=label_remove,
+                            split_jitter=split_jitter)
+            with open(self._splitfile, 'rb') as f:
+                self._splitted_objs = pickle.load(f)
+            f.close()
 
         self._sample_num = sample_num
         self._transform = transform
@@ -142,21 +147,22 @@ class ChunkHandler:
         # In non-specific mode, the entire dataset gets loaded at once
         self._obj_names = []
         self._objs = []
-        files = glob.glob(data_path + '*.pkl')
-        for file in files:
-            slashs = [pos for pos, char in enumerate(file) if char == '/']
-            name = file[slashs[-1] + 1:-4]
-            self._obj_names.append(name)
+        if type(self._data) != SuperSegmentationDataset:
+            files = glob.glob(data + '*.pkl')
+            for file in files:
+                slashs = [pos for pos, char in enumerate(file) if char == '/']
+                name = file[slashs[-1] + 1:-4]
+                self._obj_names.append(name)
+                if not self._specific:
+                    obj = self._adapt_obj(objects.load_obj(self._data_type, file))
+                    self._objs.append(obj)
+            self._chunk_list = []
             if not self._specific:
-                obj = self._adapt_obj(objects.load_obj(self._data_type, file))
-                self._objs.append(obj)
-        self._chunk_list = []
-        if not self._specific:
-            for item in self._splitted_objs:
-                if item in self._obj_names:
-                    for idx in range(len(self._splitted_objs[item])):
-                        self._chunk_list.append((item, idx))
-            random.shuffle(self._chunk_list)
+                for item in self._splitted_objs:
+                    if item in self._obj_names:
+                        for idx in range(len(self._splitted_objs[item])):
+                            self._chunk_list.append((item, idx))
+                random.shuffle(self._chunk_list)
 
         # In specific mode, the files should be loaded sequentially
         self._curr_obj = None
@@ -170,7 +176,10 @@ class ChunkHandler:
             objects gets returned or the number of chunks of the last requested
             object in specific mode.
         """
-        if self._specific:
+        if type(self._data) == SuperSegmentationDataset:
+            # TODO: Find better solution for the size of an ssd
+            size = len(self._data.ssv_ids)
+        elif self._specific:
             # Size of last requested object
             if self._curr_name is None:
                 size = 0
@@ -194,7 +203,9 @@ class ChunkHandler:
                 5 from object in pickle file object.pkl is requested, this would be ('object', 5).
         """
         vert_num = None
-        if self._specific:
+        if type(self._data) == SuperSegmentationDataset:
+            pass
+        elif self._specific:
             # Get specific item (e.g. chunk 5 of object 1)
             if isinstance(item, tuple):
                 splitted_obj = self._splitted_objs[item[0]]
@@ -202,7 +213,7 @@ class ChunkHandler:
                 # In specific mode, the files should be loaded sequentially
                 if self._curr_name != item[0]:
                     self._curr_obj = self._adapt_obj(objects.load_obj(self._data_type,
-                                                                      self._data_path + item[0] + '.pkl'))
+                                                                      self._data + item[0] + '.pkl'))
                     self._curr_name = item[0]
 
                 # Return None if requested chunk doesn't exist
@@ -225,7 +236,7 @@ class ChunkHandler:
             if self._split_on_demand and item == len(self)-1:
                 # generate new chunks each epoch
                 jitter = random.randint(0, self._split_jitter)
-                self._splitted_objs = splitting.split(self._data_path, self._splitfile, bio_density=self._bio_density,
+                self._splitted_objs = splitting.split(self._data, self._splitfile, bio_density=self._bio_density,
                                                       capacity=self._sample_num, tech_density=self._tech_density,
                                                       density_splitting=self._density_mode,
                                                       chunk_size=self._chunk_size + jitter,
@@ -298,7 +309,7 @@ class ChunkHandler:
             obj = self._objs[ix]
         else:
             # load objects individually
-            obj = self._adapt_obj(objects.load_obj(self._data_type, self._data_path + name + '.pkl'))
+            obj = self._adapt_obj(objects.load_obj(self._data_type, self._data + name + '.pkl'))
         attr_dict = {'vertex_num': len(obj.vertices), 'node_num': len(obj.nodes),
                      'types': list(np.unique(obj.types, return_counts=True)),
                      'labels': list(np.unique(obj.labels, return_counts=True)), 'length': self.get_obj_length(name)}
