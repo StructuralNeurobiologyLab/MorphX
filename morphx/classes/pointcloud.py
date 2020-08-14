@@ -14,8 +14,8 @@ from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
 from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
-from scipy.ndimage.filters import gaussian_filter
 from scipy.interpolate import interpn
+from scipy.ndimage import gaussian_filter
 
 
 class PointCloud(object):
@@ -423,7 +423,7 @@ class PointCloud(object):
 
         Args:
             res: Tuple which indicates resolution of base grid in x, y, z direction.
-            sigma: Standard deviation of gaussian blurr which is applied to the random displacements.
+            sigma: Standard deviation of gaussian blur which is applied to the random displacements.
             alpha: Scaling factor to adjust the strength of the augmentation.
         """
         max_bound = np.max(self.vertices, axis=0)
@@ -442,7 +442,6 @@ class PointCloud(object):
             displcs.append(interpn(grid, grid_displc, self.vertices).reshape(-1, 1))
         displcs = np.hstack(displcs)
         self._vertices += displcs
-
 
 # -------------------------------------- CLOUD I/O ------------------------------------------- #
 
