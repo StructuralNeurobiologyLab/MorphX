@@ -60,7 +60,10 @@ class PointCloud(object):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
-        self._pred_labels = np.array(pred_labels)  # trigger copy
+        if pred_labels is not None:
+            self._pred_labels = np.array(pred_labels)  # trigger copy
+        else:
+            self._pred_labels = None
 
         if features is None or len(features) == 0:
             self._features = np.zeros(0)
