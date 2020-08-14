@@ -51,7 +51,7 @@ class PointCloud(object):
         """
         if vertices is not None and len(vertices) > 0 and vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
-        self._vertices = vertices
+        self._vertices = np.array(vertices)  # trigger copy
 
         if labels is None or len(labels) == 0:
             self._labels = np.zeros(0)  # TODO: change to None (and update according label handlings)
@@ -60,19 +60,19 @@ class PointCloud(object):
                 raise ValueError("Vertex label array must have same length as vertices array.")
             self._labels = labels.reshape(len(labels), 1).astype(int)
 
-        self._pred_labels = pred_labels
+        self._pred_labels = np.array(pred_labels)  # trigger copy
 
         if features is None or len(features) == 0:
             self._features = np.zeros(0)
         else:
             if vertices is None or len(features) != len(vertices):
                 raise ValueError("Feature array must have same length as vertices array.")
-            self._features = features
+            self._features = np.array(features)  # trigger copy
 
         if types is not None and len(types) != 0:
             if vertices is None or len(types) != len(vertices):
                 raise ValueError("Type array must have same length as vertices array.")
-            self._types = types
+            self._types = np.array(types)  # trigger copy
         else:
             self._types = np.zeros(0)
         self._encoding = encoding
@@ -371,12 +371,15 @@ class PointCloud(object):
     def scale(self, factor: int):
         """ If factor < 0 vertices are divided by the factor. If factor > 0 vertices are multiplied by the
             factor. If factor == 0 nothing happens. """
-        if factor == 0:
+        if np.any(factor == 0):
             return
-        elif factor < 0:
-            self._vertices = self._vertices / -factor
-        else:
-            self._vertices = self._vertices * factor
+        if np.isscalar(factor):
+            factor = np.array([factor] * 3)
+        elif type(factor) is not np.ndarray:
+            factor = np.array(factor)
+        if np.any(factor < 0):
+            self._vertices[..., factor < 0] = self._vertices[..., factor < 0] / -factor[factor < 0]
+        self._vertices[..., factor > 0] = self._vertices[..., factor > 0] * factor[factor > 0]
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = False):
         """ Randomly rotates vertices by performing an Euler rotation. The three angles are chosen randomly
@@ -441,9 +444,9 @@ class PointCloud(object):
             distr: Noise distribution, currently available: 'uniform' and 'Gaussian'.
         """
         if distr.lower() == 'normal':
-            variation = 1 + np.random.standard_normal(1)[0] * distr_scale
+            variation = 1 + np.random.standard_normal(3) * distr_scale
         elif distr.lower() == 'uniform':
-            variation = 1 + np.random.random(1) * 2 * distr_scale - distr_scale
+            variation = 1 + np.random.random(3) * 2 * distr_scale - distr_scale
         else:
             raise ValueError(f'Given value "{distr}" for noise distribution not available.')
         self.scale(variation)
