@@ -462,7 +462,7 @@ class ElasticTransform(Transformation):
 
         Args:
             res: Tuple which indicates resolution of base grid in x, y, z direction.
-            sigma: Standard deviation of gaussian blurr which is applied to the random displacements.
+            sigma: Standard deviation of gaussian blur which is applied to the random displacements.
             alpha: Scaling factor to adjust the strength of the augmentation.
             prob: Probability with which augmentation will be applied.
         """
