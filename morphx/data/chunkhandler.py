@@ -23,7 +23,7 @@ from syconn.reps.super_segmentation import SuperSegmentationDataset
 
 
 def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationDataset, ctx: int,
-                 base_node_dst: int, parts: Dict[str, List[int, int]]):
+                 base_node_dst: int, parts: Dict[str, List[int, int]], labels_itf: str):
     """
     Args:
         id_queue: Input queue with cell ids.
@@ -33,34 +33,46 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
         base_node_dst: Distance between base nodes. Corresponds to redundancy / number of chunks per cell.
         parts: Information about cell surface and organelles, Tuples like (voxel_param, feature) keyed by identifier
             compatible with syconn (e.g. 'sv' or 'mi').
+        labels_itf: Label identifier for existing label predictions within the sso objects of the ssd dataset.
     """
     while True:
         if not id_queue.empty():
             ssv_id = id_queue.get()
-            if 'STOP' in ssv_id:
+            if ssv_id == 'STOP':
                 break
             sso = ssd.get_super_segmentation_object(ssv_id)
             vert_dc = {}
-            idcs_dc = {}
+            label_dc = {}
+            encoding = {}
             offset = 0
             obj_bounds = {}
-            for k in parts:
+            labels_total = sso.label_dict()[labels_itf]
+            for ix, k in enumerate(parts):
                 pcd = o3d.geometry.PointCloud()
                 verts = sso.load_mesh(k)[1].reshape(-1, 3)
                 pcd.points = o3d.utility.Vector3dVector(verts)
                 pcd, idcs = pcd.voxel_down_sample_and_trace(parts[k][0], pcd.get_min_bound(),
                                                             pcd.get_max_bound())
                 idcs = np.max(idcs, axis=1)
-                idcs_dc[k] = idcs
                 vert_dc[k] = np.asarray(pcd.points)
                 obj_bounds[k] = [offset, offset + len(pcd.points)]
                 offset += len(pcd.points)
+                if k == 'sv':
+                    labels = labels_total[idcs]
+                else:
+                    labels = np.ones(len(vert_dc[k])) + ix + 1 + labels_total.max()
+                    encoding[k] = ix + 1 + labels_total.max()
+                label_dc[k] = labels
             sample_feats = np.concatenate([[parts[k][1]] * len(vert_dc[k]) for k in parts]).reshape(-1, 1)
             sample_pts = np.concatenate([vert_dc[k] for k in parts])
+            sample_labels = np.concatenate([label_dc[k] for k in parts])
+            no_preds = list(encoding.keys())
             if not sso.load_skeleton():
                 raise ValueError(f'Couldnt find skeleton of {sso}')
             nodes, edges = sso.skeleton['nodes'] * sso.scaling, sso.skeleton['edges']
-            hc = HybridCloud(nodes, edges, vertices=sample_pts, features=sample_feats, obj_bounds=obj_bounds)
+            hc = HybridCloud(nodes, edges, vertices=sample_pts, features=sample_feats, obj_bounds=obj_bounds,
+                             no_preds=no_preds, labels=sample_labels, encoding=encoding)
+            _ = hc.verts2node
             node_arrs = splitting.split_single(hc, ctx, base_node_dst, 1000)
             sample, _ = objects.extract_cloud_subset(hc, node_arrs)
             chunk_queue.put(sample)
@@ -104,7 +116,10 @@ class ChunkHandler:
                  split_jitter: int = 0,
                  epoch_size: int = None,
                  workers: int = 1,
-                 voxel_sizes: Optional[dict] = None):
+                 voxel_sizes: Optional[dict] = None,
+                 ssd_exclude: List[int] = None,
+                 ssd_include: List[int] = None,
+                 ssd_labels: str = None):
         """
         Args:
             data: Path to objects saved as pickle files. Existing chunking information would
@@ -139,8 +154,6 @@ class ChunkHandler:
             voxel_sizes: Voxelization options in case of ssd dataset use. Given as dict with voxel sizes keyed by
                 cell part identifier (e.g. 'sv' or 'mi').
         """
-        if voxel_sizes is None:
-            voxel_sizes = dict(sv=80, mi=100, syn_ssv=100, vc=100)
         if type(data) == SuperSegmentationDataset:
             self._data = data
         else:
@@ -207,10 +220,24 @@ class ChunkHandler:
         self._split_jitter = split_jitter
         self._epoch_size = epoch_size
         self._workers = workers
+        self._ssd_exclude = ssd_exclude
+        if ssd_exclude is None:
+            self._ssd_exclude = []
+        self._ssd_include = ssd_include
+        if self._ssd_labels is None and type(self._data) == SuperSegmentationDataset:
+            raise ValueError("ssd_labels must be specified when working with a SuperSegmentationDataset!")
+        self._ssd_labels = ssd_labels
         self._obj_names = []
         self._objs = []
         self._chunk_list = []
         self._parts = {}
+
+        if type(data) == SuperSegmentationDataset:
+            self._load_func = self.get_item_ssd
+        if self._specific:
+            self._load_func = self.get_item_specific
+        else:
+            self._load_func = self.get_item
 
         for key in self._obj_feats:
             self._parts[key] = [self._obj_feats[key], self._voxel_sizes[key]]
@@ -219,14 +246,17 @@ class ChunkHandler:
             # If ssd dataset is given, multiple workers are used for splitting the ssvs of the given dataset.
             self._obj_names = Queue()
             self._chunk_list = Queue(maxsize=100)
-            for ssv in self._data.ssv_ids:
-                self._obj_names.put(ssv)
+            if self._ssd_include is None:
+                self._ssd_include = self._data.ssv_ids
+            for ssv in self._ssd_include:
+                if ssv not in self._ssd_exclude:
+                    self._obj_names.put(ssv)
             for i in range(self._workers):
                 self._obj_names.put('STOP')
             self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                   self._chunk_size,
                                                                   self._chunk_size / self._splitting_redundancy,
-                                                                  self._parts))
+                                                                  self._parts, self._ssd_labels))
                                for ii in range(workers)]
             for splitter in self._splitters:
                 splitter.start()
@@ -246,11 +276,9 @@ class ChunkHandler:
                         for idx in range(len(self._splitted_objs[item])):
                             self._chunk_list.append((item, idx))
                 random.shuffle(self._chunk_list)
-
-        # In specific mode, the files should be loaded sequentially
+        # In specific mode, the files get loaded sequentially
         self._curr_obj = None
         self._curr_name = None
-
         # Index of current chunk
         self._ix = 0
 
@@ -287,99 +315,98 @@ class ChunkHandler:
                 5 from object in pickle file object.pkl is requested, this would be ('object', 5).
         """
         vert_num = None
-        if type(self._data) == SuperSegmentationDataset:
-            while self._chunk_list.empty():
-                if self._obj_names.empty():
-                    for ssv in self._data.ssv_ids:
-                        self._obj_names.put(ssv)
-                    for i in range(self._workers):
-                        self._obj_names.put('STOP')
-                    self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
-                                                                          self._chunk_size,
-                                                                          self._chunk_size / self._splitting_redundancy,
-                                                                          self._parts))
-                                       for ii in range(self._workers)]
-                    for splitter in self._splitters:
-                        splitter.start()
-                time.sleep(0.5)
-            sample = self._chunk_list.get()
-            if self._verbose:
-                vert_num = len(sample.vertices)
-            if self._sampling:
-                sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
-            self._transform(sample)
-        elif self._specific:
-            # Get specific item (e.g. chunk 5 of object 1)
-            if isinstance(item, tuple):
-                splitted_obj = self._splitted_objs[item[0]]
-
-                # In specific mode, the files should be loaded sequentially
-                if self._curr_name != item[0]:
-                    self._curr_obj = self._adapt_obj(objects.load_obj(self._data_type,
-                                                                      self._data + item[0] + '.pkl'))
-                    self._curr_name = item[0]
-
-                # Return None if requested chunk doesn't exist
-                if item[1] >= len(splitted_obj) or abs(item[1]) > len(splitted_obj):
-                    return None, None
-
-                # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and
-                # draw random points of these vertices (sample)
-                local_bfs = splitted_obj[item[1]]
-                sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-                if self._verbose:
-                    vert_num = len(sample.vertices)
-                self._transform(sample)
-                if self._sampling:
-                    sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
-            else:
-                raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
-                                 'chunk index within that cloud.')
-        else:
-            if self._split_on_demand and item == len(self)-1:
-                # generate new chunks each epoch
-                jitter = random.randint(0, self._split_jitter)
-                self._splitted_objs = splitting.split(self._data, self._splitfile, bio_density=self._bio_density,
-                                                      capacity=self._sample_num, tech_density=self._tech_density,
-                                                      density_splitting=self._density_mode,
-                                                      chunk_size=self._chunk_size + jitter,
-                                                      splitted_hcs=None, redundancy=self._splitting_redundancy,
-                                                      label_remove=self._label_remove)
-                # chunk list stays the same as it only refers to indices and the size should stay the same
-                random.shuffle(self._chunk_list)
-            next_item = self._chunk_list[item]
-            curr_obj_chunks = self._splitted_objs[next_item[0]]
-            self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
-
-            # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and draw
-            # random points of these vertices (sample)
-            next_ix = next_item[1] % len(curr_obj_chunks)
-            local_bfs = curr_obj_chunks[next_ix]
-            sample, ixs = objects.extract_cloud_subset(self._curr_obj, local_bfs)
-            if self._verbose:
-                vert_num = len(sample.vertices)
-            self._transform(sample)
-            if self._sampling:
-                sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
-
+        sample, ixs = self._load_func(item)
+        if self._verbose:
+            vert_num = len(sample.vertices)
+        if self._sampling:
+            sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
         # Apply transformations (e.g. Composition of Rotation and Normalization)
+        self._transform(sample)
         if len(sample.vertices) > 0:
-            # Return sample and indices from where sample points were taken
             if self._verbose:
+                # Return sample, indices from where sample points were taken and number of vertices in the subset
                 return sample, ixs, vert_num
             elif self._specific:
+                # Return sample and indices from where sample points were taken
                 return sample, ixs
             else:
+                # Return only sample in non-specific mode
                 return sample
         else:
-            # Return None if sample is empty, in specific mode return np.empty(0) for idcs to differ from non-existing
-            # chunk
             if self._verbose:
                 return None, np.empty(0), 0
             elif self._specific:
                 return None, np.empty(0)
             else:
                 return None
+
+    def get_item_ssd(self, item: Union[int, Tuple[str, int]]):
+        """
+        Loading method used when data is given in form of ssd dataset. Uses multiple workers for splitting of the ssvs.
+        """
+        while self._chunk_list.empty():
+            if self._obj_names.empty():
+                for ssv in self._data.ssv_ids:
+                    if ssv not in self._ssd_exclude:
+                        self._obj_names.put(ssv)
+                for i in range(self._workers):
+                    self._obj_names.put('STOP')
+                self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
+                                                                      self._chunk_size,
+                                                                      self._chunk_size / self._splitting_redundancy,
+                                                                      self._parts, self._ssd_labels))
+                                   for ii in range(self._workers)]
+                for splitter in self._splitters:
+                    splitter.start()
+            time.sleep(0.5)
+        return self._chunk_list.get(), None
+
+    def get_item_specific(self, item: Union[int, Tuple[str, int]]):
+        """
+        Loading method used in specific mode, when given item specifies object and index of next chunk.
+        """
+        # Get specific item (e.g. chunk 5 of object 1)
+        if isinstance(item, tuple):
+            splitted_obj = self._splitted_objs[item[0]]
+            # In specific mode, the files get loaded sequentially
+            if self._curr_name != item[0]:
+                self._curr_obj = self._adapt_obj(objects.load_obj(self._data_type,
+                                                                  self._data + item[0] + '.pkl'))
+                self._curr_name = item[0]
+            # Return None if requested chunk doesn't exist
+            if item[1] >= len(splitted_obj) or abs(item[1]) > len(splitted_obj):
+                return None, None
+            # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and
+            # draw random points of these vertices (sample)
+            local_bfs = splitted_obj[item[1]]
+            return objects.extract_cloud_subset(self._curr_obj, local_bfs)
+        else:
+            raise ValueError('In validation mode, items can only be requested with a tuple of object name and '
+                             'chunk index within that cloud.')
+
+    def get_item(self, item: Union[int, Tuple[str, int]]):
+        """
+        Loading method for general case, when item only contains the index of the next chunk.
+        """
+        if self._split_on_demand and item == len(self) - 1:
+            # generate new chunks each epoch
+            jitter = random.randint(0, self._split_jitter)
+            self._splitted_objs = splitting.split(self._data, self._splitfile, bio_density=self._bio_density,
+                                                  capacity=self._sample_num, tech_density=self._tech_density,
+                                                  density_splitting=self._density_mode,
+                                                  chunk_size=self._chunk_size + jitter,
+                                                  splitted_hcs=None, redundancy=self._splitting_redundancy,
+                                                  label_remove=self._label_remove)
+            # chunk list stays the same as it only refers to indices and the size should stay the same
+            random.shuffle(self._chunk_list)
+        next_item = self._chunk_list[item]
+        curr_obj_chunks = self._splitted_objs[next_item[0]]
+        self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
+        # Load local BFS generated by splitter, extract vertices to all nodes of the local BFS (subset) and draw
+        # random points of these vertices (sample)
+        next_ix = next_item[1] % len(curr_obj_chunks)
+        local_bfs = curr_obj_chunks[next_ix]
+        return objects.extract_cloud_subset(self._curr_obj, local_bfs)
 
     @property
     def obj_names(self):
