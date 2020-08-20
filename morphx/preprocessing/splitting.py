@@ -14,6 +14,30 @@ from tqdm import tqdm
 from typing import List
 import open3d as o3d
 from morphx.processing import ensembles, objects
+from morphx.classes.hybridcloud import HybridCloud
+from morphx.processing.objects import context_splitting_kdt_many
+
+
+def split_single(hc: HybridCloud, ctx: int, base_node_dst: int, radius: int = None):
+    """
+    Splits a single HybridCloud into chunks. Selects base nodes by voxelization.
+
+    Args:
+        hc: HybridCloud which should get split.
+        ctx: context size.
+        base_node_dst: distance between base nodes. Corresponds to redundancy or the number of chunks per HybridCloud.
+        radius: Extraction radius for splitting. See splitting method for more information.
+
+    Returns:
+        The generated chunks.
+    """
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(hc.nodes)
+    pcd, idcs = pcd.voxel_down_sample_and_trace(
+        base_node_dst, pcd.get_min_bound(), pcd.get_max_bound())
+    source_nodes = np.max(idcs, axis=1)
+    node_arrs = context_splitting_kdt_many(hc, source_nodes, ctx, radius)
+    return node_arrs
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,

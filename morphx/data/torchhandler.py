@@ -5,6 +5,8 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+# Import order for open3d and torch is important
+import open3d as o3d
 import torch
 import time
 import numpy as np

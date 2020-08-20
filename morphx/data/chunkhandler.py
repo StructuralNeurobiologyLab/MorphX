@@ -10,13 +10,62 @@ import re
 import glob
 import pickle
 import random
+import time
 import numpy as np
-from typing import Union, Tuple, List
+import open3d as o3d
+from multiprocessing import Process, Queue
+from typing import Union, Tuple, List, Dict, Optional
 from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 from syconn.reps.super_segmentation import SuperSegmentationDataset
+
+
+def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationDataset, ctx: int,
+                 base_node_dst: int, parts: Dict[str, List[int, int]]):
+    """
+    Args:
+        id_queue: Input queue with cell ids.
+        chunk_queue: Output queue with cell chunks.
+        ssd: SuperSegmentationDataset which contains the cells to which the chunkhandler should get applied.
+        ctx: Context size for splitting.
+        base_node_dst: Distance between base nodes. Corresponds to redundancy / number of chunks per cell.
+        parts: Information about cell surface and organelles, Tuples like (voxel_param, feature) keyed by identifier
+            compatible with syconn (e.g. 'sv' or 'mi').
+    """
+    while True:
+        if not id_queue.empty():
+            ssv_id = id_queue.get()
+            if 'STOP' in ssv_id:
+                break
+            sso = ssd.get_super_segmentation_object(ssv_id)
+            vert_dc = {}
+            idcs_dc = {}
+            offset = 0
+            obj_bounds = {}
+            for k in parts:
+                pcd = o3d.geometry.PointCloud()
+                verts = sso.load_mesh(k)[1].reshape(-1, 3)
+                pcd.points = o3d.utility.Vector3dVector(verts)
+                pcd, idcs = pcd.voxel_down_sample_and_trace(parts[k][0], pcd.get_min_bound(),
+                                                            pcd.get_max_bound())
+                idcs = np.max(idcs, axis=1)
+                idcs_dc[k] = idcs
+                vert_dc[k] = np.asarray(pcd.points)
+                obj_bounds[k] = [offset, offset + len(pcd.points)]
+                offset += len(pcd.points)
+            sample_feats = np.concatenate([[parts[k][1]] * len(vert_dc[k]) for k in parts]).reshape(-1, 1)
+            sample_pts = np.concatenate([vert_dc[k] for k in parts])
+            if not sso.load_skeleton():
+                raise ValueError(f'Couldnt find skeleton of {sso}')
+            nodes, edges = sso.skeleton['nodes'] * sso.scaling, sso.skeleton['edges']
+            hc = HybridCloud(nodes, edges, vertices=sample_pts, features=sample_feats, obj_bounds=obj_bounds)
+            node_arrs = splitting.split_single(hc, ctx, base_node_dst, 1000)
+            sample, _ = objects.extract_cloud_subset(hc, node_arrs)
+            chunk_queue.put(sample)
+        else:
+            time.sleep(0.5)
 
 
 class ChunkHandler:
@@ -52,7 +101,10 @@ class ChunkHandler:
                  padding: int = None,
                  verbose: bool = False,
                  split_on_demand: bool = False,
-                 split_jitter: int = 0):
+                 split_jitter: int = 0,
+                 epoch_size: int = None,
+                 workers: int = 1,
+                 voxel_sizes: Optional[dict] = None):
         """
         Args:
             data: Path to objects saved as pickle files. Existing chunking information would
@@ -81,7 +133,14 @@ class ChunkHandler:
             verbose: Return additional information about size of subsets.
             split_on_demand: Do not generate splitting information in advance, but rather generate chunks on the fly.
             split_jitter: Used only if split_on_demand = True. Adds jitter to the context size of the generated chunks.
+            epoch_size: Parameter for epoch size that can be used when dataset size is unknown and epoch size should
+                somehow be bounded.
+            workers: Number of workers in case of ssd dataset.
+            voxel_sizes: Voxelization options in case of ssd dataset use. Given as dict with voxel sizes keyed by
+                cell part identifier (e.g. 'sv' or 'mi').
         """
+        if voxel_sizes is None:
+            voxel_sizes = dict(sv=80, mi=100, syn_ssv=100, vc=100)
         if type(data) == SuperSegmentationDataset:
             self._data = data
         else:
@@ -125,6 +184,9 @@ class ChunkHandler:
                 self._splitted_objs = pickle.load(f)
             f.close()
 
+        self._voxel_sizes = dict(sv=80, mi=100, syn_ssv=100, vc=100)
+        if voxel_sizes is not None:
+            self._voxel_sizes = voxel_sizes
         self._sample_num = sample_num
         self._transform = transform
         self._specific = specific
@@ -143,20 +205,41 @@ class ChunkHandler:
         self._chunk_size = chunk_size
         self._splitting_redundancy = splitting_redundancy
         self._split_jitter = split_jitter
-
-        # In non-specific mode, the entire dataset gets loaded at once
+        self._epoch_size = epoch_size
+        self._workers = workers
         self._obj_names = []
         self._objs = []
-        if type(self._data) != SuperSegmentationDataset:
+        self._chunk_list = []
+        self._parts = {}
+
+        for key in self._obj_feats:
+            self._parts[key] = [self._obj_feats[key], self._voxel_sizes[key]]
+
+        if type(self._data) == SuperSegmentationDataset:
+            # If ssd dataset is given, multiple workers are used for splitting the ssvs of the given dataset.
+            self._obj_names = Queue()
+            self._chunk_list = Queue(maxsize=100)
+            for ssv in self._data.ssv_ids:
+                self._obj_names.put(ssv)
+            for i in range(self._workers):
+                self._obj_names.put('STOP')
+            self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
+                                                                  self._chunk_size,
+                                                                  self._chunk_size / self._splitting_redundancy,
+                                                                  self._parts))
+                               for ii in range(workers)]
+            for splitter in self._splitters:
+                splitter.start()
+        else:
             files = glob.glob(data + '*.pkl')
             for file in files:
                 slashs = [pos for pos, char in enumerate(file) if char == '/']
                 name = file[slashs[-1] + 1:-4]
                 self._obj_names.append(name)
+                # In non-specific mode, the entire dataset gets loaded at once
                 if not self._specific:
                     obj = self._adapt_obj(objects.load_obj(self._data_type, file))
                     self._objs.append(obj)
-            self._chunk_list = []
             if not self._specific:
                 for item in self._splitted_objs:
                     if item in self._obj_names:
@@ -176,8 +259,9 @@ class ChunkHandler:
             objects gets returned or the number of chunks of the last requested
             object in specific mode.
         """
-        if type(self._data) == SuperSegmentationDataset:
-            # TODO: Find better solution for the size of an ssd
+        if self._epoch_size is not None:
+            size = self._epoch_size
+        elif type(self._data) == SuperSegmentationDataset:
             size = len(self._data.ssv_ids)
         elif self._specific:
             # Size of last requested object
@@ -204,7 +288,26 @@ class ChunkHandler:
         """
         vert_num = None
         if type(self._data) == SuperSegmentationDataset:
-            pass
+            while self._chunk_list.empty():
+                if self._obj_names.empty():
+                    for ssv in self._data.ssv_ids:
+                        self._obj_names.put(ssv)
+                    for i in range(self._workers):
+                        self._obj_names.put('STOP')
+                    self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
+                                                                          self._chunk_size,
+                                                                          self._chunk_size / self._splitting_redundancy,
+                                                                          self._parts))
+                                       for ii in range(self._workers)]
+                    for splitter in self._splitters:
+                        splitter.start()
+                time.sleep(0.5)
+            sample = self._chunk_list.get()
+            if self._verbose:
+                vert_num = len(sample.vertices)
+            if self._sampling:
+                sample, ixs = clouds.sample_cloud(sample, self._sample_num, padding=self._padding)
+            self._transform(sample)
         elif self._specific:
             # Get specific item (e.g. chunk 5 of object 1)
             if isinstance(item, tuple):
