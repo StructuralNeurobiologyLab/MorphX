@@ -19,11 +19,13 @@ from morphx.processing import clouds, objects
 from morphx.preprocessing import splitting
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
+from sklearn.preprocessing import label_binarize
 from syconn.reps.super_segmentation import SuperSegmentationDataset
 
 
 def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationDataset, ctx: int,
-                 base_node_dst: int, parts: Dict[str, List[int, int]], labels_itf: str):
+                 base_node_dst: int, parts: Dict[str, List[int]], labels_itf: str,
+                 label_mappings: List[Tuple[int, int]]):
     """
     Args:
         id_queue: Input queue with cell ids.
@@ -34,6 +36,7 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
         parts: Information about cell surface and organelles, Tuples like (voxel_param, feature) keyed by identifier
             compatible with syconn (e.g. 'sv' or 'mi').
         labels_itf: Label identifier for existing label predictions within the sso objects of the ssd dataset.
+        label_mappings: Tuples where label at index 0 should get mapped to label at index 1.
     """
     while True:
         if not id_queue.empty():
@@ -51,8 +54,7 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
                 pcd = o3d.geometry.PointCloud()
                 verts = sso.load_mesh(k)[1].reshape(-1, 3)
                 pcd.points = o3d.utility.Vector3dVector(verts)
-                pcd, idcs = pcd.voxel_down_sample_and_trace(parts[k][0], pcd.get_min_bound(),
-                                                            pcd.get_max_bound())
+                pcd, idcs = pcd.voxel_down_sample_and_trace(parts[k][0], pcd.get_min_bound(), pcd.get_max_bound())
                 idcs = np.max(idcs, axis=1)
                 vert_dc[k] = np.asarray(pcd.points)
                 obj_bounds[k] = [offset, offset + len(pcd.points)]
@@ -60,22 +62,25 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
                 if k == 'sv':
                     labels = labels_total[idcs]
                 else:
-                    labels = np.ones(len(vert_dc[k])) + ix + 1 + labels_total.max()
+                    labels = np.ones(len(vert_dc[k])) + ix + labels_total.max()
                     encoding[k] = ix + 1 + labels_total.max()
                 label_dc[k] = labels
             sample_feats = np.concatenate([[parts[k][1]] * len(vert_dc[k]) for k in parts]).reshape(-1, 1)
+            sample_feats = label_binarize(sample_feats, classes=np.arange(len(parts)))
             sample_pts = np.concatenate([vert_dc[k] for k in parts])
             sample_labels = np.concatenate([label_dc[k] for k in parts])
-            no_preds = list(encoding.keys())
+            no_pred = list(encoding.keys())
             if not sso.load_skeleton():
                 raise ValueError(f'Couldnt find skeleton of {sso}')
             nodes, edges = sso.skeleton['nodes'] * sso.scaling, sso.skeleton['edges']
             hc = HybridCloud(nodes, edges, vertices=sample_pts, features=sample_feats, obj_bounds=obj_bounds,
-                             no_preds=no_preds, labels=sample_labels, encoding=encoding)
+                             no_pred=no_pred, labels=sample_labels, encoding=encoding)
+            hc.map_labels(label_mappings)
             _ = hc.verts2node
-            node_arrs = splitting.split_single(hc, ctx, base_node_dst, 1000)
-            sample, _ = objects.extract_cloud_subset(hc, node_arrs)
-            chunk_queue.put(sample)
+            node_arrs = splitting.split_single(hc, ctx, base_node_dst)
+            for ix, node_arr in enumerate(node_arrs):
+                sample, _ = objects.extract_cloud_subset(hc, node_arr)
+                chunk_queue.put(sample)
         else:
             time.sleep(0.5)
 
@@ -115,7 +120,7 @@ class ChunkHandler:
                  split_on_demand: bool = False,
                  split_jitter: int = 0,
                  epoch_size: int = None,
-                 workers: int = 1,
+                 workers: int = 2,
                  voxel_sizes: Optional[dict] = None,
                  ssd_exclude: List[int] = None,
                  ssd_include: List[int] = None,
@@ -167,7 +172,8 @@ class ChunkHandler:
             if density_mode:
                 if bio_density is None or tech_density is None:
                     raise ValueError("Density mode requires bio_density and tech_density")
-                self._splitfile = f'{self._data}splitted/d{bio_density}_p{sample_num}_r{splitting_redundancy}_lr{label_remove}.pkl'
+                self._splitfile = f'{self._data}splitted/d{bio_density}_p{sample_num}' \
+                                  f'_r{splitting_redundancy}_lr{label_remove}.pkl'
             else:
                 if chunk_size is None:
                     raise ValueError("Context mode requires chunk_size.")
@@ -191,8 +197,8 @@ class ChunkHandler:
                         self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
             splitting.split(data, self._splitfile, bio_density=bio_density, capacity=sample_num,
                             tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
-                            splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy, label_remove=label_remove,
-                            split_jitter=split_jitter)
+                            splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy,
+                            label_remove=label_remove, split_jitter=split_jitter)
             with open(self._splitfile, 'rb') as f:
                 self._splitted_objs = pickle.load(f)
             f.close()
@@ -205,6 +211,7 @@ class ChunkHandler:
         self._specific = specific
         self._data_type = data_type
         self._obj_feats = obj_feats
+
         self._label_mappings = label_mappings
         self._hybrid_mode = hybrid_mode
         self._label_remove = label_remove
@@ -220,13 +227,14 @@ class ChunkHandler:
         self._split_jitter = split_jitter
         self._epoch_size = epoch_size
         self._workers = workers
+        self._ssd_labels = ssd_labels
         self._ssd_exclude = ssd_exclude
         if ssd_exclude is None:
             self._ssd_exclude = []
         self._ssd_include = ssd_include
         if self._ssd_labels is None and type(self._data) == SuperSegmentationDataset:
             raise ValueError("ssd_labels must be specified when working with a SuperSegmentationDataset!")
-        self._ssd_labels = ssd_labels
+
         self._obj_names = []
         self._objs = []
         self._chunk_list = []
@@ -234,18 +242,18 @@ class ChunkHandler:
 
         if type(data) == SuperSegmentationDataset:
             self._load_func = self.get_item_ssd
-        if self._specific:
+        elif self._specific:
             self._load_func = self.get_item_specific
         else:
             self._load_func = self.get_item
 
         for key in self._obj_feats:
-            self._parts[key] = [self._obj_feats[key], self._voxel_sizes[key]]
+            self._parts[key] = [self._voxel_sizes[key], self._obj_feats[key]]
 
         if type(self._data) == SuperSegmentationDataset:
             # If ssd dataset is given, multiple workers are used for splitting the ssvs of the given dataset.
             self._obj_names = Queue()
-            self._chunk_list = Queue(maxsize=100)
+            self._chunk_list = Queue(maxsize=10000)
             if self._ssd_include is None:
                 self._ssd_include = self._data.ssv_ids
             for ssv in self._ssd_include:
@@ -253,11 +261,15 @@ class ChunkHandler:
                     self._obj_names.put(ssv)
             for i in range(self._workers):
                 self._obj_names.put('STOP')
+            # worker_split(self._obj_names, self._chunk_list, self._data, self._chunk_size,
+            #              self._chunk_size / self._splitting_redundancy, self._parts, self._ssd_labels,
+            #              self._label_mappings)
             self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                   self._chunk_size,
                                                                   self._chunk_size / self._splitting_redundancy,
-                                                                  self._parts, self._ssd_labels))
-                               for ii in range(workers)]
+                                                                  self._parts, self._ssd_labels,
+                                                                  self._label_mappings))
+                               for ix in range(workers)]
             for splitter in self._splitters:
                 splitter.start()
         else:
@@ -289,8 +301,8 @@ class ChunkHandler:
         """
         if self._epoch_size is not None:
             size = self._epoch_size
-        elif type(self._data) == SuperSegmentationDataset:
-            size = len(self._data.ssv_ids)
+        elif self._ssd_include is not None:
+            size = len(self._ssd_include)
         elif self._specific:
             # Size of last requested object
             if self._curr_name is None:
@@ -346,7 +358,7 @@ class ChunkHandler:
         """
         while self._chunk_list.empty():
             if self._obj_names.empty():
-                for ssv in self._data.ssv_ids:
+                for ssv in self._ssd_include:
                     if ssv not in self._ssd_exclude:
                         self._obj_names.put(ssv)
                 for i in range(self._workers):
@@ -354,7 +366,8 @@ class ChunkHandler:
                 self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                       self._chunk_size,
                                                                       self._chunk_size / self._splitting_redundancy,
-                                                                      self._parts, self._ssd_labels))
+                                                                      self._parts, self._ssd_labels,
+                                                                      self._label_mappings))
                                    for ii in range(self._workers)]
                 for splitter in self._splitters:
                     splitter.start()
@@ -407,6 +420,12 @@ class ChunkHandler:
         next_ix = next_item[1] % len(curr_obj_chunks)
         local_bfs = curr_obj_chunks[next_ix]
         return objects.extract_cloud_subset(self._curr_obj, local_bfs)
+
+    def terminate(self):
+        for splitter in self._splitters:
+            splitter.terminate()
+            splitter.join()
+            splitter.close()
 
     @property
     def obj_names(self):

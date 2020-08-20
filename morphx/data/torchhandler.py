@@ -10,7 +10,7 @@ import open3d as o3d
 import torch
 import time
 import numpy as np
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.chunkhandler import ChunkHandler
@@ -41,7 +41,13 @@ class TorchHandler(data.Dataset):
                  force_split: bool = False,
                  padding: int = None,
                  split_on_demand: bool = False,
-                 split_jitter: int = 0):
+                 split_jitter: int = 0,
+                 epoch_size: int = None,
+                 workers: int = 2,
+                 voxel_sizes: Optional[dict] = None,
+                 ssd_exclude: List[int] = None,
+                 ssd_include: List[int] = None,
+                 ssd_labels: str = None):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
@@ -49,7 +55,9 @@ class TorchHandler(data.Dataset):
                                 label_mappings=label_mappings, hybrid_mode=hybrid_mode,
                                 splitting_redundancy=splitting_redundancy, label_remove=label_remove, sampling=sampling,
                                 force_split=force_split, padding=padding, split_on_demand=split_on_demand,
-                                split_jitter=split_jitter)
+                                split_jitter=split_jitter, epoch_size=epoch_size, workers=workers,
+                                voxel_sizes=voxel_sizes, ssd_exclude=ssd_exclude, ssd_include=ssd_include,
+                                ssd_labels=ssd_labels)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
@@ -142,3 +150,6 @@ class TorchHandler(data.Dataset):
 
     def get_set_info(self):
         return self._ch.get_set_info()
+
+    def terminate(self):
+        self._ch.terminate()
