@@ -41,8 +41,6 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
     while True:
         if not id_queue.empty():
             ssv_id = id_queue.get()
-            if ssv_id == 'STOP':
-                break
             sso = ssd.get_super_segmentation_object(ssv_id)
             vert_dc = {}
             label_dc = {}
@@ -259,11 +257,6 @@ class ChunkHandler:
             for ssv in self._ssd_include:
                 if ssv not in self._ssd_exclude:
                     self._obj_names.put(ssv)
-            for i in range(self._workers):
-                self._obj_names.put('STOP')
-            # worker_split(self._obj_names, self._chunk_list, self._data, self._chunk_size,
-            #              self._chunk_size / self._splitting_redundancy, self._parts, self._ssd_labels,
-            #              self._label_mappings)
             self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                   self._chunk_size,
                                                                   self._chunk_size / self._splitting_redundancy,
@@ -361,16 +354,6 @@ class ChunkHandler:
                 for ssv in self._ssd_include:
                     if ssv not in self._ssd_exclude:
                         self._obj_names.put(ssv)
-                for i in range(self._workers):
-                    self._obj_names.put('STOP')
-                self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
-                                                                      self._chunk_size,
-                                                                      self._chunk_size / self._splitting_redundancy,
-                                                                      self._parts, self._ssd_labels,
-                                                                      self._label_mappings))
-                                   for ii in range(self._workers)]
-                for splitter in self._splitters:
-                    splitter.start()
             time.sleep(0.5)
         return self._chunk_list.get(), None
 
