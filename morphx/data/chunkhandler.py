@@ -13,6 +13,7 @@ import random
 import time
 import numpy as np
 import open3d as o3d
+from scipy.stats import norm, skewnorm
 from multiprocessing import Process, Queue
 from typing import Union, Tuple, List, Dict, Optional
 from morphx.processing import clouds, objects
@@ -25,7 +26,7 @@ from syconn.reps.super_segmentation import SuperSegmentationDataset
 
 def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationDataset, ctx: int,
                  base_node_dst: int, parts: Dict[str, List[int]], labels_itf: str,
-                 label_mappings: List[Tuple[int, int]]):
+                 label_mappings: List[Tuple[int, int]], split_jitter: int = 0):
     """
     Args:
         id_queue: Input queue with cell ids.
@@ -37,6 +38,7 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
             compatible with syconn (e.g. 'sv' or 'mi').
         labels_itf: Label identifier for existing label predictions within the sso objects of the ssd dataset.
         label_mappings: Tuples where label at index 0 should get mapped to label at index 1.
+        split_jitter: Derivation from context size during splitting.
     """
     while True:
         if not id_queue.empty():
@@ -47,7 +49,6 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
             encoding = {}
             offset = 0
             obj_bounds = {}
-            labels_total = sso.label_dict()[labels_itf]
             for ix, k in enumerate(parts):
                 pcd = o3d.geometry.PointCloud()
                 verts = sso.load_mesh(k)[1].reshape(-1, 3)
@@ -58,7 +59,28 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
                 obj_bounds[k] = [offset, offset + len(pcd.points)]
                 offset += len(pcd.points)
                 if k == 'sv':
-                    labels = labels_total[idcs]
+                    # prepare mask for filtering background / unpredicted points
+                    mask = None
+                    if labels_itf == 'axoness':
+                        # 0: dendrite, 1: axon, 2: soma, 3: bouton, 4: terminal, 5/6: background/unpredicted
+                        labels_total = sso.label_dict()[labels_itf][idcs]
+                        mask = labels_total < 5
+                        labels_total = labels_total[mask]
+                    elif labels_itf == 'spiness':
+                        # 1: head, 0: neck, 2: shaft, 3: other, 4/5: background/unpredicted
+                        labels_total = sso.label_dict()['axoness'][idcs]
+                        spiness = sso.label_dict()['spiness'][idcs]
+                        mask = np.logical_not(np.logical_or(labels_total > 4,
+                                                            np.logical_and(labels_total == 0, spiness > 3)))
+                        labels_total = labels_total[mask]
+                        spiness = spiness[mask]
+                        labels_total[labels_total != 0] = 3
+                        labels_total[labels_total == 0] = spiness[labels_total == 0]
+                    else:
+                        labels_total = sso.label_dict()[labels_itf][idcs]
+                        mask = np.ones(len(labels_total)).astype(bool)
+                    labels = labels_total
+                    vert_dc[k] = vert_dc[k][mask]
                 else:
                     labels = np.ones(len(vert_dc[k])) + ix + labels_total.max()
                     encoding[k] = ix + 1 + labels_total.max()
@@ -67,15 +89,18 @@ def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationData
             sample_feats = label_binarize(sample_feats, classes=np.arange(len(parts)))
             sample_pts = np.concatenate([vert_dc[k] for k in parts])
             sample_labels = np.concatenate([label_dc[k] for k in parts])
+            # mark cellular organelles to be excluded from loss calculation - see torchhandler for use of no_pred
             no_pred = list(encoding.keys())
             if not sso.load_skeleton():
                 raise ValueError(f'Couldnt find skeleton of {sso}')
             nodes, edges = sso.skeleton['nodes'] * sso.scaling, sso.skeleton['edges']
             hc = HybridCloud(nodes, edges, vertices=sample_pts, features=sample_feats, obj_bounds=obj_bounds,
                              no_pred=no_pred, labels=sample_labels, encoding=encoding)
-            hc.map_labels(label_mappings)
+            if label_mappings is not None:
+                hc.map_labels(label_mappings)
             _ = hc.verts2node
-            node_arrs = splitting.split_single(hc, ctx, base_node_dst)
+            jitter = random.randint(0, split_jitter)
+            node_arrs = splitting.split_single(hc, ctx + jitter, base_node_dst)
             for ix, node_arr in enumerate(node_arrs):
                 sample, _ = objects.extract_cloud_subset(hc, node_arr)
                 chunk_queue.put(sample)
@@ -232,7 +257,6 @@ class ChunkHandler:
         self._ssd_include = ssd_include
         if self._ssd_labels is None and type(self._data) == SuperSegmentationDataset:
             raise ValueError("ssd_labels must be specified when working with a SuperSegmentationDataset!")
-
         self._obj_names = []
         self._objs = []
         self._chunk_list = []
@@ -245,23 +269,31 @@ class ChunkHandler:
         else:
             self._load_func = self.get_item
 
-        for key in self._obj_feats:
-            self._parts[key] = [self._voxel_sizes[key], self._obj_feats[key]]
-
         if type(self._data) == SuperSegmentationDataset:
+            for key in self._obj_feats:
+                self._parts[key] = [self._voxel_sizes[key], self._obj_feats[key]]
             # If ssd dataset is given, multiple workers are used for splitting the ssvs of the given dataset.
             self._obj_names = Queue()
             self._chunk_list = Queue(maxsize=10000)
             if self._ssd_include is None:
-                self._ssd_include = self._data.ssv_ids
+                print("Gathering sizes.")
+                sizes = [sso.size for sso in self._data.ssvs]
+                print("Done with sizes.")
+                idcs = np.argsort(sizes)
+                self._ssd_include = np.array(self._data.ssv_ids)[idcs[-200:]]
             for ssv in self._ssd_include:
                 if ssv not in self._ssd_exclude:
                     self._obj_names.put(ssv)
+
+            # worker_split(self._obj_names, self._chunk_list, self._data, self._chunk_size,
+            #              self._chunk_size / self._splitting_redundancy, self._parts, self._ssd_labels,
+            #              self._label_mappings, self._split_jitter)
+
             self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                   self._chunk_size,
                                                                   self._chunk_size / self._splitting_redundancy,
                                                                   self._parts, self._ssd_labels,
-                                                                  self._label_mappings))
+                                                                  self._label_mappings, self._split_jitter))
                                for ix in range(workers)]
             for splitter in self._splitters:
                 splitter.start()
@@ -321,6 +353,8 @@ class ChunkHandler:
         """
         vert_num = None
         sample, ixs = self._load_func(item)
+        if sample is None and self._specific:
+            return None, None
         if self._verbose:
             vert_num = len(sample.vertices)
         if self._sampling:
@@ -351,6 +385,7 @@ class ChunkHandler:
         """
         while self._chunk_list.empty():
             if self._obj_names.empty():
+                np.random.shuffle(self._ssd_include)
                 for ssv in self._ssd_include:
                     if ssv not in self._ssd_exclude:
                         self._obj_names.put(ssv)
@@ -405,10 +440,11 @@ class ChunkHandler:
         return objects.extract_cloud_subset(self._curr_obj, local_bfs)
 
     def terminate(self):
-        for splitter in self._splitters:
-            splitter.terminate()
-            splitter.join()
-            splitter.close()
+        if type(self._data) == SuperSegmentationDataset:
+            for splitter in self._splitters:
+                splitter.terminate()
+                splitter.join()
+                splitter.close()
 
     @property
     def obj_names(self):
@@ -482,13 +518,20 @@ class ChunkHandler:
             if isinstance(obj, CloudEnsemble):
                 for name in self._obj_feats:
                     feat_line = self._obj_feats[name]
+                    if name == 'sv':
+                        name = 'hc'
                     subcloud = obj.get_cloud(name)
                     if subcloud is not None:
                         if isinstance(feat_line, dict):
                             subcloud.types2feat(feat_line)
                         else:
-                            feats = np.ones((len(subcloud.vertices), len(feat_line)))
-                            feats[:] = feat_line
+                            if type(feat_line) == int:
+                                feats = np.ones((len(subcloud.vertices), 1)) * feat_line
+                                if len(feats) != 0:
+                                    feats = label_binarize(feats, classes=np.arange(len(self._obj_feats)))
+                            else:
+                                feats = np.ones((len(subcloud.vertices), len(feat_line)))
+                                feats[:] = feat_line
                             subcloud.set_features(feats)
             elif self._hybrid_mode:
                 feats = np.ones(len(obj.vertices)).reshape(-1, 1)
