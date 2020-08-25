@@ -13,7 +13,6 @@ import random
 import time
 import numpy as np
 import open3d as o3d
-from scipy.stats import norm, skewnorm
 from multiprocessing import Process, Queue
 from typing import Union, Tuple, List, Dict, Optional
 from morphx.processing import clouds, objects
