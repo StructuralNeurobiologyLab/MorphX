@@ -26,28 +26,28 @@ def test_sanity():
 
 
 def test_transform_sanity():
-    vertices = np.array([[1, 1, 1], [2, 2, 2]])
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    vertices = np.random.random((10, 3))
+    pc = PointCloud(vertices=vertices)
     pc.shear()
     assert np.all(pc.vertices != vertices)
 
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    pc = PointCloud(vertices=vertices)
     pc.scale(2)
     assert np.all(pc.vertices != vertices)
 
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    pc = PointCloud(vertices=vertices)
     pc.rotate_randomly()
     assert np.all(pc.vertices != vertices)
 
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    pc = PointCloud(vertices=vertices)
     pc.add_noise()
     assert np.all(pc.vertices != vertices)
 
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    pc = PointCloud(vertices=vertices)
     pc.mult_noise()
     assert np.all(pc.vertices != vertices)
 
-    pc = PointCloud(vertices=vertices, labels=np.array([1, 2]))
+    pc = PointCloud(vertices=vertices)
     pc.move(np.array([1, 2, 3]))
     assert np.all(pc.vertices != vertices)
 

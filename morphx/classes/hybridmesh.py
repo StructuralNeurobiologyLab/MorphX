@@ -33,13 +33,13 @@ class HybridMesh(HybridCloud):
             faces = np.zeros((0, 3))
         if faces.shape[1] != 3:
             raise ValueError("Faces must have shape (N, 3).")
-        self._faces = faces
+        self._faces = np.array(faces)  # trigger copy
 
         if normals is None:
             normals = np.zeros((0, 3))
         if len(normals) != 0 and len(normals) != len(faces):
             raise ValueError("Normals array must have same length as faces array.")
-        self._normals = normals.reshape(len(normals), 3).astype(int)
+        self._normals = np.array(normals.reshape(len(normals), 3)).astype(int)
 
         self._faces2node = faces2node
 

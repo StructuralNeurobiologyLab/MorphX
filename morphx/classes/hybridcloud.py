@@ -39,25 +39,25 @@ class HybridCloud(PointCloud):
             nodes = np.zeros((0, 3))
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
-        self._nodes = nodes
+        self._nodes = np.array(nodes)  # trigger copy
 
         if edges is None:
             edges = np.zeros((0, 2))
         if len(edges) != 0 and edges.max() > len(nodes):
             raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
-        self._edges = edges.astype(int)
+        self._edges = np.array(edges).astype(int)
 
         if node_labels is None:
             node_labels = np.zeros((0, 1))
         if len(node_labels) != 0 and len(node_labels) != len(nodes):
             raise ValueError("Node label array must have same length as nodes array.")
-        self._node_labels = node_labels.reshape(len(node_labels), 1).astype(int)
+        self._node_labels = np.array(node_labels.reshape(len(node_labels), 1)).astype(int)
 
         if pred_node_labels is None:
             pred_node_labels = np.zeros((0, 1))
         if len(pred_node_labels) != 0 and len(pred_node_labels) != len(nodes):
             raise ValueError("Predicted node label array must have same length as nodes array")
-        self._pred_node_labels = pred_node_labels.reshape(len(pred_node_labels), 1).astype(int)
+        self._pred_node_labels = np.array(pred_node_labels.reshape(len(pred_node_labels), 1)).astype(int)
 
         self._verts2node = None
         if verts2node is not None:
