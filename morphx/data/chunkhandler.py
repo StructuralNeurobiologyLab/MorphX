@@ -13,6 +13,7 @@ import random
 import time
 import numpy as np
 import open3d as o3d
+from tqdm import tqdm
 from multiprocessing import Process, Queue
 from typing import Union, Tuple, List, Dict, Optional
 from morphx.processing import clouds, objects
@@ -21,6 +22,7 @@ from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 from sklearn.preprocessing import label_binarize
 from syconn.reps.super_segmentation import SuperSegmentationDataset
+from morphx.processing.objects import context_splitting_kdt_many
 
 
 def worker_split(id_queue: Queue, chunk_queue: Queue, ssd: SuperSegmentationDataset, ctx: int,
@@ -187,43 +189,42 @@ class ChunkHandler:
             self._data = os.path.expanduser(data)
             if not os.path.exists(self._data):
                 os.makedirs(self._data)
-            if not os.path.exists(self._data + 'splitted/'):
-                os.makedirs(self._data + 'splitted/')
-            self._splitfile = ''
-            # Load chunks or split dataset into chunks if it was not done already
-            if density_mode:
-                if bio_density is None or tech_density is None:
-                    raise ValueError("Density mode requires bio_density and tech_density")
-                self._splitfile = f'{self._data}splitted/d{bio_density}_p{sample_num}' \
-                                  f'_r{splitting_redundancy}_lr{label_remove}.pkl'
-            else:
-                if chunk_size is None:
-                    raise ValueError("Context mode requires chunk_size.")
-                self._splitfile = f'{self._data}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
-            self._splitted_objs = None
-            orig_splitfile = self._splitfile
-            if split_on_demand:
-                force_split = True
-            while os.path.exists(self._splitfile):
-                if not force_split:
-                    with open(self._splitfile, 'rb') as f:
-                        self._splitted_objs = pickle.load(f)
-                    f.close()
-                    break
+            if not split_on_demand:
+                if not os.path.exists(self._data + 'splitted/'):
+                    os.makedirs(self._data + 'splitted/')
+                self._splitfile = ''
+                # Load chunks or split dataset into chunks if it was not done already
+                if density_mode:
+                    if bio_density is None or tech_density is None:
+                        raise ValueError("Density mode requires bio_density and tech_density")
+                    self._splitfile = f'{self._data}splitted/d{bio_density}_p{sample_num}' \
+                                      f'_r{splitting_redundancy}_lr{label_remove}.pkl'
                 else:
-                    version = re.findall(r"v(\d+).", self._splitfile)
-                    if len(version) == 0:
-                        self._splitfile = self._splitfile[:-4] + '_v1.pkl'
+                    if chunk_size is None:
+                        raise ValueError("Context mode requires chunk_size.")
+                    self._splitfile = f'{self._data}splitted/s{chunk_size}_r{splitting_redundancy}_lr{label_remove}.pkl'
+                self._splitted_objs = None
+                orig_splitfile = self._splitfile
+                while os.path.exists(self._splitfile):
+                    if not force_split:
+                        with open(self._splitfile, 'rb') as f:
+                            self._splitted_objs = pickle.load(f)
+                        f.close()
+                        break
                     else:
-                        version = int(version[0])
-                        self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
-            splitting.split(data, self._splitfile, bio_density=bio_density, capacity=sample_num,
-                            tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
-                            splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy,
-                            label_remove=label_remove, split_jitter=split_jitter)
-            with open(self._splitfile, 'rb') as f:
-                self._splitted_objs = pickle.load(f)
-            f.close()
+                        version = re.findall(r"v(\d+).", self._splitfile)
+                        if len(version) == 0:
+                            self._splitfile = self._splitfile[:-4] + '_v1.pkl'
+                        else:
+                            version = int(version[0])
+                            self._splitfile = orig_splitfile[:-4] + f'_v{version+1}.pkl'
+                splitting.split(data, self._splitfile, bio_density=bio_density, capacity=sample_num,
+                                tech_density=tech_density, density_splitting=density_mode, chunk_size=chunk_size,
+                                splitted_hcs=self._splitted_objs, redundancy=splitting_redundancy,
+                                label_remove=label_remove, split_jitter=split_jitter)
+                with open(self._splitfile, 'rb') as f:
+                    self._splitted_objs = pickle.load(f)
+                f.close()
 
         self._voxel_sizes = dict(sv=80, mi=100, syn_ssv=100, vc=100)
         if voxel_sizes is not None:
@@ -283,11 +284,6 @@ class ChunkHandler:
             for ssv in self._ssd_include:
                 if ssv not in self._ssd_exclude:
                     self._obj_names.put(ssv)
-
-            # worker_split(self._obj_names, self._chunk_list, self._data, self._chunk_size,
-            #              self._chunk_size / self._splitting_redundancy, self._parts, self._ssd_labels,
-            #              self._label_mappings, self._split_jitter)
-
             self._splitters = [Process(target=worker_split, args=(self._obj_names, self._chunk_list, self._data,
                                                                   self._chunk_size,
                                                                   self._chunk_size / self._splitting_redundancy,
@@ -307,16 +303,25 @@ class ChunkHandler:
                     obj = self._adapt_obj(objects.load_obj(self._data_type, file))
                     self._objs.append(obj)
             if not self._specific:
-                for item in self._splitted_objs:
-                    if item in self._obj_names:
-                        for idx in range(len(self._splitted_objs[item])):
-                            self._chunk_list.append((item, idx))
+                if split_on_demand:
+                    for ix, obj in enumerate(tqdm(self._objs)):
+                        base_nodes = np.arange(len(obj.nodes)).reshape(-1, 1)[obj.node_labels != -1]
+                        base_nodes = np.random.choice(base_nodes, int(len(base_nodes) / 3), replace=True)
+                        chunks = context_splitting_kdt_many(obj, base_nodes, self._chunk_size)
+                        for chunk in chunks:
+                            self._chunk_list.append((ix, chunk))
+                else:
+                    for item in self._splitted_objs:
+                        if item in self._obj_names:
+                            for idx in range(len(self._splitted_objs[item])):
+                                self._chunk_list.append((item, idx))
                 random.shuffle(self._chunk_list)
         # In specific mode, the files get loaded sequentially
         self._curr_obj = None
         self._curr_name = None
         # Index of current chunk
         self._ix = 0
+        self._size = len(self._chunk_list)
 
     def __len__(self):
         """ Depending on the mode either the sum of the number of chunks from each
@@ -334,7 +339,7 @@ class ChunkHandler:
             else:
                 size = len(self._splitted_objs[self._curr_name])
         else:
-            size = len(self._chunk_list)
+            size = self._size
         return size
 
     def __getitem__(self, item: Union[int, Tuple[str, int]]):
@@ -418,17 +423,19 @@ class ChunkHandler:
         """
         Loading method for general case, when item only contains the index of the next chunk.
         """
-        if self._split_on_demand and item == len(self) - 1:
-            # generate new chunks each epoch
-            jitter = random.randint(0, self._split_jitter)
-            self._splitted_objs = splitting.split(self._data, self._splitfile, bio_density=self._bio_density,
-                                                  capacity=self._sample_num, tech_density=self._tech_density,
-                                                  density_splitting=self._density_mode,
-                                                  chunk_size=self._chunk_size + jitter,
-                                                  splitted_hcs=None, redundancy=self._splitting_redundancy,
-                                                  label_remove=self._label_remove)
-            # chunk list stays the same as it only refers to indices and the size should stay the same
-            random.shuffle(self._chunk_list)
+        if self._split_on_demand:
+            if item == self._size-1:
+                self._chunk_list = []
+                for ix, obj in enumerate(self._objs):
+                    jitter = random.randint(-self._split_jitter, self._split_jitter)
+                    base_nodes = np.arange(len(obj.nodes)).reshape(-1, 1)[obj.node_labels != -1]
+                    base_nodes = np.random.choice(base_nodes, int(len(base_nodes) / 3), replace=True)
+                    chunks = context_splitting_kdt_many(obj, base_nodes, self._chunk_size + jitter)
+                    for chunk in chunks:
+                        self._chunk_list.append((ix, chunk))
+            ix, chunk = self._chunk_list[item]
+            obj = self._objs[ix]
+            return objects.extract_cloud_subset(obj, chunk)
         next_item = self._chunk_list[item]
         curr_obj_chunks = self._splitted_objs[next_item[0]]
         self._curr_obj = self._objs[self._obj_names.index(next_item[0])]
