@@ -59,25 +59,25 @@ class PointCloud(object):
             labels = np.zeros((0, 1))
         if len(labels) != 0 and len(labels) != len(vertices):
             raise ValueError("Vertex label array must have same length as vertices array.")
-        self._labels = labels.reshape(len(labels), 1).astype(int)
+        self._labels = np.array(labels.reshape(len(labels), 1).astype(int))
 
         if pred_labels is None:
             pred_labels = np.zeros((0, 1))
         if len(pred_labels) != 0 and len(pred_labels) != len(vertices):
             raise ValueError("Predicted vertex label array must have same length as vertices array.")
-        self._pred_labels = pred_labels.reshape(len(pred_labels), 1).astype(int)
+        self._pred_labels = np.array(pred_labels.reshape(len(pred_labels), 1).astype(int))
 
         if features is None:
             features = np.zeros((0, 1))
         if len(features) != 0 and len(features) != len(vertices):
             raise ValueError("Feature array must have same length as vertices array.")
-        self._features = features
+        self._features = np.array(features)
 
         if types is None:
             types = np.zeros((0, 1))
         if len(types) != 0 and len(types) != len(vertices):
             raise ValueError("Type array must have same length as vertices array.")
-        self._types = types.reshape(len(types), 1).astype(int)
+        self._types = np.array(types.reshape(len(types), 1).astype(int))
 
         self._encoding = encoding
         self._obj_bounds = obj_bounds
