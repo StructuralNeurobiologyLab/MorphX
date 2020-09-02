@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import logging
 import networkx as nx
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from scipy.spatial.transform import Rotation as Rot
@@ -35,25 +35,30 @@ class HybridCloud(PointCloud):
             node_labels: Node label array (ith label corresponds to ith node) with same dimensions as nodes.
         """
         super().__init__(*args, **kwargs)
-        if nodes is not None and nodes.shape[1] != 3:
+        if nodes is None:
+            nodes = np.zeros((0, 3))
+        if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
-        self._nodes = nodes
+        self._nodes = np.array(nodes)  # trigger copy
 
-        if nodes is None or len(nodes) == 0:
-            self._edges = None
-            self._node_labels = None
-        else:
-            if edges is not None and len(edges) > 0 and edges.max() > len(nodes):
-                raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
-            self._edges = edges.astype(int)
+        if edges is None:
+            edges = np.zeros((0, 2))
+        if len(edges) != 0 and edges.max() > len(nodes):
+            raise ValueError("Edge list cannot contain indices which exceed the size of the node array.")
+        self._edges = np.array(edges).astype(int)
 
-            self._node_labels = None
-            if node_labels is not None:
-                if len(node_labels) != len(nodes):
-                    raise ValueError("Node label array must have same length as nodes array.")
-                self._node_labels = node_labels.reshape(len(node_labels), 1)
+        if node_labels is None:
+            node_labels = np.zeros((0, 1))
+        if len(node_labels) != 0 and len(node_labels) != len(nodes):
+            raise ValueError("Node label array must have same length as nodes array.")
+        self._node_labels = np.array(node_labels.reshape(len(node_labels), 1)).astype(int)
 
-        self._pred_node_labels = pred_node_labels
+        if pred_node_labels is None:
+            pred_node_labels = np.zeros((0, 1))
+        if len(pred_node_labels) != 0 and len(pred_node_labels) != len(nodes):
+            raise ValueError("Predicted node label array must have same length as nodes array")
+        self._pred_node_labels = np.array(pred_node_labels.reshape(len(pred_node_labels), 1)).astype(int)
+
         self._verts2node = None
         if verts2node is not None:
             self._verts2node = verts2node
@@ -78,7 +83,7 @@ class HybridCloud(PointCloud):
         Returns:
             Dict with mapping information
         """
-        if self._nodes is None:
+        if len(self._nodes) == 0:
             return None
         if self._verts2node is None:
             tree = cKDTree(self.nodes)
@@ -91,13 +96,15 @@ class HybridCloud(PointCloud):
 
     @property
     def node_labels(self):
-        if self._node_labels is None:
+        """ Generates node labels from vertex labels if node label array is empty. """
+        if len(self._node_labels) == 0:
             self._node_labels = self.vertl2nodel(pred=False)
         return self._node_labels
 
     @property
     def pred_node_labels(self):
-        if self._pred_node_labels is None:
+        """ Generates node predictions from vertex predicitons if node prediction array is empty. """
+        if len(self._pred_node_labels) == 0:
             self._pred_node_labels = self.vertl2nodel(pred=True)
         return self._pred_node_labels
 
@@ -143,7 +150,7 @@ class HybridCloud(PointCloud):
             new_labels[ix] = u_labels[np.argmax(counts)]
         self._pred_node_labels = new_labels
 
-    def vertl2nodel(self, pred: bool = True) -> Optional[np.ndarray]:
+    def vertl2nodel(self, pred: bool = True) -> np.ndarray:
         """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
          the corresponding vertices is performed and the most frequent label is transferred to the node.
          Returns:
@@ -154,8 +161,8 @@ class HybridCloud(PointCloud):
             vertl = self._pred_labels
         else:
             vertl = self._labels
-        if vertl is None or len(vertl) == 0:
-            return None
+        if len(vertl) == 0:
+            return np.zeros((0, 1))
         else:
             nodel = np.zeros((len(self._nodes), 1), dtype=int)
             nodel[:] = -1
@@ -185,20 +192,23 @@ class HybridCloud(PointCloud):
 
     def prednodel2predvertl(self):
         """ Uses the verts2node dict to map labels from nodes onto vertices. """
-        if self._pred_node_labels is None:
+        if len(self._pred_node_labels) == 0:
             return
+        if len(self._pred_labels) == 0:
+            self._pred_labels = np.ones((len(self._vertices), 1)) * -1
         else:
             for ix in range(len(self._nodes)):
                 verts_idcs = self.verts2node[ix]
                 self._pred_labels[verts_idcs] = self._pred_node_labels[ix]
 
     def nodel2vertl(self):
-        if self._node_labels is None:
+        if len(self._node_labels) == 0:
             return
-        else:
-            for ix in range(len(self._nodes)):
-                verts_idcs = self.verts2node[ix]
-                self._labels[verts_idcs] = self._node_labels[ix]
+        if len(self._labels) == 0:
+            self._labels = np.ones((len(self._vertices), 1)) * -1
+        for ix in range(len(self._nodes)):
+            verts_idcs = self.verts2node[ix]
+            self._labels[verts_idcs] = self._node_labels[ix]
 
     def graph(self, simple=False) -> nx.Graph:
         """ Creates a Euclidean distance weighted networkx graph representation of the
@@ -219,16 +229,72 @@ class HybridCloud(PointCloud):
                 graph.add_edges_from(self.edges)
                 self._simple_graph = graph
             else:
-                edge_coords = self.nodes[self.edges]
-                weights = np.linalg.norm(edge_coords[:, 0] - edge_coords[:, 1], axis=1)
-                graph.add_weighted_edges_from(
-                    [(self.edges[i][0], self.edges[i][1], weights[i]) for
-                     i in range(len(weights))])
-                self._weighted_graph = graph
+                if len(self._nodes) == 0:
+                    self._weighted_graph = graph
+                else:
+                    edge_coords = self.nodes[self.edges]
+                    weights = np.linalg.norm(edge_coords[:, 0] - edge_coords[:, 1], axis=1)
+                    graph.add_weighted_edges_from(
+                        [(self.edges[i][0], self.edges[i][1], weights[i]) for
+                         i in range(len(weights))])
+                    self._weighted_graph = graph
         if simple:
             return self._simple_graph
         else:
             return self._weighted_graph
+
+    def remove_nodes(self, labels: List[int], threshold: int = 20) -> Dict:
+        """ Removes all nodes with labels present in the given labels list. This method also updates the
+            verts2node mapping accordingly. Vertices which belong to removed nodes don't appear in the
+            verts2node mapping.
+
+        Args:
+            labels: List of labels to indicate which nodes should get removed.
+            threshold: Connected components where number of nodes is below this threshold get removed.
+        """
+        if len(labels) == 0:
+            return {}
+        _ = self.verts2node
+        # generate node labels by mapping vertex labels to nodes
+        if len(self.node_labels) == 0:
+            return {}
+        mask = np.isin(self._node_labels, labels).reshape(-1)
+        rnodes = np.arange(len(self._nodes))[mask]
+        graph = self.graph()
+        # change graph
+        for rnode in rnodes:
+            graph.remove_node(rnode)
+        # filter small outliers
+        for cc in list(nx.connected_components(graph)):
+            if len(cc) < threshold:
+                for node in cc:
+                    graph.remove_node(node)
+        # change corresponding arrays
+        self._pred_node_labels = np.zeros((0, 1))
+        if len(graph.nodes) == 0:
+            # no nodes are left
+            self._nodes = np.zeros((0, 3))
+            self._node_labels = np.zeros((0, 1))
+            self._verts2node = {}
+            self._edges = np.zeros((0, 2))
+            self._simple_graph = None
+            self._weighted_graph = None
+            return {}
+        self._nodes = self._nodes[np.array(graph.nodes)]
+        self._node_labels = self._node_labels[np.array(graph.nodes)]
+        # relabel nodes to consecutive numbers and update edges of HybridCloud
+        mapping = {i: x for x, i in enumerate(graph.nodes)}
+        graph = nx.relabel_nodes(graph, mapping)
+        self._edges = np.array(graph.edges)
+        self._simple_graph = None
+        self._weighted_graph = None
+        # Update verts2node array
+        new_verts2node = {}
+        for key in self.verts2node:
+            if key in mapping:
+                new_verts2node[mapping[key]] = self.verts2node[key]
+        self._verts2node = new_verts2node
+        return mapping
 
     def base_points(self, threshold: int = 0, source: int = -1) -> np.ndarray:
         """ Creates base points on the graph of the hybrid. These points can be used to extract local
@@ -246,12 +312,24 @@ class HybridCloud(PointCloud):
             self._base_points = graphs.bfs_base_points_euclid(self.graph(), threshold, source=source)
         return self._base_points
 
+    def map_labels(self, mappings: List[Tuple[int, int]]):
+        """ In-place method for changing labels of vertices and nodes. Encoding gets updated.
+
+        Args:
+            mappings: List of tuples with original labels and target labels. E.g. [(1, 2), (3, 2)] means that
+              the labels 1 and 3 will get replaced by 2.
+        """
+        for mapping in mappings:
+            self._labels[self._labels == mapping[0]] = mapping[1]
+            self._node_labels[self._node_labels == mapping[0]] = mapping[1]
+            if self._encoding is not None and mapping[0] in self._encoding:
+                self._encoding.pop(mapping[0], None)
+
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
     def scale(self, factor: int):
         """ If factor < 0 vertices and nodes are divided by the factor. If factor > 0 vertices and nodes are
             multiplied by the factor. If factor == 0 nothing happens. """
-
         if np.any(factor == 0):
             return
         if np.isscalar(factor):

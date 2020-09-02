@@ -8,7 +8,7 @@
 import pickle
 import numpy as np
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, Union
 import logging
 from scipy.spatial import cKDTree
 from morphx.data.basics import load_pkl
@@ -30,7 +30,7 @@ class PointCloud(object):
                  features: np.ndarray = None,
                  types: np.ndarray = None,
                  encoding: dict = None,
-                 obj_bounds: Optional[dict] = None,
+                 obj_bounds: Dict[Union[str, int], np.ndarray] = None,
                  predictions: dict = None,
                  no_pred: List[str] = None):
         """
@@ -43,41 +43,42 @@ class PointCloud(object):
                 different values to the different types.
             encoding: Dict with description strings for respective label as keys and unique labels as values.
             obj_bounds: Dict with object names as keys and start and end index of vertices which belong to this object
-                as values. E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9 then belong to
-                obj1, the vertices from index 10 to 19 belong to obj2.
+                in numpy arrays as values. E.g. {'obj1': [0, 10], 'obj2': [10, 20]}. The vertices from index 0 to 9
+                then belong to obj1, the vertices from index 10 to 19 belong to obj2.
             predictions: Dict with vertex indices as keys and prediction lists as values. E.g. if vertex with index 1
                 got the labels 2, 3, 4 as predictions, it would be {1: [2, 3, 4]}.
             no_pred: List of names of objects which should not be processed in model prediction or mapping.
         """
-        if vertices is not None and len(vertices) > 0 and vertices.shape[1] != 3:
+        if vertices is None:
+            vertices = np.zeros((0, 3))
+        if vertices.shape[1] != 3:
             raise ValueError("Vertices must have shape (N, 3).")
         self._vertices = np.array(vertices)  # trigger copy
 
-        if labels is None or len(labels) == 0:
-            self._labels = np.zeros(0)  # TODO: change to None (and update according label handlings)
-        else:
-            if vertices is None or len(labels) != len(vertices):
-                raise ValueError("Vertex label array must have same length as vertices array.")
-            self._labels = labels.reshape(len(labels), 1).astype(int)
+        if labels is None:
+            labels = np.zeros((0, 1))
+        if len(labels) != 0 and len(labels) != len(vertices):
+            raise ValueError("Vertex label array must have same length as vertices array.")
+        self._labels = np.array(labels.reshape(len(labels), 1).astype(int))
 
-        if pred_labels is not None:
-            self._pred_labels = np.array(pred_labels)  # trigger copy
-        else:
-            self._pred_labels = None
+        if pred_labels is None:
+            pred_labels = np.zeros((0, 1))
+        if len(pred_labels) != 0 and len(pred_labels) != len(vertices):
+            raise ValueError("Predicted vertex label array must have same length as vertices array.")
+        self._pred_labels = np.array(pred_labels.reshape(len(pred_labels), 1).astype(int))
 
-        if features is None or len(features) == 0:
-            self._features = np.zeros(0)
-        else:
-            if vertices is None or len(features) != len(vertices):
-                raise ValueError("Feature array must have same length as vertices array.")
-            self._features = np.array(features)  # trigger copy
+        if features is None:
+            features = np.zeros((0, 1))
+        if len(features) != 0 and len(features) != len(vertices):
+            raise ValueError("Feature array must have same length as vertices array.")
+        self._features = np.array(features)
 
-        if types is not None and len(types) != 0:
-            if vertices is None or len(types) != len(vertices):
-                raise ValueError("Type array must have same length as vertices array.")
-            self._types = np.array(types)  # trigger copy
-        else:
-            self._types = np.zeros(0)
+        if types is None:
+            types = np.zeros((0, 1))
+        if len(types) != 0 and len(types) != len(vertices):
+            raise ValueError("Type array must have same length as vertices array.")
+        self._types = np.array(types.reshape(len(types), 1).astype(int))
+
         self._encoding = encoding
         self._obj_bounds = obj_bounds
         self._predictions = predictions
@@ -100,7 +101,7 @@ class PointCloud(object):
 
     @property
     def pred_labels(self) -> np.ndarray:
-        if self._pred_labels is None:
+        if len(self._pred_labels) == 0:
             return self.generate_pred_labels()
         return self._pred_labels
 
@@ -154,51 +155,6 @@ class PointCloud(object):
 
     # -------------------------------------- LABEL METHODS ------------------------------------------- #
 
-    @property
-    def weights_mean(self) -> np.ndarray:
-        """ Extract frequences for each class and calculate weights as frequences.mean() / frequences, ignoring any
-        labels which don't appear in the dataset (setting their weight to 0).
-
-        Returns:
-            np.ndarray with weights for each class.
-        """
-        if len(self._labels) != 0:
-            total_labels = self._labels
-            non_zero = []
-            freq = []
-            for i in range(self._class_num):
-                freq.append((total_labels == i).sum())
-                if freq[i] != 0:
-                    # save for mean calculation
-                    non_zero.append(freq[i])
-                else:
-                    # prevent division by zero
-                    freq[i] = 1
-            mean = np.array(non_zero).mean()
-            freq = mean / np.array(freq)
-            freq[(freq == mean)] = 0
-            return freq
-        else:
-            return np.array([])
-
-    @property
-    def weights_occurence(self) -> np.ndarray:
-        """ Extract frequences for each class and calculate weights as len(vertices) / frequences.
-
-        Returns:
-            np.ndarray with weights for each class.
-        """
-        if len(self._labels) != 0:
-            class_num = self._class_num
-            total_labels = self._labels
-            freq = []
-            for i in range(class_num):
-                freq.append((total_labels == i).sum())
-            freq = len(total_labels) / np.array(freq)
-            return freq
-        else:
-            return np.array([])
-
     def map_labels(self, mappings: List[Tuple[int, int]]):
         """ In-place method for changing labels. Encoding gets updated.
 
@@ -214,22 +170,28 @@ class PointCloud(object):
     # --------------------------------------------- SETTER ------------------------------------------------ #
 
     def set_labels(self, labels: np.ndarray):
-        if len(labels) != len(self.vertices):
+        if labels is None or len(labels) != len(self.vertices):
             raise ValueError("Label array must have same length as vertex array.")
         else:
-            self._labels = labels
+            self._labels = labels.reshape(len(labels), 1)
 
     def set_pred_labels(self, pred_labels: np.ndarray):
-        if len(pred_labels) != len(self.vertices):
-            raise ValueError("Label array must have same length as vertex array.")
+        if pred_labels is None or len(pred_labels) != len(self.vertices):
+            raise ValueError("Pred label array must have same length as vertex array.")
         else:
-            self._pred_labels = pred_labels
+            self._pred_labels = pred_labels.reshape(len(pred_labels), 1)
 
     def set_features(self, features: np.ndarray):
-        if len(features) != len(self.vertices):
+        if features is None or len(features) != len(self.vertices):
             raise ValueError("Feature array must have same length as vertex array.")
         else:
             self._features = features
+
+    def set_types(self, types: np.ndarray):
+        if types is None or len(types) != len(self.vertices):
+            raise ValueError("Type array must have same length as vertex array.")
+        else:
+            self._types = types.reshape(len(types), 1)
 
     def set_encoding(self, encoding: dict):
         self._encoding = encoding
@@ -245,12 +207,6 @@ class PointCloud(object):
     def set_predictions(self, predictions: dict):
         self._predictions = predictions
 
-    def set_types(self, types: np.ndarray):
-        if self.vertices is None or len(types) != len(self.vertices):
-            raise ValueError("Given type array doesn't match nodes.")
-        else:
-            self._types = types
-
     # --------------------------------------- FEATURE HANDLING --------------------------------------------- #
 
     def types2feat(self, types2feat_map: Dict[int, np.ndarray]):
@@ -261,24 +217,20 @@ class PointCloud(object):
         Args:
             types2feat_map: keys must be equal to np.unique(type), so all and only all types must be included.
                 All features associated with the types must have the same length
-
-        Returns:
-            None if type array doesn't exist. The newly created feature array if successful.
         """
-        if self._types is None:
-            return None
+        if len(self._types) == 0:
+            return
         types = np.unique(self._types)
         if len(types) > len(types2feat_map):
             raise ValueError("Not enough types given for feature creation.")
-        self._features = None
+        self._features = np.zeros((0, 1))
         for key in types2feat_map:
-            if self._features is None:
+            if len(self._features) == 0:
                 self._features = np.zeros((len(self._vertices), len(types2feat_map[key])))
             mask = (self._types == key).reshape(-1)
             if len(mask) == 0:
                 continue
             self._features[mask] = types2feat_map[key]
-        return self._features
 
     # -------------------------------------- PREDICTION HANDLING ------------------------------------------- #
 
@@ -298,20 +250,19 @@ class PointCloud(object):
             predictions, the label is set to -1.
 
         Returns:
-            The newly generated labels.
+            The newly generated labels. If there exist no predictions, the pred_label array will only contain -1.
         """
-        if self._pred_labels is None:
+        if len(self._pred_labels) == 0:
             self._pred_labels = np.zeros((len(self._vertices), 1))
         self._pred_labels[:] = -1
         if self._predictions is None or len(self._predictions) == 0:
             return self._pred_labels
-        for key in self._predictions.keys():
-            preds = np.array(self._predictions[key])
+        for item in self._predictions:
+            u_preds, counts = np.unique(np.array(self._predictions[item]), return_counts=True)
             if mv:
-                u_preds, counts = np.unique(preds, return_counts=True)
-                self._pred_labels[key] = u_preds[np.argmax(counts)]
+                self._pred_labels[item] = u_preds[np.argmax(counts)]
             else:
-                self._pred_labels[key] = preds[0]
+                self._pred_labels[item] = self._predictions[item][0]
         if self._encoding is not None and -1 in self._pred_labels:
             self._encoding['no_pred'] = -1
         return self._pred_labels.astype(int)
@@ -475,7 +426,7 @@ class PointCloud(object):
 
         Args:
             res: Tuple which indicates resolution of base grid in x, y, z direction.
-            sigma: Standard deviation of gaussian blurr which is applied to the random displacements.
+            sigma: Standard deviation of gaussian blur which is applied to the random displacements.
             alpha: Scaling factor to adjust the strength of the augmentation.
         """
         max_bound = np.max(self.vertices, axis=0)

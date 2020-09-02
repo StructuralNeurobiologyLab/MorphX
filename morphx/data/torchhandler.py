@@ -5,10 +5,12 @@
 # Max Planck Institute of Neurobiology, Martinsried, Germany
 # Authors: Jonathan Klimesch
 
+# Import order for open3d and torch is important
+import open3d as o3d
 import torch
 import time
 import numpy as np
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 from torch.utils import data
 from morphx.processing import clouds
 from morphx.data.chunkhandler import ChunkHandler
@@ -33,17 +35,34 @@ class TorchHandler(data.Dataset):
                  obj_feats: dict = None,
                  label_mappings: List[Tuple[int, int]] = None,
                  hybrid_mode: bool = False,
-                 splitting_redundancy: int = 1):
+                 splitting_redundancy: int = 1,
+                 label_remove: List[int] = None,
+                 sampling: bool = True,
+                 force_split: bool = False,
+                 padding: int = None,
+                 split_on_demand: bool = False,
+                 split_jitter: int = 0,
+                 epoch_size: int = None,
+                 workers: int = 2,
+                 voxel_sizes: Optional[dict] = None,
+                 ssd_exclude: List[int] = None,
+                 ssd_include: List[int] = None,
+                 ssd_labels: str = None):
         """ Initializes Dataset. """
         self._ch = ChunkHandler(data_path, sample_num, density_mode=density_mode, bio_density=bio_density,
                                 tech_density=tech_density, chunk_size=chunk_size, transform=transform,
                                 specific=specific, data_type=data_type, obj_feats=obj_feats,
                                 label_mappings=label_mappings, hybrid_mode=hybrid_mode,
-                                splitting_redundancy=splitting_redundancy)
+                                splitting_redundancy=splitting_redundancy, label_remove=label_remove, sampling=sampling,
+                                force_split=force_split, padding=padding, split_on_demand=split_on_demand,
+                                split_jitter=split_jitter, epoch_size=epoch_size, workers=workers,
+                                voxel_sizes=voxel_sizes, ssd_exclude=ssd_exclude, ssd_include=ssd_include,
+                                ssd_labels=ssd_labels)
         self._specific = specific
         self._nclasses = nclasses
         self._sample_num = sample_num
         self._feat_dim = feat_dim
+        self._padding = padding
 
     def __len__(self):
         return len(self._ch)
@@ -68,6 +87,7 @@ class TorchHandler(data.Dataset):
                 if sample is not None:
                     if len(sample.vertices) == 0:
                         sample = None
+                item += 1
 
         if sample.labels is not None:
             labels = sample.labels.reshape(len(sample.labels))
@@ -88,7 +108,11 @@ class TorchHandler(data.Dataset):
                 no_pred_labels.append(sample.encoding[name])
 
         # build mask for all indices which should not be used for loss calculation
-        idcs = torch.from_numpy(np.isin(sample.labels, no_pred_labels).reshape(-1))
+        idcs = np.isin(sample.labels, no_pred_labels).reshape(-1)
+        if self._padding is not None:
+            # Mark points which were added as padding for later removal / for ignoring them during loss calculation
+            idcs = np.logical_or(idcs, np.all(sample.vertices == self._padding, axis=1))
+        idcs = torch.from_numpy(idcs)
         o_mask = torch.ones(len(sample.vertices), self._nclasses, dtype=torch.bool)
         l_mask = torch.ones(len(sample.vertices), dtype=torch.bool)
         o_mask[idcs] = False
@@ -122,7 +146,10 @@ class TorchHandler(data.Dataset):
         return self._ch.get_obj_length(name)
 
     def get_obj_info(self, name: str, hybrid_only: bool = False):
-        return self._ch.get_obj_info(name, hybrid_only)
+        return self._ch.get_obj_info(name)
 
-    def get_set_info(self, hybrid_only: bool = False):
-        return self._ch.get_set_info(hybrid_only)
+    def get_set_info(self):
+        return self._ch.get_set_info()
+
+    def terminate(self):
+        self._ch.terminate()

@@ -85,6 +85,7 @@ def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
         nodes = hm.nodes
         node_labels = hm.node_labels
         edges = hm.edges
+        types = hm.types
     else:
         faces = hm.faces[total_face]
         total_vertex = np.unique(faces.flatten()).astype(int)  # also sorts the ids
@@ -101,6 +102,10 @@ def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
             features = hm.features[total_vertex]
         else:
             features = None
+        if len(hm.types) > 0:
+            types = hm.types[total_vertex]
+        else:
+            types = None
         # normalize new faces to be contiguous
         face_shape = faces.shape
         faces = faces.flatten()
@@ -121,7 +126,7 @@ def extract_mesh_subset(hm: HybridMesh, node_ids: np.ndarray) -> HybridMesh:
         edges = np.array(list(sub_g.edges))
     hm = HybridMesh(nodes=nodes, node_labels=node_labels, edges=edges,
                     vertices=vertices, faces=faces, normals=normals, labels=labels,
-                    features=features, encoding=hm.encoding)
+                    features=features, encoding=hm.encoding, types=types)
     return hm
 
 

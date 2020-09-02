@@ -8,20 +8,24 @@
 import os
 import pickle
 import numpy as np
+from typing import List
 from morphx.data import basics
 from morphx.processing import objects
 from morphx.classes.pointcloud import PointCloud
+from morphx.classes.cloudensemble import CloudEnsemble
 
 
 class PredictionMapper:
-    def __init__(self, data_path: str, save_path: str, splitfile: str, datatype: str = 'ce'):
+    def __init__(self, data_path: str, save_path: str, splitfile: str, datatype: str = 'ce',
+                 label_remove: List[int] = None, hybrid_mode: bool = False):
         """
         Args:
             data_path: Path to objects saved as pickle files. Existing chunking information would
                 be available in the folder 'splitted' at this location.
             save_path: Location where mapped predictions from specific mode should be saved.
             datatype: Type of data encoded in string. 'ce' for CloudEnsembles, 'hc' for HybridClouds.
-            splitfile: File with splitting information for the dataset of interest
+            splitfile: File with splitting information for the dataset of interest.
+            hybrid_mode: Flag for dropping all substructures except the actual mesh.
         """
         self._data_path = os.path.expanduser(data_path)
         if not os.path.exists(self._data_path):
@@ -40,12 +44,15 @@ class PredictionMapper:
         self._datatype = datatype
         self._curr_obj = None
         self._curr_name = None
+        self._label_remove = label_remove
+        self._hybrid_mode = hybrid_mode
 
     @property
     def save_path(self):
         return self._save_path
 
-    def map_predictions(self, pred_cloud: PointCloud, mapping_idcs: np.ndarray, obj_name: str, chunk_idx: int):
+    def map_predictions(self, pred_cloud: PointCloud, mapping_idcs: np.ndarray, obj_name: str, chunk_idx: int,
+                        sampling: bool = True):
         """ A processed chunk extracted by a ChunkHandler with the predicted labels can
             then be mapped back to its original chunk and the predictions will be
             saved in :attr:`PointCloud.predictions`.
@@ -55,6 +62,7 @@ class PredictionMapper:
             mapping_idcs: The indices of the vertices in the local BFS context from which samples were taken.
             obj_name: The Filename (without .pkl) of the object from which the chunk was extracted.
             chunk_idx: The index of the chunk within the object with name :attr:`obj_name`.
+            sampling: Flag whether sampling from the subset was used or not.
         """
         if self._curr_name is None:
             self.load_prediction(obj_name)
@@ -69,8 +77,12 @@ class PredictionMapper:
         _, idcs = objects.extract_cloud_subset(self._curr_obj, node_context)
         mapping_idcs = mapping_idcs.astype(int)
         for pred_idx, subset_idx in enumerate(mapping_idcs):
-            # Get indices of vertices in full object (not only in the subset)
-            vertex_idx = idcs[subset_idx]
+            if sampling:
+                # Get indices of vertices in full object (not only in the subset)
+                vertex_idx = idcs[subset_idx]
+            else:
+                # if no sampling was used, the indices can be mapped directly
+                vertex_idx = subset_idx
             try:
                 self._curr_obj.predictions[vertex_idx].append(int(pred_cloud.labels[pred_idx]))
             except KeyError:
@@ -78,6 +90,10 @@ class PredictionMapper:
 
     def load_prediction(self, name: str):
         self._curr_obj = objects.load_obj(self._datatype, f'{self._data_path}{name}.pkl')
+        if self._hybrid_mode and isinstance(self._curr_obj, CloudEnsemble):
+            self._curr_obj = self._curr_obj.hc
+        if self._label_remove is not None:
+            self._curr_obj.remove_nodes(self._label_remove)
         self._curr_name = name
         if os.path.exists(f'{self._save_path}{name}_preds.pkl'):
             preds = basics.load_pkl(f'{self._save_path}{name}_preds.pkl')

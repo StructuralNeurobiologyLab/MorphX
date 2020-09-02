@@ -8,13 +8,41 @@
 import os
 import glob
 import pickle
+import random
 import numpy as np
 from tqdm import tqdm
+from typing import List
+import open3d as o3d
 from morphx.processing import ensembles, objects
+from morphx.classes.hybridcloud import HybridCloud
+from morphx.processing.objects import context_splitting_kdt_many
+
+
+def split_single(hc: HybridCloud, ctx: int, base_node_dst: int, radius: int = None):
+    """
+    Splits a single HybridCloud into chunks. Selects base nodes by voxelization.
+
+    Args:
+        hc: HybridCloud which should get split.
+        ctx: context size.
+        base_node_dst: distance between base nodes. Corresponds to redundancy or the number of chunks per HybridCloud.
+        radius: Extraction radius for splitting. See splitting method for more information.
+
+    Returns:
+        The generated chunks.
+    """
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(hc.nodes)
+    pcd, idcs = pcd.voxel_down_sample_and_trace(
+        base_node_dst, pcd.get_min_bound(), pcd.get_max_bound())
+    source_nodes = np.max(idcs, axis=1)
+    node_arrs = context_splitting_kdt_many(hc, source_nodes, ctx, radius)
+    return node_arrs
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
-          density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1):
+          density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1,
+          label_remove: List[int] = None, split_jitter: int = 0):
     """
     Splits HybridClouds given as pickle files at data_path into multiple subgraphs and saves that chunking information
     in the new folder 'splitted' as a pickled dict. The dict has filenames of the HybridClouds as keys and lists of
@@ -38,6 +66,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         redundancy: Indicates how many iterations of base nodes should get used. 1 means, that base nodes get randomly
             drawn from the remaining nodes until all nodes have been included in at least one subgraph. redundancy = n
             means, that base nodes get randomly drawn until all nodes have been included in subgraphs at least n times.
+        label_remove: List of labels indicating which nodes should get removed.
+        split_jitter: Adds jitter to the context size of the generated chunks.
     """
     # check validity of method call
     if density_splitting:
@@ -62,15 +92,19 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             continue
         print(f"No splitting information found for {name}. Splitting it now...")
         obj = ensembles.ensemble_from_pkl(file)
+        # remove labels
+        if label_remove is not None:
+            obj.remove_nodes(labels=label_remove)
+        nodes = np.array(obj.graph().nodes)
         base_points = []
         subgraphs = []
         for i in range(redundancy):
             # prepare mask for filtering subgraph nodes
-            mask = np.ones(len(obj.nodes), dtype=bool)
+            mask = np.ones(len(nodes), dtype=bool)
             # existing base nodes should not get chosen as a base node again
-            mask[base_points] = False
+            mask[np.isin(nodes, base_points)] = False
             # identify remaining nodes
-            remaining_nodes = np.arange(len(obj.nodes))[mask]
+            remaining_nodes = nodes[mask]
             while len(remaining_nodes) != 0:
                 # choose random base node from the remaining nodes
                 choice = np.random.choice(remaining_nodes, 1)
@@ -79,11 +113,12 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                 if density_splitting:
                     subgraph = objects.density_splitting(obj, choice[0], vert_num)
                 else:
-                    subgraph = objects.context_splitting(obj, choice[0], chunk_size)
+                    jitter = random.randint(0, split_jitter)
+                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size + jitter, radius=1000)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
-                mask[subgraph] = False
-                remaining_nodes = np.arange(len(obj.nodes))[mask]
+                mask[np.isin(nodes, subgraph)] = False
+                remaining_nodes = nodes[mask]
         # save base points for later viewing in corresponding
         base_points = np.array(base_points)
         slashs = [pos for pos, char in enumerate(filename) if char == '/']
@@ -98,3 +133,4 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
         with open(filename, 'wb') as f:
             pickle.dump(splitted_hcs, f)
         f.close()
+    return splitted_hcs

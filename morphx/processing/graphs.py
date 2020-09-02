@@ -8,6 +8,7 @@
 import numpy as np
 import networkx as nx
 from collections import deque
+from typing import List
 
 
 def bfs_base_points_euclid(g: nx.Graph, min_dist: float, source: int = -1) -> np.ndarray:
@@ -115,3 +116,41 @@ def bfs_iterative(g: nx.Graph, source: int, context: int):
             de += local_de
     return chunks
 
+
+def extract_label_subgraphs(g: nx.Graph, label: int) -> List[List[int]]:
+    # get nodes with specific label
+    snodes = []
+    subgraphs = []
+    for node in g.nodes:
+        if g.nodes[node]['label'] == label:
+            snodes.append(node)
+    # get all minimal subgraphs which include at least one node of the specified label
+    for node in snodes:
+        for i in range(len(snodes)):
+            subgraph = bfs_until_n_snodes(g, node, label, i)
+            if subgraph not in subgraphs:
+                subgraphs.append(subgraph)
+    return subgraphs
+
+
+def bfs_until_n_snodes(g: nx.Graph, source: int, label: int, n: int) -> List[int]:
+    num = 0
+    result = [source]
+    if g.nodes[source]['label'] == label:
+        num += 1
+    neighbors = g.neighbors(source)
+    de = deque([i for i in neighbors])
+    while de:
+        if num == n:
+            return result
+        curr = de.pop()
+        if curr not in result:
+            result.append(curr)
+            if g.nodes[curr]['label'] == label:
+                num += 1
+            neighbors = g.neighbors(curr)
+            de.extendleft([i for i in neighbors if i not in result])
+    if num != n:
+        raise ValueError(f"Graph does not contain {n} nodes with the label {label}")
+    else:
+        return result

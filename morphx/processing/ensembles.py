@@ -73,10 +73,14 @@ def ensemble2pointcloud(ensemble: CloudEnsemble) -> Optional[Union[PointCloud, H
     parts = [ensemble.clouds[key] for key in ensemble.clouds.keys()]
     names = [key for key in ensemble.clouds.keys()]
     merged_clouds = clouds.merge_clouds(parts, names, ignore_hybrids=True)
-    merged_clouds.add_no_pred(ensemble.no_pred)
+    if merged_clouds is not None:
+        merged_clouds.add_no_pred(ensemble.no_pred)
     if ensemble.hc is None:
         return merged_clouds
     else:
+        if merged_clouds is None:
+            # no additional clouds are present
+            return ensemble.hc
         return clouds.merge_clouds([ensemble.hc, merged_clouds], ['hybrid', 'clouds'])
 
 
@@ -99,17 +103,24 @@ def extract_subset(ensemble: CloudEnsemble, nodes: np.ndarray) -> Tuple[PointClo
     obj_bounds = {}
     offset = 0
     idcs = np.array(idcs)
-    for key in ensemble.flattened.obj_bounds:
-        bounds = ensemble.flattened.obj_bounds[key]
-        num = len(idcs[np.logical_and(idcs >= bounds[0], idcs < bounds[1])])
-        if num != 0:
-            obj_bounds[key] = np.array([offset, offset+num])
-            offset += num
+    if ensemble.flattened.obj_bounds is not None:
+        for key in ensemble.flattened.obj_bounds:
+            bounds = ensemble.flattened.obj_bounds[key]
+            num = len(idcs[np.logical_and(idcs >= bounds[0], idcs < bounds[1])])
+            if num != 0:
+                obj_bounds[key] = np.array([offset, offset+num])
+                offset += num
+    else:
+        obj_bounds = None
     if len(idcs) == 0:
-        return PointCloud(vertices=np.array([])), np.array([])
+        return PointCloud(), idcs
+    if len(ensemble.flattened.features) == 0:
+        features = None
+    else:
+        features = ensemble.flattened.features[idcs]
     return PointCloud(vertices=ensemble.flattened.vertices[idcs], labels=ensemble.flattened.labels[idcs],
-                      features=ensemble.flattened.features[idcs], obj_bounds=obj_bounds,
-                      no_pred=ensemble.flattened.no_pred, encoding=ensemble.flattened.encoding), idcs
+                      features=features, obj_bounds=obj_bounds, no_pred=ensemble.flattened.no_pred,
+                      encoding=ensemble.flattened.encoding), idcs
 
 
 # -------------------------------------- ENSEMBLE I/O ------------------------------------------- #
@@ -127,12 +138,12 @@ def ensemble_from_pkl(path):
     with open(path, 'rb') as f:
         obj = pickle.load(f)
     f.close()
-
+    if not isinstance(obj, dict):
+        raise ValueError(f"Object at {path} is no valid ensemble file.")
     try:
         h = HybridCloud(**obj['hybrid'])
     except TypeError:
         h = HybridMesh(**obj['hybrid'])
-
     cloudlist = {}
     for key in obj['clouds']:
         try:
@@ -142,7 +153,6 @@ def ensemble_from_pkl(path):
                 cloudlist[key] = HybridCloud(**obj['clouds'][key])
             except TypeError:
                 cloudlist[key] = HybridMesh(**obj['clouds'][key])
-
     # check for empty clouds
     empty = []
     for key in cloudlist:
@@ -150,15 +160,12 @@ def ensemble_from_pkl(path):
             empty.append(key)
     for key in empty:
         cloudlist.pop(key, None)
-
     try:
         predictions = obj['predictions']
     except KeyError:
         predictions = None
-
     try:
         verts2node = obj['verts2node']
     except KeyError:
         verts2node = None
-
     return CloudEnsemble(cloudlist, h, obj['no_pred'], predictions=predictions, verts2node=verts2node)

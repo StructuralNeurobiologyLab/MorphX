@@ -17,6 +17,14 @@ from morphx.data.basics import read_mesh_from_ply, load_skeleton_nx_pkl
 test_dir = os.path.dirname(__file__)
 
 
+def test_sanity():
+    hc = HybridCloud()
+    assert len(hc.nodes) == 0
+    assert len(hc.node_labels) == 0
+    assert len(hc.pred_node_labels) == 0
+    assert len(hc.edges) == 0
+
+
 def test_hybridcloud_load():
     # TODO: maybe decouple from other tests.
     dir_ex = os.path.abspath(f'{test_dir}/../data')

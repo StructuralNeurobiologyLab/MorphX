@@ -29,13 +29,18 @@ class HybridMesh(HybridCloud):
         """
         super().__init__(*args, **kwargs)
 
-        self._faces = faces
-        if normals is None or len(normals) == 0:
-            self._normals = np.zeros(0)
-        else:
-            if len(normals) != len(self.vertices):
-                raise ValueError("Normals array must have same length as vertices array.")
-            self._normals = normals.reshape(len(normals), 1)
+        if faces is None:
+            faces = np.zeros((0, 3))
+        if faces.shape[1] != 3:
+            raise ValueError("Faces must have shape (N, 3).")
+        self._faces = np.array(faces)  # trigger copy
+
+        if normals is None:
+            normals = np.zeros((0, 3))
+        if len(normals) != 0 and len(normals) != len(faces):
+            raise ValueError("Normals array must have same length as faces array.")
+        self._normals = np.array(normals.reshape(len(normals), 3)).astype(int)
+
         self._faces2node = faces2node
 
     @property
@@ -47,7 +52,7 @@ class HybridMesh(HybridCloud):
         return self._normals
 
     @property
-    def faces2node(self) -> dict:
+    def faces2node(self) -> Optional[dict]:
         # TODO: slow, optimization required.
         """ Creates python dict with indices of ``:py:attr:~nodes`` as
         keys and lists of face indices associated with the nodes as values.
@@ -57,7 +62,7 @@ class HybridMesh(HybridCloud):
         Returns:
             Python dict with mapping information.
         """
-        if self.nodes is None:
+        if len(self.nodes) == 0:
             return None
         if self._faces2node is None:
             self._faces2node = dict()

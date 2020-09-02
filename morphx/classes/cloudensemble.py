@@ -127,6 +127,28 @@ class CloudEnsemble(object):
         except KeyError:
             return None
 
+    def remove_nodes(self, labels: List[int]):
+        if len(labels) == 0:
+            return
+        _ = self.flattened
+        mapping = self._hc.remove_nodes(labels)
+        new_verts2node = {}
+        for key in self.verts2node:
+            if key in mapping:
+                new_verts2node[mapping[key]] = self.verts2node[key]
+        self._flattened = None
+        self._verts2node = new_verts2node
+        self.flattened.set_verts2node(new_verts2node)
+
+    def map_labels(self, label_mappings: List):
+        self.flattened.map_labels(label_mappings)
+        self._hc.map_labels(label_mappings)
+        for key in self.clouds:
+            cloud = self.get_cloud(key)
+            if cloud is None:
+                pass
+            cloud.map_labels(label_mappings)
+
     # -------------------------------------- SETTERS ------------------------------------------- #
 
     def add_cloud(self, cloud: PointCloud, cloud_name: str):
@@ -144,6 +166,7 @@ class CloudEnsemble(object):
         self.reset_ensemble()
 
     def reset_ensemble(self):
+        self._flattened = None
         self._verts2node = None
 
     def add_no_pred(self, obj_names: List[str]):
@@ -165,11 +188,14 @@ class CloudEnsemble(object):
             Predicted labels of the HybridCloud
         """
         self.flattened.generate_pred_labels(mv)
-        hc_bounds = self.flattened.obj_bounds['hybrid']
-        self.hc.set_pred_labels(self.flattened.pred_labels[hc_bounds[0]:hc_bounds[1]])
-        for key in self.clouds:
-            cloud_bounds = self.flattened.obj_bounds[key]
-            self._clouds[key].set_pred_labels(self.flattened.pred_labels[cloud_bounds[0]:cloud_bounds[1]])
+        if self.flattened.obj_bounds is not None:
+            hc_bounds = self.flattened.obj_bounds['hybrid']
+            self.hc.set_pred_labels(self.flattened.pred_labels[hc_bounds[0]:hc_bounds[1]])
+            for key in self.clouds:
+                cloud_bounds = self.flattened.obj_bounds[key]
+                self._clouds[key].set_pred_labels(self.flattened.pred_labels[cloud_bounds[0]:cloud_bounds[1]])
+        else:
+            self.hc.set_pred_labels(self.flattened.pred_labels)
         return self.hc.pred_labels
 
     def get_pred_num(self) -> int:
