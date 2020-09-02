@@ -251,14 +251,18 @@ class HybridCloud(PointCloud):
     def scale(self, factor: int):
         """ If factor < 0 vertices and nodes are divided by the factor. If factor > 0 vertices and nodes are
             multiplied by the factor. If factor == 0 nothing happens. """
-        if factor == 0:
+
+        if np.any(factor == 0):
             return
-        elif factor < 0:
-            self._vertices = self._vertices / -factor
-            self._nodes = self._nodes / -factor
-        else:
-            self._vertices = self._vertices * factor
-            self._nodes = self.nodes * factor
+        if np.isscalar(factor):
+            factor = np.array([factor] * 3)
+        elif type(factor) is not np.ndarray:
+            factor = np.array(factor)
+        if np.any(factor < 0):
+            self._vertices[..., factor < 0] = self._vertices[..., factor < 0] / -factor[factor < 0]
+            self._nodes[..., factor < 0] = self._nodes[..., factor < 0] / -factor[factor < 0]
+        self._vertices[..., factor > 0] = self._vertices[..., factor > 0] * factor[factor > 0]
+        self._nodes[..., factor > 0] = self._nodes[..., factor > 0] * factor[factor > 0]
 
     def rotate_randomly(self, angle_range: tuple = (-180, 180), random_flip: bool = False):
         """ Randomly rotates vertices and nodes by performing an Euler rotation. The three angles are choosen randomly

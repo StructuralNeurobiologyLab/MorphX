@@ -480,10 +480,11 @@ class PointCloud(object):
         """
         max_bound = np.max(self.vertices, axis=0)
         min_bound = np.min(self.vertices, axis=0)
-        max_bound += max_bound / 4
+        # this margin is not safe
+        max_bound += np.abs(max_bound) / 4
         min_bound -= np.abs(min_bound) / 4
         grid_displcs = []
-        for i in range(3):
+        for _ in range(3):
             grid_displcs.append(gaussian_filter((np.random.rand(*res) * 2 - 1), sigma, mode="constant", cval=0) * alpha)
         x = np.linspace(min_bound[0], max_bound[0], res[0])
         y = np.linspace(min_bound[1], max_bound[1], res[1])
