@@ -53,6 +53,8 @@ def extract_subset(hybrid: HybridCloud, local_bfs: np.ndarray) -> Tuple[PointClo
                      vertices=verts, labels=labels, features=feats,
                      no_pred=hybrid.no_pred, obj_bounds=hybrid.obj_bounds,
                      encoding=hybrid.encoding)
+    # add relabel dc in case it is needed downstream
+    hc.relabel_dc = relabel_dc
     return hc, np.array(idcs)
 
 
