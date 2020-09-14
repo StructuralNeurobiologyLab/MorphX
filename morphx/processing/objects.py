@@ -212,7 +212,7 @@ def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: 
             pairs = kdt.query_pairs(radius)
             # remap to subset of indices
             sg.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
-        ctxs.append(np.array(list(nx.node_connected_component(sg, source))))
+        ctxs.append(np.array(list(nx.node_connected_component(sg, source)), dtype=np.int))
     return ctxs
 
 
@@ -259,7 +259,7 @@ def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max:
                 neighbors = hc.graph().neighbors(curr)
                 de.extendleft([i for i in neighbors if i not in visited])
             else:
-                return np.array(visited)
+                return np.array(visited, dtype=np.int)
 
     return np.array(visited)
 

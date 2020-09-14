@@ -327,9 +327,11 @@ class HybridCloud(PointCloud):
 
     # -------------------------------------- TRANSFORMATIONS ------------------------------------------- #
 
-    def scale(self, factor: int):
+    def scale(self, factor: Optional[int]):
         """ If factor < 0 vertices and nodes are divided by the factor. If factor > 0 vertices and nodes are
             multiplied by the factor. If factor == 0 nothing happens. """
+        if factor is None:
+            factor = -np.max(np.abs(self._vertices))
         if np.any(factor == 0):
             return
         if np.isscalar(factor):

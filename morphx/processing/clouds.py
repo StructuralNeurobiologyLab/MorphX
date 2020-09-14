@@ -294,10 +294,13 @@ class Identity(Transformation):
 
 
 class Normalization(Transformation):
-    def __init__(self, radius: int):
-        if radius <= 0:
-            radius = 1
-        self._radius = -radius
+    def __init__(self, radius: Optional[int]):
+        if radius is not None:
+            if radius <= 0:
+                radius = 1
+            self._radius = -radius
+        else:
+            self._radius = radius
 
     def __call__(self, pc: PointCloud):
         """ Divides the coordinates of the points by the context size (e.g. radius of the local BFS). If radius is not
