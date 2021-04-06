@@ -11,19 +11,20 @@ import pickle
 import random
 import numpy as np
 from tqdm import tqdm
-from typing import List
+from typing import List, Union
 import open3d as o3d
 from morphx.processing import ensembles, objects
 from morphx.classes.hybridcloud import HybridCloud
-from morphx.processing.objects import context_splitting_kdt_many
+from morphx.classes.cloudensemble import CloudEnsemble
+from morphx.processing.objects import context_splitting_kdt
 
 
-def split_single(hc: HybridCloud, ctx: int, base_node_dst: int, radius: int = None):
+def split_single(obj: Union[HybridCloud, CloudEnsemble], ctx: int, base_node_dst: float, radius: int = None):
     """
     Splits a single HybridCloud into chunks. Selects base nodes by voxelization.
 
     Args:
-        hc: HybridCloud which should get split.
+        obj: object which should get split.
         ctx: context size.
         base_node_dst: distance between base nodes. Corresponds to redundancy or the number of chunks per HybridCloud.
         radius: Extraction radius for splitting. See splitting method for more information.
@@ -31,13 +32,15 @@ def split_single(hc: HybridCloud, ctx: int, base_node_dst: int, radius: int = No
     Returns:
         The generated chunks.
     """
+    if type(obj) == CloudEnsemble:
+        obj = obj.hc
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(hc.nodes)
+    pcd.points = o3d.utility.Vector3dVector(obj.nodes)
     pcd, idcs = pcd.voxel_down_sample_and_trace(
         base_node_dst, pcd.get_min_bound(), pcd.get_max_bound())
     source_nodes = np.max(idcs, axis=1)
-    node_arrs = context_splitting_kdt_many(hc, source_nodes, ctx, radius)
-    return node_arrs
+    node_arrs = context_splitting_kdt(obj, source_nodes, ctx, radius)
+    return node_arrs, source_nodes
 
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
@@ -114,11 +117,17 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
                     subgraph = objects.density_splitting(obj, choice[0], vert_num)
                 else:
                     jitter = random.randint(0, split_jitter)
-                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size + jitter, radius=1000)
+                    subgraph = objects.context_splitting_kdt(obj, choice[0], chunk_size + jitter, radius=800)
                 subgraphs.append(subgraph)
                 # remove nodes of the extracted subgraph from the remaining nodes
                 mask[np.isin(nodes, subgraph)] = False
                 remaining_nodes = nodes[mask]
+        # update splitting dict with new subgraphs for current object
+        splitted_hc = list(zip(obj.nodes[base_points], subgraphs))
+        splitted_hcs[name] = splitted_hc
+        with open(filename, 'wb') as f:
+            pickle.dump(splitted_hcs, f)
+        f.close()
         # save base points for later viewing in corresponding
         base_points = np.array(base_points)
         slashs = [pos for pos, char in enumerate(filename) if char == '/']
@@ -128,9 +137,4 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             os.makedirs(basefile)
         with open(f'{basefile}{name}_basepoints.pkl', 'wb') as f:
             pickle.dump(base_points, f)
-        # update splitting dict with new subgraphs for current object
-        splitted_hcs[name] = subgraphs
-        with open(filename, 'wb') as f:
-            pickle.dump(splitted_hcs, f)
-        f.close()
     return splitted_hcs
