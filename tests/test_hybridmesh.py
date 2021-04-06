@@ -8,10 +8,9 @@
 
 import os
 import numpy as np
-import networkx as nx
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.processing.hybrids import extract_mesh_subset
-from morphx.data.basics import read_mesh_from_ply, load_skeleton_nx_pkl
+from morphx.processing.basics import read_mesh_from_ply, load_skeleton_nx_pkl
 
 test_dir = os.path.dirname(__file__)
 

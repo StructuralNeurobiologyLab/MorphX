@@ -11,7 +11,7 @@ from tqdm import tqdm
 from typing import Dict, Union
 import logging
 from scipy.spatial import cKDTree
-from morphx.data.basics import load_pkl
+from morphx.processing.basics import load_pkl
 from typing import List, Optional, Tuple
 from scipy.spatial.transform import Rotation as Rot
 from scipy.interpolate import interpn
@@ -166,6 +166,27 @@ class PointCloud(object):
             self._labels[self._labels == mapping[0]] = mapping[1]
             if self._encoding is not None and mapping[0] in self._encoding:
                 self._encoding.pop(mapping[0], None)
+
+    def mark_borders(self, marker_label: int, radius: Optional[float] = None, centroid: Optional[np.ndarray] = None):
+        """ Changes the labels of vertices outside of a sphere with radius
+            centered around centroid to marker_label.
+
+        Args:
+            marker_label: label to which the labels of vertices outside of the exclusion sphere get changed.
+            radius: radius of exclusion sphere around centroid.
+            centroid: point (shape (1, 3)) around which the exclusion sphere is drawn. Default is the centroid
+            of the vertices of the cloud.
+        """
+        if radius is None:
+            extension = np.sqrt(np.sum((np.amax(self._vertices, axis=0)-np.amin(self._vertices, axis=0))**2))
+            radius = extension / 2 - 2000
+        if centroid is None:
+            centroid = np.mean(self._vertices, axis=0)
+        kdt = cKDTree(self._vertices)
+        ixs = kdt.query_ball_point(centroid, radius)
+        mask = np.ones(len(self._vertices), dtype=bool)
+        mask[ixs] = False
+        self._labels[mask] = marker_label
 
     # --------------------------------------------- SETTER ------------------------------------------------ #
 

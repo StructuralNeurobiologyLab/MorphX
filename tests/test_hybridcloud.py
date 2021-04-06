@@ -6,13 +6,10 @@
 # Authors: Jonathan Klimesch, Philipp Schubert
 
 import os
-import pytest
-import time
 import numpy as np
 import morphx.processing.objects
-from morphx.processing import hybrids
 from morphx.classes.hybridcloud import HybridCloud
-from morphx.data.basics import read_mesh_from_ply, load_skeleton_nx_pkl
+from morphx.processing.basics import read_mesh_from_ply, load_skeleton_nx_pkl
 
 test_dir = os.path.dirname(__file__)
 
@@ -76,7 +73,7 @@ def test_node_labels():
     node_labels = np.array([1, 2, 1, 1, 2, 2, 2, 1])
     hc = HybridCloud(np.array([[i, i, i] for i in range(8)]), np.array([[i, i+1] for i in range(7)]),
                      vertices=np.array([[1, 1, 1], [2, 2, 2]]), pred_node_labels=node_labels)
-    hc.clean_node_labels(2)
+    hc.node_sliding_window_bfs(2)
     expected = np.array([1, 1, 1, 1, 2, 2, 2, 2])
     assert np.all(hc.pred_node_labels == expected.reshape((len(expected), 1)))
 

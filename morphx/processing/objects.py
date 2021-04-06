@@ -9,14 +9,13 @@ import numpy as np
 import random
 import networkx as nx
 from collections import deque
-from morphx.data import basics
 from typing import Union, Tuple, Optional, Iterable, List, Dict
 from scipy.spatial import cKDTree
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.hybridmesh import HybridMesh
 from morphx.classes.hybridcloud import HybridCloud
 from morphx.classes.cloudensemble import CloudEnsemble
-from morphx.processing import hybrids, ensembles, clouds, graphs
+from morphx.processing import hybrids, ensembles, clouds, graphs, basics
 
 
 # -------------------------------------- DISPATCHER METHODS -------------------------------------- #
@@ -144,45 +143,8 @@ def context_splitting(obj: Union[HybridCloud, CloudEnsemble], source: int, max_d
     return np.array(chosen)
 
 
-def context_splitting_kdt(obj: Union[HybridCloud, CloudEnsemble], source: int, max_dist: float,
-                          radius: Optional[int] = None) -> np.ndarray:
-    """ Performs a query ball search (via kd-tree) to find the connected sub-graph within `max_dist` starting at the
-    source node in the obj's weighted graph.
-
-    Args:
-        obj: The HybridCloud/CloudEnsemble with the graph, nodes and vertices.
-        source: The source node.
-        max_dist: The maximum distance to the source node (Euclidean distance, i.e. not along the graph!).
-        radius: Optionally add edges between nodes within `radius`.
-
-    Returns:
-        The nodes within the requested context for every source node - same ordering as `sources`.
-    """
-    node_ixs = np.arange(len(obj.nodes)).tolist()
-    g = nx.Graph()
-    g.add_edges_from(obj.edges)
-
-    # remove nodes outside max radius
-    # TODO: use sg = nx.subgraph(g, ixs) instead of pruning the original graph with a loop..
-    kdt = cKDTree(obj.nodes)
-    ixs = np.concatenate(kdt.query_ball_point([obj.nodes[source]], max_dist)).tolist()
-    diff = set(node_ixs).difference(set(ixs))
-    # fails if there is a node without edge!
-    for ix in diff:
-        g.remove_node(ix)
-
-    if radius is not None:
-        # add edges within 1µm
-        kdt = cKDTree(obj.nodes[ixs])
-        pairs = kdt.query_pairs(radius)
-        # remap to subset of indices
-        g.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
-
-    return np.array(list(nx.node_connected_component(g, source)))
-
-
-def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: Iterable[int], max_dist: float,
-                               radius: Optional[int] = None) -> List[np.ndarray]:
+def context_splitting_kdt(obj: Union[HybridCloud, CloudEnsemble], sources: Union[Iterable[int], int], max_dist: float,
+                          radius: Optional[int] = None) -> Union[List[np.ndarray], np.ndarray]:
     """ Performs a query ball search (via kd-tree) to find the connected sub-graph within `max_dist` starting at the
     source node in the obj's weighted graph.
 
@@ -195,25 +157,34 @@ def context_splitting_kdt_many(obj: Union[HybridCloud, CloudEnsemble], sources: 
     Returns:
         The nodes within the requested context for every source node - same ordering as `sources`.
     """
+    iterable = True
+    try:
+        iter(sources)
+    except TypeError:
+        sources = [sources]
+        iterable = False
     g = nx.Graph()
     g.add_edges_from(obj.edges)
-
     ctxs = []
-
     kdt = cKDTree(obj.nodes)
     # TODO: use query_ball_tree if sources is large
     ixs_nn = kdt.query_ball_point(obj.nodes[sources], max_dist)
     for source, ixs in zip(sources, ixs_nn):
-        # remove nodes outside max_dist
-        sg = nx.subgraph(g, ixs)
+        sg_view = nx.subgraph(g, ixs)
+        # create new object for subgraph as nx.subgraph is only a frozen view
+        sg = nx.Graph()
+        sg.add_edges_from(sg_view.edges)
         if radius is not None:
-            # add edges within 1µm
             kdt = cKDTree(obj.nodes[ixs])
             pairs = kdt.query_pairs(radius)
             # remap to subset of indices
             sg.add_edges_from([(ixs[p[0]], ixs[p[1]]) for p in pairs])
-        ctxs.append(np.array(list(nx.node_connected_component(sg, source)), dtype=np.int))
-    return ctxs
+        # remove independent nodes outside max_dist
+        ctxs.append(np.array(list(nx.node_connected_component(sg, source))))
+    if iterable:
+        return ctxs
+    else:
+        return ctxs[0]
 
 
 def context_splitting_graph_many(obj: Union[HybridCloud, CloudEnsemble], sources: Iterable[int],

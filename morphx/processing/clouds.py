@@ -474,9 +474,9 @@ class ElasticTransform(Transformation):
         if type(sigma) == tuple or type(alpha) == tuple:
             randomize = True
         if randomize:
-            if type(sigma) == float:
+            if type(sigma) != tuple:
                 sigma = (sigma, sigma)
-            if type(alpha) == float:
+            if type(alpha) != tuple:
                 alpha = (alpha, alpha)
         self.sigma = sigma
         self.alpha = alpha

@@ -66,6 +66,10 @@ class CloudEnsemble(object):
         return self.flattened.labels
 
     @property
+    def node_labels(self) -> np.ndarray:
+        return self.hc.node_labels
+
+    @property
     def types(self) -> np.ndarray:
         return self.hc.types
 
@@ -128,7 +132,7 @@ class CloudEnsemble(object):
             return None
 
     def remove_nodes(self, labels: List[int]):
-        if len(labels) == 0:
+        if labels is None or len(labels) == 0:
             return
         _ = self.flattened
         mapping = self._hc.remove_nodes(labels)

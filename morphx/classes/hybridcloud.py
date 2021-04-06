@@ -130,27 +130,34 @@ class HybridCloud(PointCloud):
 
     # -------------------------------------- HYBRID BASICS ------------------------------------------- #
 
-    def clean_node_labels(self, neighbor_num: int = 20):
+    def node_sliding_window_bfs(self, neighbor_num: int = 20, predictions: bool = True):
         """ For each node, this method performs a majority vote on the labels of neighbor_num neighbors which were
         extracted with a limited bfs. The most frequent label is used for the current node. This method can be used as
         a sliding window filter for removing single or small groups of wrong labels on the skeleton.
 
         Args:
             neighbor_num: Number of neighbors which limits the radius of the bfs.
+            predictions: Flag for applying sliding window to node predictions or to existing node labels.
         """
         from morphx.processing import graphs
-        new_labels = np.zeros((len(self.pred_node_labels), 1))
+        if predictions:
+            node_labels = self.pred_node_labels
+        else:
+            node_labels = self.node_labels
+        new_labels = np.zeros((len(node_labels), 1))
         graph = self.graph(simple=True)
-
         # for each node extract neighbor_num neighbors with a bfs and take the most frequent label as new node label
         for ix in range(len(self.nodes)):
             local_bfs = graphs.bfs_num(graph, ix, neighbor_num)
-            labels = self.pred_node_labels[local_bfs.astype(int)]
+            labels = node_labels[local_bfs.astype(int)]
             u_labels, counts = np.unique(labels, return_counts=True)
             new_labels[ix] = u_labels[np.argmax(counts)]
-        self._pred_node_labels = new_labels
+        if predictions:
+            self._pred_node_labels = new_labels
+        else:
+            self._node_labels = new_labels
 
-    def vertl2nodel(self, pred: bool = True) -> np.ndarray:
+    def vertl2nodel(self, pred: bool = True, propagate: bool = False) -> np.ndarray:
         """ Uses verts2node to transfer vertex labels onto the skeleton. For each node, a majority vote on the labels of
          the corresponding vertices is performed and the most frequent label is transferred to the node.
          Returns:
@@ -179,15 +186,16 @@ class HybridCloud(PointCloud):
                     u_labels, counts = np.unique(labels, return_counts=True)
                     # take first label if there are multiple majorities
                     nodel[ix] = u_labels[np.argmax(counts)]
-            # nodes without label (still == -1) get label from nearest node with label
-            mapping = np.arange(len(self._nodes))
-            if np.all(nodel == -1):
-                warnings.warn("All node labels have label -1. Label mapping was not possible.")
-                return nodel
-            for ix in range(len(self._nodes)):
-                if nodel[ix] == -1:
-                    mapping[ix] = hybrids.label_search(self, nodel, ix)
-            nodel = nodel[mapping]
+            if propagate:
+                # nodes without label (still == -1) get label from nearest node with label
+                mapping = np.arange(len(self._nodes))
+                if np.all(nodel == -1):
+                    warnings.warn("All node labels have label -1. Label mapping was not possible.")
+                    return nodel
+                for ix in range(len(self._nodes)):
+                    if nodel[ix] == -1:
+                        mapping[ix] = hybrids.label_search(self, nodel, ix)
+                nodel = nodel[mapping]
         return nodel
 
     def prednodel2predvertl(self):
@@ -196,10 +204,9 @@ class HybridCloud(PointCloud):
             return
         if len(self._pred_labels) == 0:
             self._pred_labels = np.ones((len(self._vertices), 1)) * -1
-        else:
-            for ix in range(len(self._nodes)):
-                verts_idcs = self.verts2node[ix]
-                self._pred_labels[verts_idcs] = self._pred_node_labels[ix]
+        for ix in range(len(self._nodes)):
+            verts_idcs = self.verts2node[ix]
+            self._pred_labels[verts_idcs] = self._pred_node_labels[ix]
 
     def nodel2vertl(self):
         if len(self._node_labels) == 0:
@@ -252,7 +259,7 @@ class HybridCloud(PointCloud):
             labels: List of labels to indicate which nodes should get removed.
             threshold: Connected components where number of nodes is below this threshold get removed.
         """
-        if len(labels) == 0:
+        if labels is None or len(labels) == 0:
             return {}
         _ = self.verts2node
         # generate node labels by mapping vertex labels to nodes
@@ -293,6 +300,11 @@ class HybridCloud(PointCloud):
         for key in self.verts2node:
             if key in mapping:
                 new_verts2node[mapping[key]] = self.verts2node[key]
+                # relabel remaining vertices
+                mask = np.isin(self._labels[self.verts2node[key]], labels).reshape(-1)
+                if np.any(mask):
+                    idcs = np.array(self.verts2node[key])[mask]
+                    self._labels[idcs] = self._node_labels[mapping[key]]
         self._verts2node = new_verts2node
         return mapping
 

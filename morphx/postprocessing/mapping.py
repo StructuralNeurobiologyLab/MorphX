@@ -9,8 +9,7 @@ import os
 import pickle
 import numpy as np
 from typing import List
-from morphx.data import basics
-from morphx.processing import objects
+from morphx.processing import objects, basics
 from morphx.classes.pointcloud import PointCloud
 from morphx.classes.cloudensemble import CloudEnsemble
 
@@ -72,7 +71,7 @@ class PredictionMapper:
         if self._curr_name != obj_name:
             self.save_prediction()
             self.load_prediction(obj_name)
-        node_context = self._splitted_objs[obj_name][chunk_idx]
+        node_context = self._splitted_objs[obj_name][chunk_idx][1]
         # Get indices of vertices for requested local BFS
         _, idcs = objects.extract_cloud_subset(self._curr_obj, node_context)
         mapping_idcs = mapping_idcs.astype(int)
