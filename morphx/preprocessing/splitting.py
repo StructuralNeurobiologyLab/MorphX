@@ -19,7 +19,8 @@ from morphx.classes.cloudensemble import CloudEnsemble
 from morphx.processing.objects import context_splitting_kdt
 
 
-def split_single(obj: Union[HybridCloud, CloudEnsemble], ctx: int, base_node_dst: float, radius: int = None):
+def split_single(obj: Union[HybridCloud, CloudEnsemble], ctx: int, base_node_dst: float, radius: int = None,
+                 node_label_ignore_sampling: List[int] = None):
     """
     Splits a single HybridCloud into chunks. Selects base nodes by voxelization.
 
@@ -28,10 +29,14 @@ def split_single(obj: Union[HybridCloud, CloudEnsemble], ctx: int, base_node_dst
         ctx: context size.
         base_node_dst: distance between base nodes. Corresponds to redundancy or the number of chunks per HybridCloud.
         radius: Extraction radius for splitting. See splitting method for more information.
+        node_label_ignore_sampling: Skeleton node with this label will not be used as base node for context
+            generation.
 
     Returns:
         The generated chunks.
     """
+    if node_label_ignore_sampling is not None:
+        raise NotImplementedError
     if type(obj) == CloudEnsemble:
         obj = obj.hc
     pcd = o3d.geometry.PointCloud()
@@ -45,7 +50,7 @@ def split_single(obj: Union[HybridCloud, CloudEnsemble], ctx: int, base_node_dst
 
 def split(data_path: str, filename: str, bio_density: float = None, capacity: int = None, tech_density: int = None,
           density_splitting: bool = True, chunk_size: int = None, splitted_hcs: dict = None, redundancy: int = 1,
-          label_remove: List[int] = None, split_jitter: int = 0):
+          label_remove: List[int] = None, split_jitter: int = 0, node_label_ignore_sampling: List[int] = None):
     """
     Splits HybridClouds given as pickle files at data_path into multiple subgraphs and saves that chunking information
     in the new folder 'splitted' as a pickled dict. The dict has filenames of the HybridClouds as keys and lists of
@@ -71,6 +76,8 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             means, that base nodes get randomly drawn until all nodes have been included in subgraphs at least n times.
         label_remove: List of labels indicating which nodes should get removed.
         split_jitter: Adds jitter to the context size of the generated chunks.
+        node_label_ignore_sampling: Skeleton node with this label will not be used as base node for context
+            generation.
     """
     # check validity of method call
     if density_splitting:
@@ -100,6 +107,9 @@ def split(data_path: str, filename: str, bio_density: float = None, capacity: in
             obj.remove_nodes(labels=label_remove)
         nodes = np.array(obj.graph().nodes)
         base_points = []
+        if node_label_ignore_sampling is not None:
+            for ignore_l in node_label_ignore_sampling:
+                base_points.extend(np.transpose(np.nonzero(obj.node_labels == ignore_l)[0]))
         subgraphs = []
         for i in range(redundancy):
             # prepare mask for filtering subgraph nodes
