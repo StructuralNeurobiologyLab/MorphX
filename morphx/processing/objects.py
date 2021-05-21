@@ -201,8 +201,12 @@ def context_splitting_graph_many(obj: Union[HybridCloud, CloudEnsemble], sources
         The nodes within the requested context for every source node - same ordering as `sources`.
     """
     g = obj.graph()
-    paths = nx.all_pairs_dijkstra_path(g, weight='weight', cutoff=max_dist)
-    return [list(paths[s].keys()) for s in sources]
+    if isinstance(sources, list) and len(sources) == 1:
+        path = nx.single_source_dijkstra_path(g, sources[0], weight='weight', cutoff=max_dist)
+        return [list(path.keys())]
+    else:
+        paths = dict(nx.all_pairs_dijkstra_path(g, weight='weight', cutoff=max_dist))
+        return [list(paths[s].keys()) for s in sources]
 
 
 def bfs_vertices(hc: Union[HybridCloud, CloudEnsemble], source: int, vertex_max: int) -> np.ndarray:
