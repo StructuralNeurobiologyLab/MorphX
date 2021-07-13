@@ -174,6 +174,9 @@ def context_splitting_kdt(obj: Union[HybridCloud, CloudEnsemble], sources: Union
         # create new object for subgraph as nx.subgraph is only a frozen view
         sg = nx.Graph()
         sg.add_edges_from(sg_view.edges)
+        # add self add to prevent KeyError if the only node in the graph is the source node.
+        if len(ixs) == 1:
+            sg.add_edges_from([(ixs[0], ixs[0])])
         if radius is not None:
             kdt = cKDTree(obj.nodes[ixs])
             pairs = kdt.query_pairs(radius)
