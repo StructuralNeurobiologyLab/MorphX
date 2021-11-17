@@ -39,7 +39,7 @@ class HybridCloud(PointCloud):
             nodes = np.zeros((0, 3))
         if nodes.shape[1] != 3:
             raise ValueError("Nodes must have shape (N, 3).")
-        self._nodes = np.array(nodes)  # trigger copy
+        self._nodes = np.array(nodes, dtype=np.float32)  # trigger copy
 
         if edges is None:
             edges = np.zeros((0, 2))
