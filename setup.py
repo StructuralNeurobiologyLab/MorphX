@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='MorphX',
-    version='0.0.1',
+    version='0.1',
     description='Toolkit for exploration and segmentation of 3D morphologies '
                 'in form of point clouds or meshes.',
     url='https://github.com/StructuralNeurobiologyLab/MorphX',
